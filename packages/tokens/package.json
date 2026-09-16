@@ -1,0 +1,30 @@
+{
+  "name": "@morrow/tokens",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "main": "./src/index.ts",
+  "types": "./src/index.ts",
+  "react-native": "./src/index.ts",
+  "exports": {
+    ".": {
+      "types": "./src/index.ts",
+      "default": "./src/index.ts"
+    },
+    "./tokens.css": "./tokens.css",
+    "./package.json": "./package.json"
+  },
+  "files": ["src", "tokens.css"],
+  "sideEffects": ["*.css"],
+  "scripts": {
+    "build": "tsx scripts/build-css.ts",
+    "build:css": "tsx scripts/build-css.ts",
+    "check:css": "tsx scripts/build-css.ts --check",
+    "typecheck": "tsc --noEmit -p tsconfig.json"
+  },
+  "devDependencies": {
+    "@types/node": "^22.20.3",
+    "tsx": "^4.23.13",
+    "typescript": "^7.0.2"
+  }
+}

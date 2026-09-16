@@ -1,0 +1,33 @@
+{
+  "$schema": "https://turborepo.com/schema.json",
+  "ui": "tui",
+  "globalEnv": [
+    "AI_GATEWAY_API_KEY",
+    "DATABASE_URL",
+    "CRON_SECRET",
+    "GOOGLE_CLIENT_ID",
+    "GOOGLE_CLIENT_SECRET",
+    "SPOTIFY_CLIENT_ID",
+    "SPOTIFY_CLIENT_SECRET",
+    "TOKEN_ENCRYPTION_KEY"
+  ],
+  "tasks": {
+    "build": {
+      "dependsOn": ["^build"],
+      "outputs": [".next/**", "!.next/cache/**", "dist/**", "tokens.css"]
+    },
+    "dev": {
+      "cache": false,
+      "persistent": true
+    },
+    "lint": {
+      "dependsOn": ["^lint"]
+    },
+    "typecheck": {
+      "dependsOn": ["^typecheck"]
+    },
+    "test": {
+      "outputs": []
+    }
+  }
+}
