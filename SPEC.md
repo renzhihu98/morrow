@@ -292,6 +292,8 @@ Single entry `@morrow/core` (source TS, no build). zod 4. Schemas and their infe
 - **Screens added:** past readings, sealed reading, asking, answer, mobile menu, prophecies, sources, dossier, forget everything. Coral `danger` color introduced for destructive flow only.
 - **Engineering:** §6 contracts made concrete while scaffolding `packages/tokens` + `packages/core` (field names, `prophecyRef.event`, `MessageRole` = `user | assistant`, em letter-spacing, fixtures 0041–0052 so the record totals 12, extra client methods `connectSource`/`disconnectSource`).
 - **Engineering:** stack chosen (Next.js + Expo monorepo, AI SDK + AI Gateway, Claude Sonnet 5 / Haiku 4.5, Postgres + Drizzle); repo scaffolded at `~/morrow`.
+- **Web scaffold (`apps/web`):** Next.js 16 + Tailwind v4 screens 01–07, 09–12 on the shared tokens; API routes per §7/§10 over a `Repository` (fixtures in memory, or Postgres/Drizzle with `DATABASE_URL`); AI Gateway models `anthropic/claude-sonnet-5` / `anthropic/claude-haiku-4.5` with a scripted demo stream; dawn (hourly) + verify (30 min) crons; deterministic extractors. `/api/chat` also accepts an optional `readingId` (stale → 409).
+- **Mobile scaffold (`apps/mobile`):** Expo SDK 57 + Expo Router (TS strict, scheme `morrow`), screens 01–12 incl. 08 menu modal on the shared tokens/core; TanStack Query over `createApiClient` with automatic fallback to `fixtures.api` (faint `DEMO` label) when the API is unreachable; `useChat` + `DefaultChatTransport` over `expo/fetch` sending the last message + `readingId`, with an on-device scripted stream offline; theme follows the OS with a persisted override.
 
 ## 10. Chat protocol (web ⇄ mobile contract)
 
