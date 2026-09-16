@@ -1,5 +1,6 @@
 import { getReadingDate, type Message, type Prophecy, type User } from '@morrow/core';
 import type { Repository } from '../data';
+import type { DossierAggregates } from '../dossier/aggregates';
 import type { CalendarEventPayload, EmailPayload, RawEvent } from '../sources/types';
 
 export type Outcome =
@@ -50,6 +51,33 @@ export function findEvidence(prophecy: Prophecy, events: RawEvent[]): RawEvent |
   return null;
 }
 
+/**
+ * Calendar events that already left raw_events (24h TTL) but are still in the aggregate index — a meeting
+ * booked last week that happens inside a prophecy window still counts.
+ */
+export function indexedCalendarEvents(userId: string, aggregates: DossierAggregates | null, raw: RawEvent[]): RawEvent[] {
+  const inRaw = new Set(raw.flatMap((e) => (e.payload.type === 'calendar_event' ? [e.payload.eventId] : [])));
+  return Object.entries(aggregates?.calendar?.events ?? {})
+    .filter(([id, e]) => !inRaw.has(id) && !e.a && !e.d)
+    .map(([eventId, e]) => ({
+      id: `idx:${eventId}`,
+      userId,
+      sourceKind: 'calendar' as const,
+      occurredAt: e.s,
+      expiresAt: e.e,
+      payload: {
+        type: 'calendar_event' as const,
+        eventId,
+        title: e.t ?? '',
+        attendees: e.p,
+        start: e.s,
+        end: e.e,
+        status: e.st === 'x' ? ('cancelled' as const) : e.st === 't' ? ('tentative' as const) : ('confirmed' as const),
+        movedFrom: null,
+      },
+    }));
+}
+
 /** Pure verification step: which open prophecies are fulfilled or expired at `now`. */
 export function verifyProphecies(prophecies: Prophecy[], events: RawEvent[], now: Date): Outcome[] {
   const outcomes: Outcome[] = [];
@@ -70,7 +98,9 @@ export function verifyProphecies(prophecies: Prophecy[], events: RawEvent[], now
  * came true; if that reading is already open, Morrow announces it there immediately.
  */
 export async function verifyUser(repo: Repository, user: User, now: Date): Promise<Outcome[]> {
-  const [prophecies, events] = await Promise.all([repo.listProphecies(user.id), repo.listRawEvents(user.id)]);
+  const [prophecies, raw, aggregates] = await Promise.all([repo.listProphecies(user.id), repo.listRawEvents(user.id), repo.getAggregates(user.id)]);
+  if (!prophecies.some((p) => p.status === 'open')) return [];
+  const events = [...raw, ...indexedCalendarEvents(user.id, aggregates, raw)];
   const outcomes = verifyProphecies(prophecies, events, now);
   for (const o of outcomes) {
     if (o.status === 'expired') {

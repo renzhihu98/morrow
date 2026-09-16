@@ -1,33 +1,24 @@
-import {
-  fixtures,
-  type Dossier,
-  type Message,
-  type Prophecy,
-  type Reading,
-  type Source,
-  type User,
-} from '@morrow/core';
-import { neon } from '@neondatabase/serverless';
+import type { Dossier, Message, Prophecy, Reading, Source, User } from '@morrow/core';
 import { and, asc, count, desc, eq, gte, isNotNull, lt, lte, sql } from 'drizzle-orm';
-import { drizzle } from 'drizzle-orm/neon-http';
+import { sourceKindForAccount } from '../auth/grants';
+import { getDb } from '../db/client';
 import * as schema from '../db/schema';
+import { emptyAggregates } from '../dossier/aggregates';
 import { SOURCE_CATALOG, SOURCE_ORDER } from '../sources/catalog';
-import { ReadingExistsError, type Repository } from './repository';
+import { ReadingExistsError, type Repository, type SourceState } from './repository';
 
-const { users, sources, rawEvents, dossiers, readings, messages, prophecies } = schema;
+const { users, accounts, sources, rawEvents, dossiers, readings, messages, prophecies } = schema;
 
 /** Postgres returns `2026-09-30 16:12:00+00`; the API contract wants ISO 8601. */
 const iso = (v: string) => new Date(v).toISOString();
 const isoOrNull = (v: string | null) => (v === null ? null : iso(v));
 
-const DEMO_USER: User = {
-  id: process.env.MORROW_DEMO_USER_ID ?? fixtures.user.id,
-  name: process.env.MORROW_DEMO_USER_NAME ?? fixtures.user.name,
-  timezone: process.env.MORROW_DEMO_USER_TIMEZONE ?? fixtures.user.timezone,
-};
+/** Users without a captured timezone are treated as UTC until the client reports one. */
+export const DEFAULT_TIMEZONE = 'UTC';
 
 type ReadingRow = typeof readings.$inferSelect;
 type ProphecyRow = typeof prophecies.$inferSelect;
+type SourceRow = typeof sources.$inferSelect;
 
 const toReading = (r: ReadingRow): Reading => ({
   id: r.id,
@@ -59,37 +50,46 @@ const toProphecy = (p: ProphecyRow): Prophecy => ({
   resolvedAt: isoOrNull(p.resolvedAt),
 });
 
-export function createDrizzleRepository(databaseUrl: string): Repository {
-  const db = drizzle({ client: neon(databaseUrl), schema });
-  let demoUserReady: Promise<void> | null = null;
+const toSourceState = (r: SourceRow): SourceState => ({
+  kind: r.kind,
+  syncState: r.syncState,
+  lastError: r.lastError,
+  lastSyncedAt: isoOrNull(r.lastSyncedAt),
+  eventCount: r.eventCount,
+  cursor: r.cursor,
+});
 
-  /** Scaffold auth: a single demo user, provisioned (with the fixture dossier) on first use. */
-  function ensureDemoUser(): Promise<void> {
-    demoUserReady ??= (async () => {
-      await db.insert(users).values(DEMO_USER).onConflictDoNothing();
-      await db
-        .insert(sources)
-        .values(SOURCE_ORDER.map((kind) => ({ id: `${DEMO_USER.id}:${kind}`, userId: DEMO_USER.id, kind, status: 'not_linked' as const })))
-        .onConflictDoNothing();
-      const { facts, patterns, sizeBytes, rebuiltAt } = fixtures.dossier;
-      await db.insert(dossiers).values({ userId: DEMO_USER.id, facts, patterns, sizeBytes, rebuiltAt }).onConflictDoNothing();
-    })().catch((e) => {
-      demoUserReady = null;
-      throw e;
-    });
-    return demoUserReady;
-  }
+const toUser = (u: { id: string; name: string; timezone: string | null }): User => ({
+  id: u.id,
+  name: u.name.split(/\s+/)[0] || u.name,
+  timezone: u.timezone ?? DEFAULT_TIMEZONE,
+});
+
+export function createDrizzleRepository(): Repository {
+  const db = getDb();
 
   return {
     kind: 'drizzle',
 
-    async getDemoUser() {
-      await ensureDemoUser();
-      return DEMO_USER;
+    async getUser(userId) {
+      const [row] = await db.select({ id: users.id, name: users.name, timezone: users.timezone }).from(users).where(eq(users.id, userId));
+      return row ? toUser(row) : null;
     },
     async listUsers() {
-      const rows = await db.select({ id: users.id, name: users.name, timezone: users.timezone }).from(users);
-      return rows;
+      const rows = await db
+        .select({ id: users.id, name: users.name, timezone: users.timezone })
+        .from(users)
+        .where(isNotNull(users.onboardedAt));
+      return rows.map(toUser);
+    },
+    async setUserTimezone(userId, timezone) {
+      await db.update(users).set({ timezone, updatedAt: new Date() }).where(eq(users.id, userId));
+    },
+    async markOnboarded(userId, at) {
+      await db
+        .update(users)
+        .set({ onboardedAt: sql`coalesce(${users.onboardedAt}, ${at}::timestamptz)`, updatedAt: new Date() })
+        .where(eq(users.id, userId));
     },
 
     async getReadingByDate(userId, localDate) {
@@ -180,7 +180,7 @@ export function createDrizzleRepository(databaseUrl: string): Repository {
       );
     },
     async appendMessage(userId, message) {
-      await db.insert(messages).values({ ...message, userId });
+      await db.insert(messages).values({ ...message, userId }).onConflictDoNothing();
     },
 
     async listProphecies(userId) {
@@ -205,55 +205,103 @@ export function createDrizzleRepository(databaseUrl: string): Repository {
     },
 
     async listSources(userId) {
-      const [rows, open] = await Promise.all([
+      const [grants, rows, open] = await Promise.all([
+        db
+          .select({ userId: accounts.userId, providerId: accounts.providerId, scope: accounts.scope, accessToken: accounts.accessToken, refreshToken: accounts.refreshToken })
+          .from(accounts)
+          .where(eq(accounts.userId, userId)),
         db.select().from(sources).where(eq(sources.userId, userId)),
         db
           .select({ watching: prophecies.watching })
           .from(prophecies)
           .where(and(eq(prophecies.userId, userId), eq(prophecies.status, 'open'))),
       ]);
+      const granted = new Set(
+        grants.filter((g) => g.accessToken || g.refreshToken).map((g) => sourceKindForAccount(g)),
+      );
       return SOURCE_ORDER.map((kind): Source => {
         const row = rows.find((r) => r.kind === kind);
+        const linked = granted.has(kind);
+        const needsReauth = linked && row?.syncState === 'needs_reauth';
         return {
           ...SOURCE_CATALOG[kind],
-          status: row?.status ?? 'not_linked',
-          stat: row?.stats ?? null,
+          status: !linked ? 'not_linked' : needsReauth || row?.syncState === 'error' ? 'error' : 'linked',
+          stat: linked && row && row.eventCount > 0 ? { value: row.eventCount, label: kind === 'spotify' ? 'plays' : 'events' } : null,
           watchingCount: open.filter((p) => p.watching.includes(kind)).length,
-          lastSyncedAt: isoOrNull(row?.lastSyncedAt ?? null),
+          lastSyncedAt: linked ? isoOrNull(row?.lastSyncedAt ?? null) : null,
+          ...(linked ? { syncState: row?.syncState ?? 'pending', eventCount: row?.eventCount ?? 0 } : {}),
         };
       });
     },
-    async setSourceStatus(userId, kind, status) {
-      const clear = status === 'linked' ? {} : { accessTokenEnc: null, refreshTokenEnc: null, stats: null, lastSyncedAt: null };
+    async getSourceState(userId, kind) {
+      const [row] = await db.select().from(sources).where(and(eq(sources.userId, userId), eq(sources.kind, kind)));
+      return row ? toSourceState(row) : null;
+    },
+    async updateSourceState(userId, kind, patch) {
+      const values = {
+        ...(patch.syncState !== undefined ? { syncState: patch.syncState } : {}),
+        ...(patch.lastError !== undefined ? { lastError: patch.lastError } : {}),
+        ...(patch.lastSyncedAt !== undefined ? { lastSyncedAt: patch.lastSyncedAt } : {}),
+        ...(patch.eventCount !== undefined ? { eventCount: patch.eventCount } : {}),
+        ...(patch.cursor !== undefined ? { cursor: patch.cursor } : {}),
+      };
       await db
         .insert(sources)
-        .values({ id: `${userId}:${kind}`, userId, kind, status })
-        .onConflictDoUpdate({ target: [sources.userId, sources.kind], set: { status, ...clear } });
+        .values({ id: `${userId}:${kind}`, userId, kind, connectedAt: new Date().toISOString(), ...values })
+        .onConflictDoUpdate({ target: [sources.userId, sources.kind], set: values });
+    },
+    async clearSourceState(userId, kind) {
+      await db.delete(sources).where(and(eq(sources.userId, userId), eq(sources.kind, kind)));
+    },
+    async setDemoSourceLinked() {
+      throw new Error('Sources are linked through OAuth when a database is configured.');
     },
 
     async getDossier(userId) {
-      const [row] = await db.select().from(dossiers).where(eq(dossiers.userId, userId));
+      const [row] = await db
+        .select({ userId: dossiers.userId, facts: dossiers.facts, patterns: dossiers.patterns, sizeBytes: dossiers.sizeBytes, rebuiltAt: dossiers.rebuiltAt })
+        .from(dossiers)
+        .where(eq(dossiers.userId, userId));
       if (!row) return null;
       return { ...row, rebuiltAt: iso(row.rebuiltAt) } satisfies Dossier;
     },
-    async saveDossier(dossier) {
+    async getAggregates(userId) {
+      const [row] = await db.select({ aggregates: dossiers.aggregates }).from(dossiers).where(eq(dossiers.userId, userId));
+      return row?.aggregates ?? null;
+    },
+    async saveDossier(dossier, aggregates) {
       const { userId, ...rest } = dossier;
-      await db.insert(dossiers).values(dossier).onConflictDoUpdate({ target: dossiers.userId, set: rest });
+      const set = aggregates ? { ...rest, aggregates } : rest;
+      await db
+        .insert(dossiers)
+        .values({ ...dossier, aggregates: aggregates ?? null })
+        .onConflictDoUpdate({ target: dossiers.userId, set });
     },
     async forgetFact(userId, factId) {
-      const dossier = await this.getDossier(userId);
-      if (!dossier) return false;
-      const facts = dossier.facts.filter((f) => f.id !== factId);
-      const patterns = dossier.patterns.filter((p) => p.id !== factId);
-      if (facts.length === dossier.facts.length && patterns.length === dossier.patterns.length) return false;
+      const [row] = await db.select().from(dossiers).where(eq(dossiers.userId, userId));
+      if (!row) return false;
+      const facts = row.facts.filter((f) => f.id !== factId);
+      const patterns = row.patterns.filter((p) => p.id !== factId);
+      if (facts.length === row.facts.length && patterns.length === row.patterns.length) return false;
       const sizeBytes = new TextEncoder().encode(JSON.stringify({ facts, patterns })).length;
-      await db.update(dossiers).set({ facts, patterns, sizeBytes }).where(eq(dossiers.userId, userId));
+      const agg = row.aggregates ?? emptyAggregates();
+      const aggregates = { ...agg, forgotten: [...new Set([...agg.forgotten, factId])] };
+      await db.update(dossiers).set({ facts, patterns, sizeBytes, aggregates }).where(eq(dossiers.userId, userId));
       return true;
     },
 
     async addRawEvents(events) {
-      if (events.length === 0) return;
-      await db.insert(rawEvents).values(events).onConflictDoNothing();
+      // neon-http caps request size; insert in chunks.
+      for (let i = 0; i < events.length; i += 200) {
+        await db
+          .insert(rawEvents)
+          .values(events.slice(i, i + 200))
+          .onConflictDoUpdate({
+            target: rawEvents.id,
+            // expires_at is kept from the first insert: raw data never lives longer than the TTL.
+            set: { payload: sql`excluded.payload`, occurredAt: sql`excluded.occurred_at` },
+          });
+      }
     },
     async listRawEvents(userId, since) {
       const rows = await db
@@ -262,6 +310,13 @@ export function createDrizzleRepository(databaseUrl: string): Repository {
         .where(since ? and(eq(rawEvents.userId, userId), gte(rawEvents.occurredAt, since)) : eq(rawEvents.userId, userId))
         .orderBy(asc(rawEvents.occurredAt));
       return rows.map((e) => ({ ...e, occurredAt: iso(e.occurredAt), expiresAt: iso(e.expiresAt) }));
+    },
+    async deleteRawEvents(userId, kind) {
+      const deleted = await db
+        .delete(rawEvents)
+        .where(and(eq(rawEvents.userId, userId), eq(rawEvents.sourceKind, kind)))
+        .returning({ id: rawEvents.id });
+      return deleted.length;
     },
     async purgeExpiredRawEvents(now) {
       const deleted = await db
@@ -279,10 +334,9 @@ export function createDrizzleRepository(databaseUrl: string): Repository {
         db.delete(readings).where(eq(readings.userId, userId)),
         db.delete(dossiers).where(eq(dossiers.userId, userId)),
         db.delete(rawEvents).where(eq(rawEvents.userId, userId)),
-        db
-          .update(sources)
-          .set({ status: 'not_linked', accessTokenEnc: null, refreshTokenEnc: null, stats: null, lastSyncedAt: null })
-          .where(eq(sources.userId, userId)),
+        db.delete(sources).where(eq(sources.userId, userId)),
+        // Starting from nothing includes onboarding.
+        db.update(users).set({ onboardedAt: null, updatedAt: new Date() }).where(eq(users.id, userId)),
       ]);
     },
   };

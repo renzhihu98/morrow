@@ -1,0 +1,739 @@
+{
+  "kind": "calendar#events",
+  "etag": "\"p33c1n2g\"",
+  "summary": "iris@example.com",
+  "updated": "2026-09-01T18:55:02.113Z",
+  "timeZone": "America/Los_Angeles",
+  "accessRole": "owner",
+  "items": [
+    {
+      "kind": "calendar#event",
+      "id": "2standup_20260728T173000Z",
+      "status": "confirmed",
+      "created": "2026-05-20T17:02:11.000Z",
+      "updated": "2026-08-30T20:15:43.120Z",
+      "organizer": {
+        "email": "dev@example.com"
+      },
+      "summary": "Standup",
+      "recurringEventId": "2standup",
+      "originalStartTime": {
+        "dateTime": "2026-07-28T10:30:00-07:00",
+        "timeZone": "America/Los_Angeles"
+      },
+      "start": {
+        "dateTime": "2026-07-28T10:30:00-07:00",
+        "timeZone": "America/Los_Angeles"
+      },
+      "end": {
+        "dateTime": "2026-07-28T10:45:00-07:00",
+        "timeZone": "America/Los_Angeles"
+      },
+      "attendees": [
+        {
+          "email": "iris@example.com",
+          "self": true,
+          "responseStatus": "accepted"
+        },
+        {
+          "email": "dev@example.com",
+          "responseStatus": "needsAction"
+        },
+        {
+          "email": "c_1889ab@resource.calendar.google.com",
+          "displayName": "Room 4",
+          "resource": true,
+          "responseStatus": "accepted"
+        }
+      ]
+    },
+    {
+      "kind": "calendar#event",
+      "id": "9studio_20260730T150000Z",
+      "status": "confirmed",
+      "created": "2026-05-20T17:02:11.000Z",
+      "updated": "2026-08-30T20:15:43.120Z",
+      "organizer": {
+        "email": "iris@example.com",
+        "self": true
+      },
+      "summary": "Studio hours",
+      "recurringEventId": "9studio",
+      "originalStartTime": {
+        "dateTime": "2026-07-30T08:00:00-07:00",
+        "timeZone": "America/Los_Angeles"
+      },
+      "start": {
+        "dateTime": "2026-07-30T08:00:00-07:00",
+        "timeZone": "America/Los_Angeles"
+      },
+      "end": {
+        "dateTime": "2026-07-30T10:00:00-07:00",
+        "timeZone": "America/Los_Angeles"
+      }
+    },
+    {
+      "kind": "calendar#event",
+      "id": "4f0coffee_20260803T160000Z",
+      "status": "confirmed",
+      "created": "2026-05-20T17:02:11.000Z",
+      "updated": "2026-08-30T20:15:43.120Z",
+      "organizer": {
+        "email": "iris@example.com",
+        "self": true
+      },
+      "summary": "Coffee — Sam",
+      "recurringEventId": "4f0coffee",
+      "originalStartTime": {
+        "dateTime": "2026-08-03T09:00:00-07:00",
+        "timeZone": "America/Los_Angeles"
+      },
+      "start": {
+        "dateTime": "2026-08-03T09:00:00-07:00",
+        "timeZone": "America/Los_Angeles"
+      },
+      "end": {
+        "dateTime": "2026-08-03T09:45:00-07:00",
+        "timeZone": "America/Los_Angeles"
+      },
+      "attendees": [
+        {
+          "email": "iris@example.com",
+          "self": true,
+          "responseStatus": "accepted"
+        },
+        {
+          "email": "sam.okafor@studio.co",
+          "displayName": "Sam Okafor",
+          "responseStatus": "accepted"
+        }
+      ]
+    },
+    {
+      "kind": "calendar#event",
+      "id": "2standup_20260804T173000Z",
+      "status": "confirmed",
+      "created": "2026-05-20T17:02:11.000Z",
+      "updated": "2026-08-30T20:15:43.120Z",
+      "organizer": {
+        "email": "dev@example.com"
+      },
+      "summary": "Standup",
+      "recurringEventId": "2standup",
+      "originalStartTime": {
+        "dateTime": "2026-08-04T10:30:00-07:00",
+        "timeZone": "America/Los_Angeles"
+      },
+      "start": {
+        "dateTime": "2026-08-04T10:30:00-07:00",
+        "timeZone": "America/Los_Angeles"
+      },
+      "end": {
+        "dateTime": "2026-08-04T10:45:00-07:00",
+        "timeZone": "America/Los_Angeles"
+      },
+      "attendees": [
+        {
+          "email": "iris@example.com",
+          "self": true,
+          "responseStatus": "accepted"
+        },
+        {
+          "email": "dev@example.com",
+          "responseStatus": "needsAction"
+        },
+        {
+          "email": "c_1889ab@resource.calendar.google.com",
+          "displayName": "Room 4",
+          "resource": true,
+          "responseStatus": "accepted"
+        }
+      ]
+    },
+    {
+      "kind": "calendar#event",
+      "id": "9studio_20260806T150000Z",
+      "status": "confirmed",
+      "created": "2026-05-20T17:02:11.000Z",
+      "updated": "2026-08-30T20:15:43.120Z",
+      "organizer": {
+        "email": "iris@example.com",
+        "self": true
+      },
+      "summary": "Studio hours",
+      "recurringEventId": "9studio",
+      "originalStartTime": {
+        "dateTime": "2026-08-06T08:00:00-07:00",
+        "timeZone": "America/Los_Angeles"
+      },
+      "start": {
+        "dateTime": "2026-08-06T08:00:00-07:00",
+        "timeZone": "America/Los_Angeles"
+      },
+      "end": {
+        "dateTime": "2026-08-06T10:00:00-07:00",
+        "timeZone": "America/Los_Angeles"
+      }
+    },
+    {
+      "kind": "calendar#event",
+      "id": "mom20260809",
+      "status": "confirmed",
+      "created": "2026-05-20T17:02:11.000Z",
+      "updated": "2026-08-30T20:15:43.120Z",
+      "organizer": {
+        "email": "iris@example.com",
+        "self": true
+      },
+      "summary": "Call Mom",
+      "start": {
+        "dateTime": "2026-08-09T17:00:00-07:00",
+        "timeZone": "America/Los_Angeles"
+      },
+      "end": {
+        "dateTime": "2026-08-09T17:30:00-07:00",
+        "timeZone": "America/Los_Angeles"
+      },
+      "attendees": [
+        {
+          "email": "iris@example.com",
+          "self": true,
+          "responseStatus": "accepted"
+        },
+        {
+          "email": "ruth.hale@example.net",
+          "displayName": "Mom",
+          "responseStatus": "accepted"
+        }
+      ]
+    },
+    {
+      "kind": "calendar#event",
+      "id": "2standup_20260811T173000Z",
+      "status": "confirmed",
+      "created": "2026-05-20T17:02:11.000Z",
+      "updated": "2026-08-30T20:15:43.120Z",
+      "organizer": {
+        "email": "dev@example.com"
+      },
+      "summary": "Standup",
+      "recurringEventId": "2standup",
+      "originalStartTime": {
+        "dateTime": "2026-08-11T10:30:00-07:00",
+        "timeZone": "America/Los_Angeles"
+      },
+      "start": {
+        "dateTime": "2026-08-11T10:30:00-07:00",
+        "timeZone": "America/Los_Angeles"
+      },
+      "end": {
+        "dateTime": "2026-08-11T10:45:00-07:00",
+        "timeZone": "America/Los_Angeles"
+      },
+      "attendees": [
+        {
+          "email": "iris@example.com",
+          "self": true,
+          "responseStatus": "accepted"
+        },
+        {
+          "email": "dev@example.com",
+          "responseStatus": "needsAction"
+        },
+        {
+          "email": "c_1889ab@resource.calendar.google.com",
+          "displayName": "Room 4",
+          "resource": true,
+          "responseStatus": "accepted"
+        }
+      ]
+    },
+    {
+      "kind": "calendar#event",
+      "id": "9studio_20260813T150000Z",
+      "status": "confirmed",
+      "created": "2026-05-20T17:02:11.000Z",
+      "updated": "2026-08-30T20:15:43.120Z",
+      "organizer": {
+        "email": "iris@example.com",
+        "self": true
+      },
+      "summary": "Studio hours",
+      "recurringEventId": "9studio",
+      "originalStartTime": {
+        "dateTime": "2026-08-13T08:00:00-07:00",
+        "timeZone": "America/Los_Angeles"
+      },
+      "start": {
+        "dateTime": "2026-08-13T08:00:00-07:00",
+        "timeZone": "America/Los_Angeles"
+      },
+      "end": {
+        "dateTime": "2026-08-13T10:00:00-07:00",
+        "timeZone": "America/Los_Angeles"
+      }
+    },
+    {
+      "kind": "calendar#event",
+      "id": "4f0coffee_20260810T160000Z",
+      "status": "confirmed",
+      "created": "2026-05-20T17:02:11.000Z",
+      "updated": "2026-08-30T20:15:43.120Z",
+      "organizer": {
+        "email": "iris@example.com",
+        "self": true
+      },
+      "summary": "Coffee — Sam",
+      "recurringEventId": "4f0coffee",
+      "originalStartTime": {
+        "dateTime": "2026-08-10T09:00:00-07:00",
+        "timeZone": "America/Los_Angeles"
+      },
+      "start": {
+        "dateTime": "2026-08-13T09:00:00-07:00",
+        "timeZone": "America/Los_Angeles"
+      },
+      "end": {
+        "dateTime": "2026-08-13T09:45:00-07:00",
+        "timeZone": "America/Los_Angeles"
+      },
+      "attendees": [
+        {
+          "email": "iris@example.com",
+          "self": true,
+          "responseStatus": "accepted"
+        },
+        {
+          "email": "sam.okafor@studio.co",
+          "displayName": "Sam Okafor",
+          "responseStatus": "accepted"
+        }
+      ]
+    },
+    {
+      "kind": "calendar#event",
+      "id": "allday0815",
+      "status": "confirmed",
+      "created": "2026-05-20T17:02:11.000Z",
+      "updated": "2026-08-30T20:15:43.120Z",
+      "organizer": {
+        "email": "iris@example.com",
+        "self": true
+      },
+      "summary": "Lake weekend",
+      "start": {
+        "date": "2026-08-15"
+      },
+      "end": {
+        "date": "2026-08-17"
+      }
+    },
+    {
+      "kind": "calendar#event",
+      "id": "4f0coffee_20260817T160000Z",
+      "status": "confirmed",
+      "created": "2026-05-20T17:02:11.000Z",
+      "updated": "2026-08-30T20:15:43.120Z",
+      "organizer": {
+        "email": "iris@example.com",
+        "self": true
+      },
+      "summary": "Coffee — Sam",
+      "recurringEventId": "4f0coffee",
+      "originalStartTime": {
+        "dateTime": "2026-08-17T09:00:00-07:00",
+        "timeZone": "America/Los_Angeles"
+      },
+      "start": {
+        "dateTime": "2026-08-17T09:00:00-07:00",
+        "timeZone": "America/Los_Angeles"
+      },
+      "end": {
+        "dateTime": "2026-08-17T09:45:00-07:00",
+        "timeZone": "America/Los_Angeles"
+      },
+      "attendees": [
+        {
+          "email": "iris@example.com",
+          "self": true,
+          "responseStatus": "accepted"
+        },
+        {
+          "email": "sam.okafor@studio.co",
+          "displayName": "Sam Okafor",
+          "responseStatus": "accepted"
+        }
+      ]
+    },
+    {
+      "kind": "calendar#event",
+      "id": "2standup_20260818T173000Z",
+      "status": "cancelled",
+      "recurringEventId": "2standup",
+      "originalStartTime": {
+        "dateTime": "2026-08-18T10:30:00-07:00",
+        "timeZone": "America/Los_Angeles"
+      }
+    },
+    {
+      "kind": "calendar#event",
+      "id": "declined0819",
+      "status": "confirmed",
+      "created": "2026-05-20T17:02:11.000Z",
+      "updated": "2026-08-30T20:15:43.120Z",
+      "organizer": {
+        "email": "events@studio.co",
+        "displayName": "Studio events"
+      },
+      "summary": "Launch party",
+      "start": {
+        "dateTime": "2026-08-19T19:00:00-07:00"
+      },
+      "end": {
+        "dateTime": "2026-08-19T22:00:00-07:00"
+      },
+      "attendees": [
+        {
+          "email": "iris@example.com",
+          "self": true,
+          "responseStatus": "declined"
+        },
+        {
+          "email": "sam.okafor@studio.co",
+          "displayName": "Sam Okafor",
+          "responseStatus": "accepted"
+        }
+      ]
+    },
+    {
+      "kind": "calendar#event",
+      "id": "9studio_20260820T150000Z",
+      "status": "confirmed",
+      "created": "2026-05-20T17:02:11.000Z",
+      "updated": "2026-08-30T20:15:43.120Z",
+      "organizer": {
+        "email": "iris@example.com",
+        "self": true
+      },
+      "summary": "Studio hours",
+      "recurringEventId": "9studio",
+      "originalStartTime": {
+        "dateTime": "2026-08-20T08:00:00-07:00",
+        "timeZone": "America/Los_Angeles"
+      },
+      "start": {
+        "dateTime": "2026-08-20T08:00:00-07:00",
+        "timeZone": "America/Los_Angeles"
+      },
+      "end": {
+        "dateTime": "2026-08-20T10:00:00-07:00",
+        "timeZone": "America/Los_Angeles"
+      }
+    },
+    {
+      "kind": "calendar#event",
+      "id": "mom20260823",
+      "status": "confirmed",
+      "created": "2026-05-20T17:02:11.000Z",
+      "updated": "2026-08-30T20:15:43.120Z",
+      "organizer": {
+        "email": "iris@example.com",
+        "self": true
+      },
+      "summary": "Call Mom",
+      "start": {
+        "dateTime": "2026-08-23T17:00:00-07:00",
+        "timeZone": "America/Los_Angeles"
+      },
+      "end": {
+        "dateTime": "2026-08-23T17:30:00-07:00",
+        "timeZone": "America/Los_Angeles"
+      },
+      "attendees": [
+        {
+          "email": "iris@example.com",
+          "self": true,
+          "responseStatus": "accepted"
+        },
+        {
+          "email": "ruth.hale@example.net",
+          "displayName": "Mom",
+          "responseStatus": "accepted"
+        }
+      ]
+    },
+    {
+      "kind": "calendar#event",
+      "id": "2standup_20260825T173000Z",
+      "status": "confirmed",
+      "created": "2026-05-20T17:02:11.000Z",
+      "updated": "2026-08-30T20:15:43.120Z",
+      "organizer": {
+        "email": "dev@example.com"
+      },
+      "summary": "Standup",
+      "recurringEventId": "2standup",
+      "originalStartTime": {
+        "dateTime": "2026-08-25T10:30:00-07:00",
+        "timeZone": "America/Los_Angeles"
+      },
+      "start": {
+        "dateTime": "2026-08-25T10:30:00-07:00",
+        "timeZone": "America/Los_Angeles"
+      },
+      "end": {
+        "dateTime": "2026-08-25T10:45:00-07:00",
+        "timeZone": "America/Los_Angeles"
+      },
+      "attendees": [
+        {
+          "email": "iris@example.com",
+          "self": true,
+          "responseStatus": "accepted"
+        },
+        {
+          "email": "dev@example.com",
+          "responseStatus": "needsAction"
+        },
+        {
+          "email": "c_1889ab@resource.calendar.google.com",
+          "displayName": "Room 4",
+          "resource": true,
+          "responseStatus": "accepted"
+        }
+      ]
+    },
+    {
+      "kind": "calendar#event",
+      "id": "9studio_20260827T150000Z",
+      "status": "confirmed",
+      "created": "2026-05-20T17:02:11.000Z",
+      "updated": "2026-08-30T20:15:43.120Z",
+      "organizer": {
+        "email": "iris@example.com",
+        "self": true
+      },
+      "summary": "Studio hours",
+      "recurringEventId": "9studio",
+      "originalStartTime": {
+        "dateTime": "2026-08-27T08:00:00-07:00",
+        "timeZone": "America/Los_Angeles"
+      },
+      "start": {
+        "dateTime": "2026-08-27T08:00:00-07:00",
+        "timeZone": "America/Los_Angeles"
+      },
+      "end": {
+        "dateTime": "2026-08-27T10:00:00-07:00",
+        "timeZone": "America/Los_Angeles"
+      }
+    },
+    {
+      "kind": "calendar#event",
+      "id": "4f0coffee_20260824T160000Z",
+      "status": "confirmed",
+      "created": "2026-05-20T17:02:11.000Z",
+      "updated": "2026-08-30T20:15:43.120Z",
+      "organizer": {
+        "email": "iris@example.com",
+        "self": true
+      },
+      "summary": "Coffee — Sam",
+      "recurringEventId": "4f0coffee",
+      "originalStartTime": {
+        "dateTime": "2026-08-24T09:00:00-07:00",
+        "timeZone": "America/Los_Angeles"
+      },
+      "start": {
+        "dateTime": "2026-08-27T09:00:00-07:00",
+        "timeZone": "America/Los_Angeles"
+      },
+      "end": {
+        "dateTime": "2026-08-27T09:45:00-07:00",
+        "timeZone": "America/Los_Angeles"
+      },
+      "attendees": [
+        {
+          "email": "iris@example.com",
+          "self": true,
+          "responseStatus": "accepted"
+        },
+        {
+          "email": "sam.okafor@studio.co",
+          "displayName": "Sam Okafor",
+          "responseStatus": "accepted"
+        }
+      ]
+    },
+    {
+      "kind": "calendar#event",
+      "id": "4f0coffee_20260831T160000Z",
+      "status": "confirmed",
+      "created": "2026-05-20T17:02:11.000Z",
+      "updated": "2026-08-30T20:15:43.120Z",
+      "organizer": {
+        "email": "iris@example.com",
+        "self": true
+      },
+      "summary": "Coffee — Sam",
+      "recurringEventId": "4f0coffee",
+      "originalStartTime": {
+        "dateTime": "2026-08-31T09:00:00-07:00",
+        "timeZone": "America/Los_Angeles"
+      },
+      "start": {
+        "dateTime": "2026-08-31T09:00:00-07:00",
+        "timeZone": "America/Los_Angeles"
+      },
+      "end": {
+        "dateTime": "2026-08-31T09:45:00-07:00",
+        "timeZone": "America/Los_Angeles"
+      },
+      "attendees": [
+        {
+          "email": "iris@example.com",
+          "self": true,
+          "responseStatus": "accepted"
+        },
+        {
+          "email": "sam.okafor@studio.co",
+          "displayName": "Sam Okafor",
+          "responseStatus": "accepted"
+        }
+      ]
+    },
+    {
+      "kind": "calendar#event",
+      "id": "2standup_20260901T173000Z",
+      "status": "confirmed",
+      "created": "2026-05-20T17:02:11.000Z",
+      "updated": "2026-08-30T20:15:43.120Z",
+      "organizer": {
+        "email": "dev@example.com"
+      },
+      "summary": "Standup",
+      "recurringEventId": "2standup",
+      "originalStartTime": {
+        "dateTime": "2026-09-01T10:30:00-07:00",
+        "timeZone": "America/Los_Angeles"
+      },
+      "start": {
+        "dateTime": "2026-09-01T10:30:00-07:00",
+        "timeZone": "America/Los_Angeles"
+      },
+      "end": {
+        "dateTime": "2026-09-01T10:45:00-07:00",
+        "timeZone": "America/Los_Angeles"
+      },
+      "attendees": [
+        {
+          "email": "iris@example.com",
+          "self": true,
+          "responseStatus": "accepted"
+        },
+        {
+          "email": "dev@example.com",
+          "responseStatus": "needsAction"
+        },
+        {
+          "email": "c_1889ab@resource.calendar.google.com",
+          "displayName": "Room 4",
+          "resource": true,
+          "responseStatus": "accepted"
+        }
+      ]
+    },
+    {
+      "kind": "calendar#event",
+      "id": "9studio_20260903T150000Z",
+      "status": "confirmed",
+      "created": "2026-05-20T17:02:11.000Z",
+      "updated": "2026-08-30T20:15:43.120Z",
+      "organizer": {
+        "email": "iris@example.com",
+        "self": true
+      },
+      "summary": "Studio hours",
+      "recurringEventId": "9studio",
+      "originalStartTime": {
+        "dateTime": "2026-09-03T08:00:00-07:00",
+        "timeZone": "America/Los_Angeles"
+      },
+      "start": {
+        "dateTime": "2026-09-03T08:00:00-07:00",
+        "timeZone": "America/Los_Angeles"
+      },
+      "end": {
+        "dateTime": "2026-09-03T10:00:00-07:00",
+        "timeZone": "America/Los_Angeles"
+      }
+    },
+    {
+      "kind": "calendar#event",
+      "id": "4f0coffee_20260907T160000Z",
+      "status": "confirmed",
+      "created": "2026-05-20T17:02:11.000Z",
+      "updated": "2026-08-30T20:15:43.120Z",
+      "organizer": {
+        "email": "iris@example.com",
+        "self": true
+      },
+      "summary": "Coffee — Sam",
+      "recurringEventId": "4f0coffee",
+      "originalStartTime": {
+        "dateTime": "2026-09-07T09:00:00-07:00",
+        "timeZone": "America/Los_Angeles"
+      },
+      "start": {
+        "dateTime": "2026-09-07T09:00:00-07:00",
+        "timeZone": "America/Los_Angeles"
+      },
+      "end": {
+        "dateTime": "2026-09-07T09:45:00-07:00",
+        "timeZone": "America/Los_Angeles"
+      },
+      "attendees": [
+        {
+          "email": "iris@example.com",
+          "self": true,
+          "responseStatus": "accepted"
+        },
+        {
+          "email": "sam.okafor@studio.co",
+          "displayName": "Sam Okafor",
+          "responseStatus": "accepted"
+        }
+      ]
+    },
+    {
+      "kind": "calendar#event",
+      "id": "future0915",
+      "status": "confirmed",
+      "created": "2026-05-20T17:02:11.000Z",
+      "updated": "2026-08-30T20:15:43.120Z",
+      "organizer": {
+        "email": "iris@example.com",
+        "self": true
+      },
+      "summary": "Dinner with Sam",
+      "start": {
+        "dateTime": "2026-09-15T19:30:00-07:00"
+      },
+      "end": {
+        "dateTime": "2026-09-15T21:00:00-07:00"
+      },
+      "attendees": [
+        {
+          "email": "iris@example.com",
+          "self": true,
+          "responseStatus": "accepted"
+        },
+        {
+          "email": "sam.okafor@studio.co",
+          "displayName": "Sam Okafor",
+          "responseStatus": "accepted"
+        }
+      ]
+    }
+  ]
+}

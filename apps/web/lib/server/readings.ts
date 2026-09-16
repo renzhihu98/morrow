@@ -127,8 +127,7 @@ export async function ensureTodayReading(repo: Repository, user: User, now: Date
   return openReading(repo, user, localDate, now);
 }
 
-export async function getTodayView(repo: Repository, now: Date): Promise<TodayResponse> {
-  const user = await repo.getDemoUser();
+export async function getTodayView(repo: Repository, user: User, now: Date): Promise<TodayResponse> {
   const reading = await ensureTodayReading(repo, user, now);
   const [messages, all] = await Promise.all([repo.listMessages(user.id, reading.id), repo.listProphecies(user.id)]);
   return {
@@ -142,18 +141,17 @@ export async function getTodayView(repo: Repository, now: Date): Promise<TodayRe
   };
 }
 
-export async function getReadingsView(repo: Repository, now: Date): Promise<ReadingsResponse> {
-  const user = await repo.getDemoUser();
+export async function getReadingsView(repo: Repository, user: User, now: Date): Promise<ReadingsResponse> {
   await ensureTodayReading(repo, user, now);
   return repo.listReadings(user.id);
 }
 
 export async function getReadingDetailView(
   repo: Repository,
+  user: User,
   now: Date,
   localDate: string,
 ): Promise<ReadingDetailResponse | null> {
-  const user = await repo.getDemoUser();
   await sealStaleReadings(repo, user, now);
   const reading = await repo.getReadingByDate(user.id, localDate);
   if (!reading) return null;
@@ -161,8 +159,7 @@ export async function getReadingDetailView(
   return { reading, messages, prophecies: referencedProphecies(messages, all) };
 }
 
-export async function getProphecyListView(repo: Repository): Promise<ProphecyListResponse> {
-  const user = await repo.getDemoUser();
+export async function getProphecyListView(repo: Repository, user: User): Promise<ProphecyListResponse> {
   const all = await repo.listProphecies(user.id);
   const newestFirst = (a: Prophecy, b: Prophecy) => b.number - a.number;
   return {
@@ -172,8 +169,7 @@ export async function getProphecyListView(repo: Repository): Promise<ProphecyLis
   };
 }
 
-export async function getSourcesView(repo: Repository): Promise<SourcesResponse> {
-  const user = await repo.getDemoUser();
+export async function getSourcesView(repo: Repository, user: User): Promise<SourcesResponse> {
   const [sources, dossier] = await Promise.all([repo.listSources(user.id), repo.getDossier(user.id)]);
   return {
     sources,

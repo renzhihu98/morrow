@@ -1,0 +1,187 @@
+/**
+ * Incremental dossier aggregates (SPEC §12.4). Raw events live 24 hours; these compact folds of them are
+ * stored with the dossier so reschedule counts, contact cadence, first-activity trends, late-night
+ * listening and protected recurring slots survive the purge. Pure functions, no I/O, no LLM.
+ */
+import { getLocalParts, getReadingDate } from '@morrow/core';
+import type { CalendarEventPayload, PlayPayload, TopItemsPayload } from '../sources/types';
+
+const DAY_MS = 86_400_000;
+/** Calendar events older than this (by end) are dropped from the index. */
+export const CALENDAR_RETENTION_DAYS = 180;
+/** Per-day listening buckets are kept this long. */
+export const LISTENING_RETENTION_DAYS = 120;
+const MAX_MOVES = 300;
+const MAX_ARTISTS = 60;
+
+/** Compact per-event state (short keys: this is persisted per user). */
+export type CalendarEventState = {
+  /** start / end ISO */
+  s: string;
+  e: string;
+  /** status: c confirmed · t tentative · x cancelled */
+  st: 'c' | 't' | 'x';
+  /** contact keys of other attendees */
+  p: string[];
+  /** title, truncated (verification of `titleIncludes`; never put into facts or prompts) */
+  t?: string;
+  /** declined by the user */
+  d?: true;
+  /** all-day */
+  a?: true;
+  /** recurring series id */
+  r?: string;
+  /** original slot of a recurring instance */
+  o?: string;
+};
+
+export type CalendarMove = { eventId: string; from: string; to: string; contacts: string[]; seriesId: string | null };
+
+export type CalendarAggregates = {
+  events: Record<string, CalendarEventState>;
+  moves: CalendarMove[];
+  /** contact key → display name (first seen) */
+  names: Record<string, string>;
+};
+
+export type ListeningDay = {
+  plays: number;
+  /** plays between 23:00 and 04:00 local (belonging to this reading day) */
+  late: number;
+  /** earliest play after 04:00, minutes since local midnight */
+  firstMin: number | null;
+};
+
+export type SpotifyAggregates = {
+  /** `played_at` (ms) of the newest play already folded in — also the API `after` cursor. */
+  cursorMs: number;
+  plays: number;
+  /** reading date (04:00 boundary) → listening day */
+  days: Record<string, ListeningDay>;
+  artists: Record<string, number>;
+  top: { artists: string[]; tracks: string[]; at: string } | null;
+};
+
+export type DossierAggregates = {
+  version: 1;
+  /** Fact / pattern ids the person asked Morrow to forget — never rebuilt. */
+  forgotten: string[];
+  calendar: CalendarAggregates | null;
+  spotify: SpotifyAggregates | null;
+};
+
+export const emptyAggregates = (): DossierAggregates => ({ version: 1, forgotten: [], calendar: null, spotify: null });
+
+const STATUS: Record<CalendarEventPayload['status'], CalendarEventState['st']> = { confirmed: 'c', tentative: 't', cancelled: 'x' };
+
+/**
+ * Folds a Calendar sync into the aggregates. Moves are detected two ways:
+ * a recurring instance whose start differs from its original slot, and an event whose start changed
+ * since the previous sync. Each (event, from) move is counted once.
+ */
+export function foldCalendar(prev: CalendarAggregates | null, events: CalendarEventPayload[], now: Date): CalendarAggregates {
+  const agg: CalendarAggregates = prev
+    ? { events: { ...prev.events }, moves: [...prev.moves], names: { ...prev.names } }
+    : { events: {}, moves: [], names: {} };
+  const seen = new Set(agg.moves.map((m) => `${m.eventId}|${Date.parse(m.from)}`));
+  const addMove = (e: CalendarEventPayload, from: string) => {
+    const key = `${e.eventId}|${Date.parse(from)}`;
+    if (seen.has(key) || Date.parse(from) === Date.parse(e.start)) return;
+    seen.add(key);
+    agg.moves.push({ eventId: e.eventId, from, to: e.start, contacts: e.attendees, seriesId: e.recurringEventId ?? null });
+  };
+
+  for (const e of events) {
+    const before = agg.events[e.eventId];
+    if (e.status !== 'cancelled' && !e.allDay) {
+      if (e.movedFrom) addMove(e, e.movedFrom);
+      if (before && before.st !== 'x' && Date.parse(before.s) !== Date.parse(e.start)) addMove(e, before.s);
+    }
+    for (const person of e.people ?? []) {
+      if (person.displayName && !agg.names[person.key]) agg.names[person.key] = person.displayName;
+    }
+    const state: CalendarEventState = { s: e.start, e: e.end, st: STATUS[e.status] ?? 'c', p: e.attendees };
+    if (e.title) state.t = e.title.slice(0, 60);
+    if (e.selfResponse === 'declined') state.d = true;
+    if (e.allDay) state.a = true;
+    if (e.recurringEventId) state.r = e.recurringEventId;
+    if (e.originalStart) state.o = e.originalStart;
+    // Cancelled instances returned without attendees keep what we knew about them.
+    if (e.status === 'cancelled' && before && state.p.length === 0) state.p = before.p;
+    agg.events[e.eventId] = state;
+  }
+
+  const cutoff = now.getTime() - CALENDAR_RETENTION_DAYS * DAY_MS;
+  for (const [id, state] of Object.entries(agg.events)) if (Date.parse(state.e) < cutoff) delete agg.events[id];
+  agg.moves = agg.moves.filter((m) => Date.parse(m.from) >= cutoff).slice(-MAX_MOVES);
+  return agg;
+}
+
+const minutesOf = (iso: string, tz: string) => {
+  const { hour, minute } = getLocalParts(new Date(iso), tz);
+  return hour * 60 + minute;
+};
+
+/** Folds newly played tracks (any order) into listening aggregates; plays at or before the cursor are ignored. */
+export function foldSpotify(
+  prev: SpotifyAggregates | null,
+  plays: { playedAt: string; payload: PlayPayload }[],
+  top: TopItemsPayload[] | null,
+  timeZone: string,
+  now: Date,
+): SpotifyAggregates {
+  const agg: SpotifyAggregates = prev
+    ? { ...prev, days: { ...prev.days }, artists: { ...prev.artists } }
+    : { cursorMs: 0, plays: 0, days: {}, artists: {}, top: null };
+
+  for (const play of [...plays].sort((a, b) => a.playedAt.localeCompare(b.playedAt))) {
+    const at = Date.parse(play.playedAt);
+    if (!Number.isFinite(at) || at <= agg.cursorMs) continue;
+    agg.cursorMs = at;
+    agg.plays += 1;
+    const instant = new Date(at);
+    const readingDate = getReadingDate(instant, timeZone);
+    const day = (agg.days[readingDate] = { ...(agg.days[readingDate] ?? { plays: 0, late: 0, firstMin: null }) });
+    day.plays += 1;
+    const { hour } = getLocalParts(instant, timeZone);
+    if (hour >= 23 || hour < 4) day.late += 1;
+    else {
+      const min = minutesOf(play.playedAt, timeZone);
+      day.firstMin = day.firstMin === null ? min : Math.min(day.firstMin, min);
+    }
+    agg.artists[play.payload.artist] = (agg.artists[play.payload.artist] ?? 0) + 1;
+  }
+
+  if (top) {
+    agg.top = {
+      artists: top.find((t) => t.itemType === 'artists')?.items.map((i) => i.name) ?? agg.top?.artists ?? [],
+      tracks: top.find((t) => t.itemType === 'tracks')?.items.map((i) => (i.artist ? `${i.name} — ${i.artist}` : i.name)) ?? agg.top?.tracks ?? [],
+      at: now.toISOString(),
+    };
+  }
+
+  const oldest = getReadingDate(new Date(now.getTime() - LISTENING_RETENTION_DAYS * DAY_MS), timeZone);
+  for (const date of Object.keys(agg.days)) if (date < oldest) delete agg.days[date];
+  agg.artists = Object.fromEntries(
+    Object.entries(agg.artists)
+      .sort((a, b) => b[1] - a[1])
+      .slice(0, MAX_ARTISTS),
+  );
+  return agg;
+}
+
+/** True when a synced event is new or differs from the indexed state (worth keeping as a raw event). */
+export function calendarEventChanged(prev: CalendarEventState | undefined, e: CalendarEventPayload): boolean {
+  if (!prev) return true;
+  return (
+    Date.parse(prev.s) !== Date.parse(e.start) ||
+    Date.parse(prev.e) !== Date.parse(e.end) ||
+    prev.st !== STATUS[e.status] ||
+    prev.p.join(',') !== e.attendees.join(',') ||
+    Boolean(prev.d) !== (e.selfResponse === 'declined')
+  );
+}
+
+/** Calendar events currently in the index that count as "found" (not cancelled). */
+export const calendarEventCount = (agg: CalendarAggregates | null) =>
+  agg ? Object.values(agg.events).filter((e) => e.st !== 'x').length : 0;

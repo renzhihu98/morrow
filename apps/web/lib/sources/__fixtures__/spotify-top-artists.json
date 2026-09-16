@@ -1,0 +1,67 @@
+{
+  "items": [
+    {
+      "external_urls": {
+        "spotify": "https://open.spotify.com/artist/1r1uxoy19fzMxunt3ONAkG"
+      },
+      "followers": {
+        "href": null,
+        "total": 1000
+      },
+      "genres": [
+        "indie folk"
+      ],
+      "href": "https://api.spotify.com/v1/artists/1r1uxoy19fzMxunt3ONAkG",
+      "id": "1r1uxoy19fzMxunt3ONAkG",
+      "images": [],
+      "name": "Phoebe Bridgers",
+      "popularity": 70,
+      "type": "artist",
+      "uri": "spotify:artist:1r1uxoy19fzMxunt3ONAkG"
+    },
+    {
+      "external_urls": {
+        "spotify": "https://open.spotify.com/artist/4LEiUm1SRbFMgfqnQTwUbQ"
+      },
+      "followers": {
+        "href": null,
+        "total": 1000
+      },
+      "genres": [
+        "indie folk"
+      ],
+      "href": "https://api.spotify.com/v1/artists/4LEiUm1SRbFMgfqnQTwUbQ",
+      "id": "4LEiUm1SRbFMgfqnQTwUbQ",
+      "images": [],
+      "name": "Bon Iver",
+      "popularity": 70,
+      "type": "artist",
+      "uri": "spotify:artist:4LEiUm1SRbFMgfqnQTwUbQ"
+    },
+    {
+      "external_urls": {
+        "spotify": "https://open.spotify.com/artist/2h93pZq0e7k5yf4dywlkpM"
+      },
+      "followers": {
+        "href": null,
+        "total": 1000
+      },
+      "genres": [
+        "indie folk"
+      ],
+      "href": "https://api.spotify.com/v1/artists/2h93pZq0e7k5yf4dywlkpM",
+      "id": "2h93pZq0e7k5yf4dywlkpM",
+      "images": [],
+      "name": "Frank Ocean",
+      "popularity": 70,
+      "type": "artist",
+      "uri": "spotify:artist:2h93pZq0e7k5yf4dywlkpM"
+    }
+  ],
+  "total": 3,
+  "limit": 10,
+  "offset": 0,
+  "href": "https://api.spotify.com/v1/me/top/artists?time_range=short_term&limit=10",
+  "next": null,
+  "previous": null
+}

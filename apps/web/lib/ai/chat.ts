@@ -13,6 +13,7 @@ import type { MorrowUIMessage, StepData } from '../chat-types';
 import type { Repository } from '../data';
 import { MODELS } from './models';
 import { chatInstructions } from './prompts';
+import { resolveEvidence } from './reading';
 import { findTaboo, scrubTaboo, TABOO_DEFLECTION } from './taboo';
 
 export type ChatTurn = {
@@ -66,7 +67,7 @@ export const tabooTransform = <TOOLS extends ToolSet>(): StreamTextTransform<TOO
 
 const SOURCE_FOR_CATEGORY: Record<DossierCategory, StepData['source']> = {
   rhythms: 'calendar',
-  people: 'mail',
+  people: 'calendar',
   places: 'calendar',
   tastes: 'spotify',
 };
@@ -99,12 +100,14 @@ export async function writeModelAnswer(writer: UIMessageStreamWriter<MorrowUIMes
       description: 'What Morrow knows about one person: dossier facts and prophecies about them.',
       inputSchema: z.object({ contact: z.string().describe('Dossier contact key or name, e.g. "sam"') }),
       execute: async ({ contact }, { toolCallId }) => {
-        const key = contact.trim().toLowerCase().replace(/\s+/g, '_');
+        const key = contact.trim().toLowerCase().replace(/^people\./, '').replace(/\s+/g, '_');
         const name = contact.charAt(0).toUpperCase() + contact.slice(1);
-        step({ id: toolCallId, source: 'mail', label: 'Mail', detail: `${name} — who writes first`, status: 'active' });
-        const facts = dossier?.facts.filter((f) => f.category === 'people' && f.id.includes(key)) ?? [];
+        const facts = dossier?.facts.filter((f) => f.category === 'people' && (f.id === `people.${key}` || f.id.startsWith(`people.${key}_`) || f.label.toLowerCase() === key)) ?? [];
+        const source = facts[0]?.sources[0] ?? 'calendar';
+        const label = source.charAt(0).toUpperCase() + source.slice(1);
+        step({ id: toolCallId, source, label, detail: `${name} — reading`, status: 'active' });
         const related = prophecies.filter((p: Prophecy) => 'contact' in p.checkCondition && p.checkCondition.contact === key);
-        step({ id: toolCallId, source: 'mail', label: 'Mail', detail: `${name} — ${facts.length ? facts.map((f) => f.value).join(' · ') : 'nothing yet'}`, status: 'done' });
+        step({ id: toolCallId, source, label, detail: `${name} — ${facts.length ? facts.map((f) => f.value).join(' · ') : 'nothing yet'}`, status: 'done' });
         return { facts, prophecies: related.map(({ number, statement, status, madeOn, resolvedAt }) => ({ number, statement, status, madeOn, resolvedAt })) };
       },
     }),
@@ -127,8 +130,13 @@ export async function writeModelAnswer(writer: UIMessageStreamWriter<MorrowUIMes
       }),
       execute: async ({ text, evidenceRef, sourceLabel }) => {
         const safe = findTaboo(text) ? TABOO_DEFLECTION : text;
-        writer.write({ type: 'data-observation', id: 'answer', data: { text: safe, evidenceRef, sourceLabel } });
-        return { delivered: true };
+        // Grounding: cite a real dossier id when the model's ref resolves, otherwise mark it ungrounded.
+        const evidence = resolveEvidence(dossier, evidenceRef);
+        const ref = evidence?.id ?? (evidenceRef.startsWith('prophecies') ? evidenceRef : 'ungrounded');
+        writer.write({ type: 'data-observation', id: 'answer', data: { text: safe, evidenceRef: ref, sourceLabel } });
+        return evidence || ref !== 'ungrounded'
+          ? { delivered: true }
+          : { delivered: true, warning: 'evidenceRef is not a dossier id; do not state specifics you cannot see.' };
       },
     }),
   };
@@ -155,4 +163,25 @@ export async function writeModelAnswer(writer: UIMessageStreamWriter<MorrowUIMes
     }),
   );
   writer.merge(uiStream);
+}
+
+/**
+ * Real data but no model access (no AI_GATEWAY_API_KEY / VERCEL_OIDC_TOKEN): a short, honest, grounded
+ * answer instead of the scripted demo story.
+ */
+export async function writeOfflineAnswer(writer: UIMessageStreamWriter<MorrowUIMessage>, turn: Pick<ChatTurn, 'repo' | 'user'>): Promise<void> {
+  const dossier = await turn.repo.getDossier(turn.user.id);
+  const fact = dossier?.facts[0];
+  writer.write({ type: 'data-step', id: 'dossier', data: { id: 'dossier', source: fact?.sources[0] ?? 'memory', label: 'Dossier', detail: `${dossier?.facts.length ?? 0} facts`, status: 'done' } });
+  writer.write({
+    type: 'data-observation',
+    id: 'answer',
+    data: fact
+      ? { text: `I can see this much: ${fact.label.toLowerCase()} — ${fact.value}.`, evidenceRef: fact.id, sourceLabel: fact.sources.join(' · ') }
+      : { text: 'I cannot see enough of your days yet to answer that.', evidenceRef: 'dossier.empty', sourceLabel: 'No sources linked' },
+  });
+  const id = 'text-1';
+  writer.write({ type: 'text-start', id });
+  writer.write({ type: 'text-delta', id, delta: 'My voice is offline right now. Ask again later today.' });
+  writer.write({ type: 'text-end', id });
 }

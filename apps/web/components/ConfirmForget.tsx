@@ -48,7 +48,7 @@ export function ConfirmForget({ counts }: Props) {
           Your readings, prophecies and dossier are gone, and every source is disconnected. If you come back, Morrow will
           start from nothing.
         </p>
-        <Link href="/" className="mt-10 rounded-button border border-hairline-strong px-4 py-2.5 text-sm">
+        <Link href="/welcome/sources" className="mt-10 rounded-button border border-hairline-strong px-4 py-2.5 text-sm">
           Begin again
         </Link>
       </div>

@@ -1,76 +1,134 @@
 # @morrow/web
 
-Next.js 16 (App Router) web app for Morrow: every screen from the Paper v2 designs, all API routes (SPEC §7, §10) and the cron jobs. Mobile (`apps/mobile`) is a client of this API.
+Next.js 16 (App Router) web app for Morrow: every screen from the Paper designs (v2 + onboarding 13/14), all API routes (SPEC §7, §10, §12), auth, source sync and the cron jobs. Mobile (`apps/mobile`) is a client of this API.
 
 ## Run
 
 ```sh
-pnpm install                      # from the repo root
-pnpm --filter @morrow/web dev     # http://localhost:3000
-pnpm --filter @morrow/web typecheck   # next typegen + tsc
-pnpm --filter @morrow/web test        # vitest (extractors, verification, taboo filter, views)
+pnpm install                              # from the repo root
+vercel env pull apps/web/.env.local       # real mode (optional — demo mode needs nothing)
+pnpm --filter @morrow/web dev             # http://127.0.0.1:3000 (bound to 127.0.0.1 for OAuth redirect URIs)
+pnpm --filter @morrow/web typecheck       # next typegen + tsc
+pnpm --filter @morrow/web test            # vitest (aggregates/facts from API fixtures, sync, grounding, verify, taboo, views)
 pnpm --filter @morrow/web build
+
+pnpm --filter @morrow/web db:migrate      # apply drizzle/*.sql to DATABASE_URL (reads .env.local)
+pnpm --filter @morrow/web db:generate     # after editing lib/db/schema.ts
+pnpm --filter @morrow/web db:studio
 ```
 
-## Environment
+## Modes
 
-Copy the root `.env.example` to `apps/web/.env.local`. Everything is optional.
-
-| Variable | Effect when set | When unset |
+| | Demo mode | Real mode |
 | --- | --- | --- |
-| `DATABASE_URL` | Postgres (Neon) via Drizzle — `drizzleRepository` | In-memory repository seeded from `@morrow/core` fixtures; clock starts at `FIXTURE_NOW` (09.30 09:12, Los Angeles) |
-| `AI_GATEWAY_API_KEY` / `VERCEL_OIDC_TOKEN` | Real readings, summaries and chat through Vercel AI Gateway | Deterministic dossier-grounded readings + scripted chat stream |
-| `CRON_SECRET` | `/api/cron/*` require `Authorization: Bearer <secret>` | Cron routes are open outside production, `401` in production |
-| `GOOGLE_CLIENT_ID/SECRET`, `SPOTIFY_CLIENT_ID/SECRET` | Connect returns a provider authorize URL | Connect marks the source linked immediately (demo) |
-| `MORROW_DEMO_USER_ID/NAME/TIMEZONE` | Demo user provisioned in Postgres | Iris, `America/Los_Angeles` |
-| `TOKEN_ENCRYPTION_KEY` | Reserved for encrypting OAuth tokens (TODO) | — |
+| Trigger | `DATABASE_URL` unset | `DATABASE_URL` set |
+| Data | In-memory fixtures (Iris, 09.30) | Postgres (Neon) via Drizzle, every row keyed to a Better Auth user |
+| Auth | None — one implicit user; `/api/auth/*` → 404, `/sign-in` → `/` | Better Auth, Google sign-in; proxy + guards (below) |
+| Sources | Connect/disconnect flips fixture status | Google Calendar + Spotify via Better Auth `linkSocial`, hourly sync |
+| Model | Scripted chat stream + dossier templates (no key needed) | Sonnet 5 / Haiku 4.5 via AI Gateway (`AI_GATEWAY_API_KEY` or `VERCEL_OIDC_TOKEN`); without either, templated readings and a short "offline" chat answer — never the demo script |
 
-### Demo mode
+## Environment (SPEC §12.5)
 
-With no database and no model key the whole app runs on the canonical fixture story: today is 09.30 and opens on the "Sam wrote first." fulfilled prophecy (screen 03). Asking a question streams a scripted answer with the same UI message parts as the model path (steps → observation → text) with realistic delays; a few scripts are chosen by keyword ("write back", "track record", "what comes next"), everything else gets the canonical Sam answer. State lives in memory and resets when the server restarts.
+See the root `.env.example`. Local values come from `vercel env pull apps/web/.env.local` — don't hand-write secrets.
 
-### Database
+| Variable | Used for |
+| --- | --- |
+| `DATABASE_URL` | Neon Postgres. Switches on real mode. |
+| `BETTER_AUTH_SECRET` | Session signing **and** OAuth token encryption (`account.encryptOAuthTokens`). Rotating it invalidates stored grants. |
+| `BETTER_AUTH_URL` | `http://127.0.0.1:3000` locally (Spotify rejects `localhost`), production URL when deployed. |
+| `GOOGLE_CLIENT_ID/SECRET` | Google sign-in + Calendar linking. Provider is only registered when both are set. |
+| `SPOTIFY_CLIENT_ID/SECRET` | Spotify linking. |
+| `AI_GATEWAY_API_KEY` / `VERCEL_OIDC_TOKEN` | AI Gateway auth. |
+| `CRON_SECRET` | `/api/cron/*` require `Authorization: Bearer <secret>` (open outside production when unset). |
 
-```sh
-DATABASE_URL=… pnpm --filter @morrow/web db:migrate    # apply drizzle/0000_init.sql
-pnpm --filter @morrow/web db:generate                   # after editing lib/db/schema.ts
+OAuth redirect URIs to register:
+
+- Google: `http://127.0.0.1:3000/api/auth/callback/google` (+ `https://<prod>/api/auth/callback/google`). Enable the Google Calendar API; add scope `https://www.googleapis.com/auth/calendar.readonly` to the consent screen.
+- Spotify: `http://127.0.0.1:3000/api/auth/callback/spotify` (+ production). Add test users while the app is in development mode.
+
+## Auth & API contract (web ⇄ mobile)
+
+**Better Auth** at `/api/auth/[...all]` (basePath `/api/auth`, Drizzle adapter, `nextCookies()` + `@better-auth/expo` server plugins).
+
+- Sign-in: `signIn.social({ provider: "google" })`, scopes `openid email profile` only. Any other sign-in provider → 400.
+- `trustedOrigins`: `morrow://`, `BETTER_AUTH_URL`, `https://$VERCEL_URL`; in dev also `exp://`, `exp://**`, `http://127.0.0.1:3000`, `http://localhost:3000`, `:8081`.
+- User `additionalFields` (server-set, `input: false`): `timezone` (string, null → treated as `UTC`), `onboardedAt` (date).
+- Sessions: DB-backed cookies (no cookie cache). Mobile: Expo client plugin sends the stored cookie; the same session guards apply.
+- **Linking sources** (`linkSocial` → `POST /api/auth/link-social`): a server hook enforces scopes whatever the client sends —
+  - `provider: "google"` → `https://www.googleapis.com/auth/calendar.readonly` + `access_type=offline`, `prompt=consent` (refresh token). Links onto the sign-in Google account (scopes are merged).
+  - `provider: "spotify"` → `user-read-recently-played user-top-read`.
+  - Account linking is explicit only (`disableImplicitLinking`), different emails allowed, `google`/`spotify` trusted.
+  - Mobile calls `authClient.linkSocial({ provider, callbackURL: "morrow://…" })` directly; the result is identical to the web flow.
+- When the OAuth callback stores a source grant, a database hook schedules the first sync with `after()` — the redirect is not delayed.
+
+**Guards.** `proxy.ts` (Next 16) — only when `DATABASE_URL` is set — lets `/sign-in`, `/api/auth/*`, `/api/cron/*` through, redirects pages without a session cookie to `/sign-in?next=…` and answers APIs with `401 { error: { code: "unauthorized", message } }`. Pages then verify the session for real (`requirePageUser`) and send users without `onboardedAt` to `/welcome/sources`; route handlers use `authed()` (401 on a missing/expired session).
+
+Session-authenticated JSON APIs (shapes in `@morrow/core`, SPEC §7/§10):
+
+| Method & path | Body → response |
+| --- | --- |
+| `GET /api/me` | → `MeResponse { user: { id, name, email, image, timezone, onboardedAt }, sources: Source[] }` |
+| `POST /api/me/timezone` | `{ timezone }` (IANA) → `{ ok: true }` · `400 bad_request` for an unknown zone |
+| `POST /api/onboarding/complete` | → `TodayResponse`. Marks `onboardedAt`, syncs linked sources not synced in the last 10 min, builds the dossier, creates today's reading + opening (Sonnet 5). Up to ~60 s. |
+| `POST /api/sources/[kind]/connect` | `{ callbackURL? }` (default `/sources`) → `ConnectSourceResponse { kind, url, authorizeUrl }` (same URL; navigate to it). `calendar`/`spotify` only; `mail`/`instagram` → 400. Demo: linked immediately, `url: null`. |
+| `DELETE /api/sources/[kind]` | → `{ ok: true }`. Spotify: account row deleted. Calendar: token revoked at Google, tokens + calendar scope removed (the Google sign-in account stays). Then the source's raw events + sync state are deleted and the dossier rebuilt. |
+| `GET /api/today` · `GET /api/readings` · `GET /api/readings/[date]` · `GET /api/prophecies` · `GET /api/sources` · `GET /api/dossier` · `DELETE /api/dossier/facts/[id]` · `POST /api/forget` · `POST /api/chat` | unchanged shapes, now per signed-in user. `forget` also disconnects Calendar/Spotify and resets `onboardedAt`. |
+
+`Source` gains optional `syncState` (`pending | syncing | ok | needs_reauth | error`) and `eventCount` for linked sources. `status` is `error` when the grant needs reconnecting (`syncState: "needs_reauth"`) or the last sync failed; `stat` is `{ value: eventCount, label: "events" | "plays" }`.
+
+## Pipeline (SPEC §12.3–12.4)
+
+```
+OAuth callback ─(after)─┐
+/api/cron/sync hourly ──┼─▶ lib/sources/sync.ts
+onboarding/complete ────┘      ├─ tokens.ts         Better Auth getAccessToken (refresh + re-encrypt); failure → needs_reauth
+                               ├─ google-calendar.ts events.list primary, −90d…+30d, singleEvents, showDeleted, pageToken,
+                               │                     fields= whitelist (start/end, created/updated, status, organizer,
+                               │                     attendees email/name/response, recurringEventId, originalStartTime, summary)
+                               ├─ spotify.ts         recently-played (after cursor, ≤50/page, follows next) + top artists/tracks
+                               ├─ raw_events         new/changed items only, expires_at = +24h (never extended)
+                               ├─ dossier/aggregates.ts  incremental folds stored in dossiers.aggregates (survive the purge):
+                               │                     calendar event index + moves, contact names; listening days, late nights,
+                               │                     artists, top items; forgotten fact ids
+                               └─ dossier/build.ts   facts.ts (deterministic, ids = evidence refs) + patterns.ts (Haiku 4.5
+                                                     structured output, only when facts changed; skipped without a model)
 ```
 
-The scaffold has a single demo user; on first request it's provisioned with unlinked sources and the fixture dossier.
+Facts: `people.<contact>` (moves with dates + usual weekday, meeting cadence, last met), `rhythms.first_activity` (weekday start + trend vs earlier weeks, Calendar + Spotify), `rhythms.protected_time` (recurring slot never moved/cancelled), `rhythms.slipping_slot`, `rhythms.busiest_day`, `rhythms.late_nights` (plays 23:00–04:00), `tastes.top_artists`, `tastes.returns_to`. Contact keys come from display name or email local part (`Sam Okafor` → `sam_okafor`) and are what prophecy `checkCondition.contact` uses.
 
-## Chat protocol
+Readings: `generateDailyReading` (Sonnet 5, `DailyReadingOutput`) → taboo filter + grounding check (`observation.evidenceRef` must resolve to a dossier fact/pattern id) → one regeneration with feedback → else a templated observation built from a real fact. Chat tools read only the user's dossier; `observe` refs are resolved against it.
 
-`POST /api/chat` with `{ message: { id, role: "user", parts: [{ type: "text", text }] }, readingId? }` → AI SDK UI message stream with `data-quota` (first), `data-step` (re-emitted by id as status changes), `data-observation` and `text` parts. `409 reading_sealed` if the day is sealed (or `readingId` is stale), `429 question_limit` after 15 questions. The server owns history and persists the user message before streaming and the assistant message (`observation` + `text` parts) when the stream ends.
+Crons (`vercel.ts`): `sync` at :50 hourly (sync + purge expired raw events), `dawn` hourly (seal → summarize → open per user timezone), `verify` every 30 min (raw events + the calendar index, so a meeting booked days ago still fulfils `calendar_event_with`).
 
 ## Architecture
 
 ```
+proxy.ts                      session-cookie gate (real mode)
 app/
-  page.tsx                    Today — server-renders the GET /api/today payload into <Today/>
-  readings/, readings/[date]  archive · sealed transcript (open reading redirects to /)
-  prophecies/, sources/, sources/dossier/, sources/forget/
-  api/…                       route handlers (SPEC §7); cron/dawn + cron/verify
-components/                   TopBar/Nav, Orbit, Composer, Transcript (TurnLabel, EvidenceLine), ProphecyPanel/Card/WindowBar,
-                              ReadingSteps, IndexList, RecordMarks, SourceRow, DossierView (DossierRow), ConfirmForget, ThemeToggle
+  (auth)/sign-in              screen 13
+  (auth)/welcome/sources      screen 14 → FirstReading (orbit `reading`) → /
+  (app)/layout.tsx            requirePageUser + TopBar (avatar → sign out) + TimezoneSync (posts browser zone once)
+  (app)/page.tsx, readings/, prophecies/, sources/…   screens 01–12
+  api/auth/[...all]           Better Auth
+  api/me, me/timezone, onboarding/complete, sources/…, today, chat, …
+  api/cron/sync|dawn|verify
 lib/
-  data/        Repository interface · memory.ts (fixtures) · drizzle.ts (Postgres) · index.ts picks by DATABASE_URL
-  db/schema.ts Drizzle schema (SPEC §5.3; composite PKs with user_id for per-user ids like r_2026-09-30)
-  server/      readings.ts (get-or-create today, seal + summarize, views) · env.ts (clock, modes) · http.ts (errors, cron auth)
-  ai/          models.ts · prompts.ts (persona, taboo list) · taboo.ts (post-generation filter) · reading.ts (structured
-               DailyReadingOutput, summaries) · chat.ts (streamText + tools → data parts) · demo.ts (scripted stream)
-  sources/     SourceAdapter + calendar/spotify/mail stubs (OAuth URLs; token exchange & sync are TODO)
-  dossier/     extract.ts — deterministic extractors (reschedule counts, contact cadence) → dossier facts
-  jobs/        dawn.ts (hourly, per-timezone) · verify.ts (checkCondition vs raw events, 30 min)
-drizzle/       generated SQL migration
-vercel.ts      crons: dawn hourly, verify every 30 min
+  auth/        auth.ts (Better Auth config, link scopes) · session.ts (getSessionUser, authed, requirePageUser) · grants.ts · client.ts
+  db/          schema.ts (auth tables + Morrow tables) · client.ts (Neon HTTP)
+  data/        Repository (user-scoped) · memory.ts (demo) · drizzle.ts
+  sources/     google-calendar.ts · spotify.ts · sync.ts · tokens.ts · connect.ts · errors.ts · __fixtures__/ (API payloads)
+  dossier/     aggregates.ts · facts.ts · patterns.ts · build.ts · extract.ts (raw-event extractors kept for Gmail)
+  ai/          models · prompts · reading (grounding) · chat (tools, offline answer) · demo · taboo
+  jobs/        sync · dawn · verify
+drizzle/       0000_init.sql · 0001_auth_sources_aggregates.sql
 ```
 
-Models (verified against the AI Gateway model list): `anthropic/claude-sonnet-5` for readings and chat, `anthropic/claude-haiku-4.5` for summaries.
+Migration `0001_auth_sources_aggregates` starts with `DELETE FROM "users"` — the scaffold's demo user can't satisfy `users.email NOT NULL`; nothing else was ever stored for real users.
 
 ## Known gaps
 
-- Auth is a single demo user; Better Auth is next (SPEC §8).
-- OAuth token exchange, token encryption and source sync are stubs; there is no OAuth callback route yet.
+- Real Google/Spotify OAuth has not been exercised end-to-end (no credentials during development); the Calendar/Spotify clients are tested against recorded-shape fixtures.
+- Gmail and Instagram are listed as "later" and not connectable.
+- Spotify's API has no "ms played"; `msPlayed` is the track duration.
 - `listening_pattern` / `generic` prophecies can only expire — auto-fulfilment needs a Haiku classifier.
 - Opening a new reading via "Draw today's reading" is revealed client-side (not persisted as a turn).
-- "Correct something" on the dossier is not designed yet.

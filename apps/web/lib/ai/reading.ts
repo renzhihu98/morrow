@@ -2,6 +2,8 @@ import {
   DailyReadingOutput,
   formatProphecyNumber,
   type Dossier,
+  type DossierFact,
+  type DossierPattern,
   type Message,
   type Prophecy,
   type Reading,
@@ -9,7 +11,7 @@ import {
   type User,
 } from '@morrow/core';
 import { generateText, Output } from 'ai';
-import { hasModelAccess } from '../server/env';
+import { hasModelAccess, isDemoData } from '../server/env';
 import { MODELS } from './models';
 import { dailyReadingPrompt, SUMMARY_INSTRUCTIONS } from './prompts';
 import { findTaboo, isReadingSafe } from './taboo';
@@ -23,29 +25,103 @@ export type ReadingContext = {
   prophecies: Prophecy[];
 };
 
+/** Dossier ids may be cited with or without the `dossier.` prefix, and with a sub-path (`people.sam.moves`). */
+export function resolveEvidence(dossier: Dossier | null, evidenceRef: string): DossierFact | DossierPattern | null {
+  if (!dossier) return null;
+  const ref = evidenceRef.trim().replace(/^dossier\./, '');
+  const items: (DossierFact | DossierPattern)[] = [...dossier.facts, ...dossier.patterns];
+  return items.find((i) => i.id === ref) ?? items.find((i) => ref.startsWith(`${i.id}.`)) ?? null;
+}
+
+const isEmpty = (d: Dossier | null) => !d || (d.facts.length === 0 && d.patterns.length === 0);
+
 /**
- * Generates the day's opening (observation + prophecy) from the dossier with structured output.
- * Falls back to a deterministic demo reading without model access, on failure, or when the model
- * twice produces something the taboo filter rejects.
+ * Generates the day's opening (observation + prophecy) from the dossier with Claude Sonnet 5 structured
+ * output (`DailyReadingOutput`). Grounding check: `observation.evidenceRef` must name a dossier fact or
+ * pattern and nothing may touch a taboo topic — otherwise regenerate once with feedback, then fall back to
+ * a safe templated observation built from a real fact. Without model access: demo templates (fixtures)
+ * or the templated fallback (real data).
  */
 export async function generateDailyReading(ctx: ReadingContext): Promise<DailyReadingOutput> {
-  if (!hasModelAccess() || !ctx.dossier) return demoDailyReading(ctx);
+  if (isEmpty(ctx.dossier)) return templatedReading(ctx);
+  if (!hasModelAccess()) return isDemoData() ? demoDailyReading(ctx) : templatedReading(ctx);
+  const dossier = ctx.dossier!;
+  let feedback = '';
   for (let attempt = 0; attempt < 2; attempt++) {
     try {
       const { output } = await generateText({
         model: MODELS.reading,
         output: Output.object({ schema: DailyReadingOutput }),
-        prompt: dailyReadingPrompt(ctx),
+        prompt: dailyReadingPrompt(ctx) + feedback,
       });
-      const evidenceExists =
-        ctx.dossier.facts.some((f) => output.observation.evidenceRef.includes(f.id)) ||
-        ctx.dossier.patterns.some((p) => output.observation.evidenceRef.includes(p.id));
-      if (isReadingSafe(output) && evidenceExists) return output;
+      const evidence = resolveEvidence(dossier, output.observation.evidenceRef);
+      if (!isReadingSafe(output)) {
+        feedback = '\n\nYour previous draft touched a topic Morrow never reads. Choose a different fact.';
+        continue;
+      }
+      if (!evidence) {
+        feedback = `\n\nYour previous draft cited evidenceRef "${output.observation.evidenceRef}", which is not in the dossier. Use exactly one of these ids: ${[...dossier.facts, ...dossier.patterns].map((i) => i.id).join(', ')}.`;
+        continue;
+      }
+      return { ...output, observation: { ...output.observation, evidenceRef: evidence.id } };
     } catch (e) {
       console.error('[morrow] daily reading generation failed', e);
     }
   }
-  return demoDailyReading(ctx);
+  return templatedReading(ctx);
+}
+
+const SOURCE_NAME: Record<string, string> = { calendar: 'Calendar', spotify: 'Spotify', mail: 'Mail', instagram: 'Instagram' };
+
+/** Safe, deterministic opening grounded in one real fact (fallback for failed or unavailable generation). */
+export function templatedReading(ctx: Pick<ReadingContext, 'dossier' | 'localDate'>): DailyReadingOutput {
+  const dossier = ctx.dossier;
+  if (!dossier || isEmpty(dossier)) return demoDailyReading(ctx);
+  const demo = DEMO_TEMPLATES.filter((t) => t.match(dossier));
+  const pick = (prefix: string) => dossier.facts.find((f) => f.id.startsWith(prefix));
+  const fact =
+    dossier.facts.find((f) => f.id.startsWith('people.') && f.value.startsWith('Moved')) ??
+    pick('rhythms.protected_time') ??
+    pick('rhythms.slipping_slot') ??
+    pick('rhythms.first_activity') ??
+    pick('rhythms.late_nights') ??
+    dossier.facts[0];
+  if (!fact) return demo[0]?.build(dossier) ?? demoDailyReading({ dossier: null, localDate: ctx.localDate });
+
+  const sourceLabel = `${fact.sources.map((s) => SOURCE_NAME[s] ?? s).join(' · ')} · ${fact.value}`.slice(0, 90);
+  const contact = fact.id.startsWith('people.') ? fact.id.slice('people.'.length) : null;
+  const text = contact
+    ? fact.value.startsWith('Moved')
+      ? `${fact.label} keeps moving on your calendar, and it is rarely about ${fact.label}.`
+      : `You keep making time for ${fact.label}.`
+    : fact.id === 'rhythms.protected_time'
+      ? 'You guard one slot more carefully than anything else on your calendar.'
+      : fact.id === 'rhythms.slipping_slot'
+        ? 'One recurring slot keeps giving way to everything else.'
+        : fact.id === 'rhythms.first_activity'
+          ? 'Your mornings have a shape you may not have noticed.'
+          : fact.id === 'rhythms.late_nights'
+            ? 'The music runs later than you think.'
+            : `${fact.label}: ${fact.value}.`;
+
+  return {
+    observation: { text: findTaboo(text) ? 'Your days have a rhythm worth watching.' : text, evidenceRef: fact.id, sourceLabel },
+    prophecy: contact
+      ? {
+          statement: `${fact.label} will be on your calendar again within two weeks.`,
+          checkCondition: { type: 'calendar_event_with', contact, titleIncludes: null },
+          windowDays: 14,
+          likelihood: 0.55,
+          watching: ['calendar'],
+        }
+      : {
+          statement: 'This week the pattern will break once, and you will notice.',
+          checkCondition: { type: 'generic', description: `A day that contradicts: ${fact.label} — ${fact.value}` },
+          windowDays: 7,
+          likelihood: 0.5,
+          watching: fact.sources.length > 0 ? fact.sources : ['calendar'],
+        },
+  };
 }
 
 type DemoTemplate = { match: (d: Dossier) => boolean; build: (d: Dossier) => DailyReadingOutput };

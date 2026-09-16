@@ -1,6 +1,7 @@
-import { fixtures, type Dossier, type Message, type Prophecy, type Reading, type Source } from '@morrow/core';
+import { fixtures, type Dossier, type Message, type Prophecy, type Reading, type Source, type SourceKind } from '@morrow/core';
+import { emptyAggregates, type DossierAggregates } from '../dossier/aggregates';
 import type { RawEvent } from '../sources/types';
-import { ReadingExistsError, type Repository } from './repository';
+import { ReadingExistsError, type Repository, type SourceState } from './repository';
 
 type Store = {
   users: typeof fixtures.user[];
@@ -11,6 +12,8 @@ type Store = {
   prophecies: Prophecy[];
   sources: Omit<Source, 'watchingCount'>[];
   dossier: Dossier | null;
+  aggregates: DossierAggregates | null;
+  sourceStates: Map<SourceKind, SourceState>;
   rawEvents: RawEvent[];
 };
 
@@ -24,6 +27,8 @@ function seed(): Store {
     prophecies: f.prophecies,
     sources: f.sources.map(({ watchingCount: _w, ...s }) => s),
     dossier: f.dossier,
+    aggregates: null,
+    sourceStates: new Map(),
     rawEvents: [],
   };
 }
@@ -31,7 +36,10 @@ function seed(): Store {
 const factBytes = (value: unknown) => new TextEncoder().encode(JSON.stringify(value)).length;
 const byDateDesc = (a: Reading, b: Reading) => b.localDate.localeCompare(a.localDate);
 
-/** In-memory repository seeded from `@morrow/core` fixtures. Survives hot reloads via globalThis. */
+/**
+ * In-memory repository seeded from `@morrow/core` fixtures (demo mode: one person, Iris).
+ * User ids are accepted for interface parity but there is only one story. Survives hot reloads via globalThis.
+ */
 export function createMemoryRepository(store: Store = seed()): Repository {
   const watching = (s: Omit<Source, 'watchingCount'>): Source => ({
     ...s,
@@ -41,12 +49,16 @@ export function createMemoryRepository(store: Store = seed()): Repository {
   return {
     kind: 'memory',
 
-    async getDemoUser() {
+    async getUser() {
       return structuredClone(store.users[0] ?? fixtures.user);
     },
     async listUsers() {
       return structuredClone(store.users);
     },
+    async setUserTimezone() {
+      // The demo story is pinned to its fixture timezone.
+    },
+    async markOnboarded() {},
 
     async getReadingByDate(_userId, localDate) {
       return structuredClone(store.readings.find((r) => r.localDate === localDate) ?? null);
@@ -113,11 +125,28 @@ export function createMemoryRepository(store: Store = seed()): Repository {
     async listSources() {
       return structuredClone(store.sources.map(watching));
     },
-    async setSourceStatus(_userId, kind, status) {
+    async getSourceState(_userId, kind) {
+      return structuredClone(store.sourceStates.get(kind) ?? null);
+    },
+    async updateSourceState(_userId, kind, patch) {
+      const prev = store.sourceStates.get(kind) ?? {
+        kind,
+        syncState: 'pending' as const,
+        lastError: null,
+        lastSyncedAt: null,
+        eventCount: 0,
+        cursor: null,
+      };
+      store.sourceStates.set(kind, { ...prev, ...patch });
+    },
+    async clearSourceState(_userId, kind) {
+      store.sourceStates.delete(kind);
+    },
+    async setDemoSourceLinked(_userId, kind, linked) {
       const s = store.sources.find((x) => x.kind === kind);
       if (!s) return;
-      s.status = status;
-      if (status !== 'linked') {
+      s.status = linked ? 'linked' : 'not_linked';
+      if (!linked) {
         s.stat = null;
         s.lastSyncedAt = null;
       }
@@ -126,14 +155,22 @@ export function createMemoryRepository(store: Store = seed()): Repository {
     async getDossier() {
       return structuredClone(store.dossier);
     },
-    async saveDossier(dossier) {
+    async getAggregates() {
+      return structuredClone(store.aggregates);
+    },
+    async saveDossier(dossier, aggregates) {
       store.dossier = structuredClone(dossier);
+      if (aggregates) store.aggregates = structuredClone(aggregates);
     },
     async forgetFact(_userId, factId) {
       const d = store.dossier;
       if (!d) return false;
       const idx = d.facts.findIndex((f) => f.id === factId);
       const patternIdx = d.patterns.findIndex((p) => p.id === factId);
+      if (idx >= 0 || patternIdx >= 0) {
+        const agg = store.aggregates ?? emptyAggregates();
+        store.aggregates = { ...agg, forgotten: [...new Set([...agg.forgotten, factId])] };
+      }
       if (idx >= 0) {
         const [removed] = d.facts.splice(idx, 1);
         d.sizeBytes = Math.max(0, d.sizeBytes - factBytes(removed));
@@ -148,10 +185,16 @@ export function createMemoryRepository(store: Store = seed()): Repository {
     },
 
     async addRawEvents(events) {
-      store.rawEvents.push(...structuredClone(events));
+      const ids = new Set(events.map((e) => e.id));
+      store.rawEvents = [...store.rawEvents.filter((e) => !ids.has(e.id)), ...structuredClone(events)];
     },
     async listRawEvents(_userId, since) {
       return structuredClone(since ? store.rawEvents.filter((e) => e.occurredAt >= since) : store.rawEvents);
+    },
+    async deleteRawEvents(_userId, kind) {
+      const before = store.rawEvents.length;
+      store.rawEvents = store.rawEvents.filter((e) => e.sourceKind !== kind);
+      return before - store.rawEvents.length;
     },
     async purgeExpiredRawEvents(now) {
       const before = store.rawEvents.length;
@@ -165,6 +208,8 @@ export function createMemoryRepository(store: Store = seed()): Repository {
       store.messages.clear();
       store.prophecies = [];
       store.dossier = null;
+      store.aggregates = null;
+      store.sourceStates.clear();
       store.rawEvents = [];
       for (const s of store.sources) {
         s.status = 'not_linked';

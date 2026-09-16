@@ -1,6 +1,6 @@
+import { authed, toCoreUser } from '@/lib/auth/session';
 import { getRepository } from '@/lib/data';
 import { now } from '@/lib/server/env';
-import { handle } from '@/lib/server/http';
 import { getReadingsView } from '@/lib/server/readings';
 
-export const GET = handle(async () => Response.json(await getReadingsView(getRepository(), now())));
+export const GET = authed(async (user) => Response.json(await getReadingsView(getRepository(), toCoreUser(user), now())));

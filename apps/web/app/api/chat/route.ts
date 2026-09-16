@@ -1,13 +1,14 @@
 import { isReadingOpen, prophecyRecord, QUESTION_LIMIT, type Message, type MessagePart } from '@morrow/core';
 import { createUIMessageStream, createUIMessageStreamResponse, generateId } from 'ai';
 import { z } from 'zod';
-import { writeModelAnswer } from '@/lib/ai/chat';
+import { writeModelAnswer, writeOfflineAnswer } from '@/lib/ai/chat';
 import { writeDemoAnswer } from '@/lib/ai/demo';
 import { scrubTaboo } from '@/lib/ai/taboo';
 import type { MorrowUIMessage } from '@/lib/chat-types';
+import { authed, toCoreUser } from '@/lib/auth/session';
 import { getRepository } from '@/lib/data';
-import { hasModelAccess, now as serverNow } from '@/lib/server/env';
-import { apiError, handle } from '@/lib/server/http';
+import { hasModelAccess, isDemoData, now as serverNow } from '@/lib/server/env';
+import { apiError } from '@/lib/server/http';
 import { ensureTodayReading } from '@/lib/server/readings';
 
 export const maxDuration = 60;
@@ -35,7 +36,7 @@ function toStoredParts(message: MorrowUIMessage): MessagePart[] {
   return parts;
 }
 
-export const POST = handle(async (req: Request) => {
+export const POST = authed(async (sessionUser, req: Request) => {
   const parsed = ChatRequest.safeParse(await req.json().catch(() => null));
   if (!parsed.success) return apiError('bad_request', 'Expected { message: { id, role: "user", parts } }.');
   const question = parsed.data.message.parts
@@ -47,7 +48,7 @@ export const POST = handle(async (req: Request) => {
 
   const repo = getRepository();
   const now = serverNow();
-  const user = await repo.getDemoUser();
+  const user = toCoreUser(sessionUser);
 
   if (parsed.data.readingId) {
     const requested = await repo.getReading(user.id, parsed.data.readingId);
@@ -83,6 +84,8 @@ export const POST = handle(async (req: Request) => {
       writer.write({ type: 'data-quota', id: 'quota', data: { used: reserved.used, limit: QUESTION_LIMIT } });
       if (hasModelAccess()) {
         await writeModelAnswer(writer, { repo, user, reading, history, question, now, used: reserved.used, abortSignal: req.signal });
+      } else if (!isDemoData()) {
+        await writeOfflineAnswer(writer, { repo, user });
       } else {
         const record = prophecyRecord(await repo.listProphecies(user.id));
         await writeDemoAnswer(writer, { question, record, name: user.name }, req.signal);

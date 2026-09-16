@@ -1,6 +1,8 @@
+import { authed, toCoreUser } from '@/lib/auth/session';
 import { getRepository } from '@/lib/data';
 import { now } from '@/lib/server/env';
-import { handle } from '@/lib/server/http';
 import { getTodayView } from '@/lib/server/readings';
 
-export const GET = handle(async () => Response.json(await getTodayView(getRepository(), now())));
+export const maxDuration = 120;
+
+export const GET = authed(async (user) => Response.json(await getTodayView(getRepository(), toCoreUser(user), now())));

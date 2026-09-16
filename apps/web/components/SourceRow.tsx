@@ -5,7 +5,8 @@ import { useRouter } from 'next/navigation';
 import { useState, useTransition } from 'react';
 
 function meta(source: Source): string {
-  if (source.status !== 'linked') return source.status === 'error' ? 'Needs attention' : 'Not linked';
+  if (source.status !== 'linked') return source.status === 'error' ? (source.syncState === 'needs_reauth' ? 'Needs reconnecting' : 'Needs attention') : 'Not linked';
+  if (source.syncState === 'pending' || source.syncState === 'syncing') return 'Reading…';
   const parts: string[] = [];
   if (source.provider !== source.name) parts.push(source.provider);
   if (source.stat) parts.push(`${source.stat.value.toLocaleString('en-US')} ${source.stat.label}`);
@@ -25,11 +26,17 @@ export function SourceRow({ source, timeZone }: { source: Source; timeZone: stri
     startTransition(async () => {
       setError(null);
       const url = method === 'POST' ? `/api/sources/${source.kind}/connect` : `/api/sources/${source.kind}`;
-      const res = await fetch(url, { method });
-      if (!res.ok) return setError('Try again.');
+      const res = await fetch(url, {
+        method,
+        ...(method === 'POST'
+          ? { headers: { 'content-type': 'application/json' }, body: JSON.stringify({ callbackURL: '/sources' }) }
+          : {}),
+      });
+      if (!res.ok) return setError(res.status === 400 && method === 'POST' ? 'Not available yet.' : 'Try again.');
       if (method === 'POST') {
         const body = (await res.json()) as ConnectSourceResponse;
-        if (body.authorizeUrl) return window.location.assign(body.authorizeUrl);
+        const next = body.url ?? body.authorizeUrl;
+        if (next) return window.location.assign(next);
       }
       router.refresh();
     });
@@ -80,7 +87,7 @@ export function SourceRow({ source, timeZone }: { source: Source; timeZone: stri
             onClick={() => act('POST')}
             className="h-[34px] rounded-[8px] bg-accent-fill px-3.5 text-sm font-medium text-on-accent disabled:opacity-60"
           >
-            {pending ? 'Connecting…' : 'Connect'}
+            {pending ? 'Connecting…' : source.status === 'error' ? 'Reconnect' : 'Connect'}
           </button>
         )}
         {error && <span className="label-sm text-danger">{error}</span>}

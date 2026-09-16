@@ -6,9 +6,10 @@ import type {
   ReadingSummary,
   Source,
   SourceKind,
-  SourceStatus,
+  SourceSyncState,
   User,
 } from '@morrow/core';
+import type { DossierAggregates } from '../dossier/aggregates';
 import type { RawEvent } from '../sources/types';
 
 export type ReserveQuestionResult =
@@ -22,16 +23,31 @@ export class ReadingExistsError extends Error {
   }
 }
 
+/** Per-user source sync metadata (the OAuth grant itself lives in Better Auth's `accounts`). */
+export type SourceState = {
+  kind: SourceKind;
+  syncState: SourceSyncState;
+  lastError: string | null;
+  lastSyncedAt: string | null;
+  eventCount: number;
+  cursor: string | null;
+};
+
+export type SourceStatePatch = Partial<Omit<SourceState, 'kind'>>;
+
 /**
  * Persistence boundary. `memoryRepository` (fixtures, demo) and `drizzleRepository` (Postgres)
- * implement the same contract; all domain rules live in lib/server services on top of it.
+ * implement the same contract; every method is scoped to a user id. Domain rules live in lib/server.
  */
 export interface Repository {
   readonly kind: 'memory' | 'drizzle';
 
   // users
-  getDemoUser(): Promise<User>;
+  getUser(userId: string): Promise<User | null>;
+  /** Users the crons work for (onboarded users in Postgres). */
   listUsers(): Promise<User[]>;
+  setUserTimezone(userId: string, timezone: string): Promise<void>;
+  markOnboarded(userId: string, at: string): Promise<void>;
 
   // readings — unique on (userId, localDate)
   getReadingByDate(userId: string, localDate: string): Promise<Reading | null>;
@@ -62,20 +78,30 @@ export interface Repository {
   ): Promise<void>;
 
   // sources
+  /** All source kinds in display order with link status (from grants) and sync state. */
   listSources(userId: string): Promise<Source[]>;
-  setSourceStatus(userId: string, kind: SourceKind, status: SourceStatus): Promise<void>;
+  getSourceState(userId: string, kind: SourceKind): Promise<SourceState | null>;
+  updateSourceState(userId: string, kind: SourceKind, patch: SourceStatePatch): Promise<void>;
+  /** Clears sync state for a kind (after disconnect). */
+  clearSourceState(userId: string, kind: SourceKind): Promise<void>;
+  /** Demo mode only: flips the fixture link status (no OAuth). */
+  setDemoSourceLinked(userId: string, kind: SourceKind, linked: boolean): Promise<void>;
 
   // dossier
   getDossier(userId: string): Promise<Dossier | null>;
-  saveDossier(dossier: Dossier): Promise<void>;
-  /** Returns false when the fact did not exist. */
+  getAggregates(userId: string): Promise<DossierAggregates | null>;
+  /** Saves facts/patterns; aggregates are saved too when given. */
+  saveDossier(dossier: Dossier, aggregates?: DossierAggregates): Promise<void>;
+  /** Returns false when the fact did not exist. Forgotten ids are remembered so rebuilds skip them. */
   forgetFact(userId: string, factId: string): Promise<boolean>;
 
   // raw events (TTL)
+  /** Upserts by id (payload + expiry refreshed). */
   addRawEvents(events: RawEvent[]): Promise<void>;
   listRawEvents(userId: string, since?: string): Promise<RawEvent[]>;
+  deleteRawEvents(userId: string, kind: SourceKind): Promise<number>;
   purgeExpiredRawEvents(now: Date): Promise<number>;
 
-  /** Deletes readings, messages, prophecies, dossier, raw events and source links. */
+  /** Deletes readings, messages, prophecies, dossier (+aggregates), raw events and source sync state. */
   forgetEverything(userId: string): Promise<void>;
 }

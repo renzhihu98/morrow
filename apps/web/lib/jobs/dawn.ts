@@ -1,12 +1,11 @@
 import { getLocalParts, getReadingDate, DAY_CUTOFF_HOUR } from '@morrow/core';
 import type { Repository } from '../data';
-import { rebuildDossier } from '../dossier/extract';
 import { ensureTodayReading, sealStaleReadings } from '../server/readings';
 
 /**
  * Dawn job — runs hourly; each user is processed when their local day has turned over
  * (their local hour is DAY_CUTOFF_HOUR) or their reading for today doesn't exist yet.
- * seal → summarize → (rebuild dossier) → create → open.
+ * seal → summarize → create → open (from the dossier maintained by the sync cron).
  */
 export async function runDawn(repo: Repository, now: Date) {
   const results = [];
@@ -19,8 +18,7 @@ export async function runDawn(repo: Repository, now: Date) {
       continue;
     }
     const sealed = await sealStaleReadings(repo, user, now);
-    const events = await repo.listRawEvents(user.id);
-    if (events.length > 0) await rebuildDossier(repo, user, events, now);
+    // The dossier is kept fresh by /api/cron/sync (hourly) — dawn reads it as is.
     const reading = await ensureTodayReading(repo, user, now);
     results.push({
       userId: user.id,

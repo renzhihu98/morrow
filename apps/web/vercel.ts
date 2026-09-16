@@ -7,6 +7,9 @@ import type { VercelConfig } from '@vercel/config/v1';
 export const config: VercelConfig = {
   framework: 'nextjs',
   crons: [
+    // Hourly at :50: sync connected sources (Calendar window, Spotify `after` cursor) and purge expired raw events,
+    // so the dawn job at :00 reads a fresh dossier.
+    { path: '/api/cron/sync', schedule: '50 * * * *' },
     // Hourly: each user's reading turns over at 04:00 in *their* timezone, so the job checks every hour.
     { path: '/api/cron/dawn', schedule: '0 * * * *' },
     // Every 30 minutes: verify open prophecies against newly synced events.

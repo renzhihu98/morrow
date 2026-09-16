@@ -1,8 +1,9 @@
 /**
- * Deterministic extractors (no LLM): RawEvent[] → dossier facts. The LLM only ever sees the output.
+ * Raw-event extractors (no LLM) for window-based analysis — reschedules and mail cadence over a list of
+ * raw events. The live pipeline folds sync results into aggregates (aggregates.ts → facts.ts); these stay for
+ * Gmail (v0.3) and for ad-hoc analysis in tests.
  */
-import { formatShortDate, getLocalParts, getReadingDate, type Dossier, type DossierFact, type SourceKind, type User } from '@morrow/core';
-import type { Repository } from '../data';
+import { formatShortDate, getLocalParts, getReadingDate, type Dossier, type DossierFact, type SourceKind } from '@morrow/core';
 import type { CalendarEventPayload, EmailPayload, RawEvent } from '../sources/types';
 
 const WEEKDAYS = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
@@ -136,10 +137,4 @@ export function mergeDossier(existing: Dossier | null, userId: string, facts: Do
   for (const f of facts) byId.set(f.id, f);
   const merged = { facts: [...byId.values()], patterns: existing?.patterns ?? [] };
   return { userId, ...merged, sizeBytes: bytes(merged), rebuiltAt: now.toISOString() };
-}
-
-export async function rebuildDossier(repo: Repository, user: User, events: RawEvent[], now: Date): Promise<Dossier> {
-  const dossier = mergeDossier(await repo.getDossier(user.id), user.id, extractFacts(events, user.timezone), now);
-  await repo.saveDossier(dossier);
-  return dossier;
 }
