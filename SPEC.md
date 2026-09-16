@@ -328,3 +328,54 @@ Single entry `@morrow/core` (source TS, no build). zod 4. Schemas and their infe
 | 10 Sources | `201-0` | `294-0` | `2D1-0` | `2IR-0` |
 | 11 Dossier | `2KT-0` | `2SI-0` | `2W3-0` | `32G-0` |
 | 12 Forget | `2N3-0` | `2UN-0` | `2Y5-0` | `343-0` |
+
+## 12. Auth, onboarding & real data (v0.2)
+
+Goal: replace the demo user and fixtures with real accounts, a real database, and real source data. Fixtures remain only as the demo mode used when `DATABASE_URL` is unset.
+
+### 12.1 Screens
+
+| # | Screen | Web route | Mobile route | Desktop dark | Desktop light | Mobile dark | Mobile light |
+|---|---|---|---|---|---|---|---|
+| 13 | Sign in | `/sign-in` | `/(auth)/sign-in` | `35P-0` | `3C9-0` | `399-0` | `3FN-0` |
+| 14 | Connect accounts (onboarding step 2 of 3) | `/welcome/sources` | `/(auth)/sources` | `370-0` | `3DH-0` | `39A-0` | `3GZ-0` |
+
+- **Sign in:** Google only. "Signing in only shares your name and email. Sources are connected separately." Promises footer (raw events 24h · never health/money · forget anytime).
+- **Connect accounts:** Google Calendar and Spotify cards with READS / NEVER copy, linked state (accent border, `● LINKED`, event count), outline `Connect` button; Gmail and Instagram listed under "LATER · MORROW ASKS WHEN A PROPHECY NEEDS IT" (not connectable during onboarding). Primary CTA **Draw my first reading →** (enabled with ≥1 source); "Skip for now".
+- Step 3 "First reading" = Today screen in orbit `reading` state while the first reading is generated.
+
+### 12.2 Auth
+
+- **Better Auth** (latest) mounted at `/api/auth/[...all]` in `apps/web`, Drizzle adapter on the same Postgres.
+- Sign-in: Google social provider, scopes `openid email profile` only.
+- Sessions: cookies on web; **mobile** uses `@better-auth/expo` (expo client plugin + SecureStore), app scheme `morrow`, server `trustedOrigins` include `morrow://` (and `exp://` in dev).
+- Route protection: when `DATABASE_URL` is set, every page and API route except `/sign-in`, `/api/auth/*`, `/api/cron/*` requires a session; users without `onboardedAt` are redirected to `/welcome/sources`.
+
+### 12.3 Source connections
+
+- Connected via Better Auth **account linking** (`linkSocial`) with incremental scopes; tokens live in Better Auth's `account` table with **OAuth token encryption enabled**; refresh via Better Auth's access-token helpers.
+- **Google Calendar:** scope `https://www.googleapis.com/auth/calendar.readonly`. Sync events from the last 90 days and next 30 days (`singleEvents=true`), keeping only: start/end, created/updated, status, organizer, attendee emails/display names/response status, recurringEventId, summary. Never description, attachments, conferencing notes.
+- **Spotify:** provider scopes `user-read-recently-played user-top-read`. Sync recently played (API returns max 50 → poll hourly to accumulate) and top artists/tracks.
+- **Gmail** (`gmail.metadata`, senders + timestamps only) and **Instagram**: shown as "later", not implemented in v0.2.
+- Disconnect = unlink account + delete that source's raw events + rebuild dossier.
+
+### 12.4 Pipeline (real)
+
+1. On connect and hourly (`/api/cron/sync`): fetch → `raw_events` (TTL 24h, purged by cron).
+2. Extractors fold raw events into **incremental aggregates** stored with the dossier (so aggregates survive raw-event deletion), then rebuild `dossiers.facts/patterns`. Patterns inferred with Claude Haiku 4.5, facts are deterministic.
+3. "Draw my first reading" (`POST /api/onboarding/complete`): marks `onboardedAt`, runs initial sync + dossier build, creates today's reading and generates the opening message with Claude Sonnet 5 (`DailyReadingOutput`), then Today shows it.
+4. Dawn / verify crons operate per user (timezone stored on user; captured from the browser/device on first sign-in).
+
+### 12.5 Environment
+
+| Variable | Source |
+|---|---|
+| `DATABASE_URL` (+ Neon vars) | Vercel Marketplace → Neon (`vercel env pull`) |
+| `BETTER_AUTH_SECRET`, `CRON_SECRET` | generated, stored in Vercel env |
+| `BETTER_AUTH_URL` | `http://127.0.0.1:3000` locally (Spotify rejects `localhost` redirect URIs); production URL when deployed |
+| `GOOGLE_CLIENT_ID`, `GOOGLE_CLIENT_SECRET` | Google Cloud Console (user-created OAuth client) |
+| `SPOTIFY_CLIENT_ID`, `SPOTIFY_CLIENT_SECRET` | Spotify Developer Dashboard (user-created app) |
+| `VERCEL_OIDC_TOKEN` / `AI_GATEWAY_API_KEY` | AI Gateway auth (OIDC from `vercel env pull` locally, automatic on Vercel) |
+| `EXPO_PUBLIC_API_URL` | mobile → web API (`http://<LAN IP>:3000` on a device) |
+
+OAuth redirect URIs: Google `http://127.0.0.1:3000/api/auth/callback/google`, Spotify `http://127.0.0.1:3000/api/auth/callback/spotify` (+ production equivalents later).
