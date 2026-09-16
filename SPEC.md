@@ -292,3 +292,37 @@ Single entry `@morrow/core` (source TS, no build). zod 4. Schemas and their infe
 - **Screens added:** past readings, sealed reading, asking, answer, mobile menu, prophecies, sources, dossier, forget everything. Coral `danger` color introduced for destructive flow only.
 - **Engineering:** §6 contracts made concrete while scaffolding `packages/tokens` + `packages/core` (field names, `prophecyRef.event`, `MessageRole` = `user | assistant`, em letter-spacing, fixtures 0041–0052 so the record totals 12, extra client methods `connectSource`/`disconnectSource`).
 - **Engineering:** stack chosen (Next.js + Expo monorepo, AI SDK + AI Gateway, Claude Sonnet 5 / Haiku 4.5, Postgres + Drizzle); repo scaffolded at `~/morrow`.
+
+## 10. Chat protocol (web ⇄ mobile contract)
+
+`POST /api/chat` — one thread per day, so the server owns history; clients send only the new message.
+
+```jsonc
+// request
+{ "message": { "id": "m_…", "role": "user", "parts": [{ "type": "text", "text": "Should I say yes to Sam this time?" }] } }
+```
+
+- Response: **AI SDK UI message stream** (`result.toUIMessageStreamResponse()`), assistant message streamed as `text` parts plus custom data parts:
+  - `data-step` `{ id, source: SourceKind | 'memory', label, detail, status: 'done' | 'active' | 'pending' }` — drives the "Morrow is reading" list (screen 06). Re-emitted with the same `id` to update status.
+  - `data-observation` `{ text, evidenceRef, sourceLabel }` — serif answer + SOURCE line (screen 07).
+  - `data-quota` `{ used, limit }` — sent at stream start; drives `n OF 15 TODAY`.
+- Errors before streaming: `409 { error: { code: "reading_sealed" } }`, `429 { error: { code: "question_limit" } }`.
+- Clients: web uses `useChat` from `@ai-sdk/react` with `DefaultChatTransport({ api: '/api/chat', prepareSendMessagesRequest })` sending only the last message; mobile uses the same with `fetch` from `expo/fetch` and an absolute `EXPO_PUBLIC_API_URL`.
+- **Demo mode** (no `AI_GATEWAY_API_KEY`/OIDC): server streams a scripted response with the same parts (steps: Calendar done → Spotify active → Past readings pending, then the fixture answer) with small delays, so both clients look identical with or without a model.
+
+## 11. Paper artboard IDs (file `01M2NRFN984ZCAHJT65TCM7QXR`)
+
+| Screen | Desktop dark | Desktop light | Mobile dark | Mobile light |
+|---|---|---|---|---|
+| 01 Invocation | `7L-0` | `DC-0` | `I2-0` | `NT-0` |
+| 02 Reading | `9B-0` | `ES-0` | `JQ-0` | `PA-0` |
+| 03 Fulfilled | `BL-0` | `GC-0` | `L7-0` | `QP-0` |
+| 04 Past readings | `SG-0` | `YD-0` | `148-0` | `18R-0` |
+| 05 Sealed reading | `U0-0` | `ZX-0` | `15N-0` | `1A6-0` |
+| 06 Asking | `1D9-0` | `1I2-0` | `1L2-0` | `1PG-0` |
+| 07 Answer | `1ET-0` | `1JQ-0` | `1MH-0` | `1QY-0` |
+| 08 Menu | — | — | `1SM-0` | `1U3-0` |
+| 09 Prophecies | `1XK-0` | `26G-0` | `2BE-0` | `2H5-0` |
+| 10 Sources | `201-0` | `294-0` | `2D1-0` | `2IR-0` |
+| 11 Dossier | `2KT-0` | `2SI-0` | `2W3-0` | `32G-0` |
+| 12 Forget | `2N3-0` | `2UN-0` | `2Y5-0` | `343-0` |
