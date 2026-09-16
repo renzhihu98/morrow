@@ -7,9 +7,9 @@ import { getRepository, type Repository } from '../data';
 import { calendarEventChanged, calendarEventCount, emptyAggregates, foldCalendar, foldSpotify, type DossierAggregates } from '../dossier/aggregates';
 import { rebuildDossier } from '../dossier/build';
 import { SourceAuthError, type FetchLike } from './errors';
-import { fetchCalendarEvents, toCalendarPayload } from './google-calendar';
-import { fetchRecentlyPlayed, fetchTopItems } from './spotify';
-import type { CalendarEventPayload, RawEvent } from './types';
+import { fetchCalendarEvents, type CalendarSyncSummary } from './google-calendar';
+import { fetchRecentlyPlayed, fetchTopItems, type PlayItem } from './spotify';
+import type { PlayPayload, RawEvent } from './types';
 
 export const SYNCABLE: SourceKind[] = ['calendar', 'spotify'];
 
@@ -19,7 +19,7 @@ export type SyncDeps = {
 };
 
 export type SyncResult =
-  | { kind: SourceKind; ok: true; fetched: number; stored: number; eventCount: number }
+  | { kind: SourceKind; ok: true; fetched: number; stored: number; eventCount: number; calendars?: CalendarSyncSummary }
   | { kind: SourceKind; ok: false; state: 'needs_reauth' | 'error'; error: string };
 
 const HOUR_MS = 3_600_000;
@@ -53,26 +53,38 @@ export async function syncSource(
     const token = await deps.getAccessToken(user.id, kind);
 
     if (kind === 'calendar') {
-      const items = await fetchCalendarEvents(token, now, deps.fetch);
-      const payloads = items.map(toCalendarPayload).filter((p): p is CalendarEventPayload => p !== null);
-      // Only new or changed events are kept raw (for verification); the index holds the rest.
-      const changed = payloads.filter((p) => calendarEventChanged(agg.calendar?.events[p.eventId], p));
+      const { events, fetched, calendars } = await fetchCalendarEvents(token, now, deps.fetch);
+      // Only new or changed events the user is part of are kept raw (for verification); the index holds the rest.
+      const changed = events.filter((p) => p.selfInvolved !== false && calendarEventChanged(agg.calendar?.events[p.eventId], p));
       await repo.addRawEvents(changed.map((p) => raw(`cal:${user.id}:${p.eventId}:${Date.parse(p.updated ?? p.start)}`, p.start, p)));
-      agg.calendar = foldCalendar(agg.calendar, payloads, now);
+      agg.calendar = foldCalendar(agg.calendar, events, now);
       const eventCount = calendarEventCount(agg.calendar);
-      await repo.updateSourceState(user.id, kind, { syncState: 'ok', lastError: null, lastSyncedAt: now.toISOString(), eventCount });
-      return { kind, ok: true, fetched: items.length, stored: changed.length, eventCount };
+      await repo.updateSourceState(user.id, kind, {
+        syncState: 'ok',
+        lastError: null,
+        lastSyncedAt: now.toISOString(),
+        eventCount,
+        calendarCount: calendars.used,
+      });
+      return { kind, ok: true, fetched, stored: changed.length, eventCount, calendars };
     }
 
     if (kind === 'spotify') {
+      if (!agg.spotify) {
+        // Fresh (or upgraded) listening aggregates: refold the plays still in raw_events before polling.
+        const kept = (await repo.listRawEvents(user.id))
+          .filter((e) => e.sourceKind === 'spotify' && e.payload.type === 'play')
+          .map((e): PlayItem => ({ playedAt: e.occurredAt, payload: e.payload as PlayPayload }));
+        if (kept.length > 0) agg.spotify = foldSpotify(null, kept, null, now);
+      }
       const afterMs = agg.spotify?.cursorMs || null;
       const [plays, top] = await Promise.all([fetchRecentlyPlayed(token, afterMs, deps.fetch), fetchTopItems(token, deps.fetch)]);
       const date = getReadingDate(now, user.timezone);
       await repo.addRawEvents([
         ...plays.map((p) => raw(`sp:${user.id}:${Date.parse(p.playedAt)}:${p.payload.trackId}`, p.playedAt, p.payload)),
-        ...top.map((t) => raw(`sp-top:${user.id}:${date}:${t.itemType}`, now.toISOString(), t)),
+        ...top.map((t) => raw(`sp-top:${user.id}:${date}:${t.itemType}:${t.timeRange}`, now.toISOString(), t)),
       ]);
-      agg.spotify = foldSpotify(agg.spotify, plays, top, user.timezone, now);
+      agg.spotify = foldSpotify(agg.spotify, plays, top, now);
       const eventCount = agg.spotify.plays;
       await repo.updateSourceState(user.id, kind, {
         syncState: 'ok',

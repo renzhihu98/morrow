@@ -1,6 +1,9 @@
 /** The provider rejected the grant (401/403, revoked or missing refresh token) → source needs reauth. */
 export class SourceAuthError extends Error {
-  constructor(message: string) {
+  constructor(
+    message: string,
+    readonly status?: number,
+  ) {
     super(message);
     this.name = 'SourceAuthError';
   }
@@ -31,7 +34,7 @@ export async function getJson<T>(url: string, accessToken: string, fetchImpl: Fe
     }
     if (res.ok) return (await res.json()) as T;
     if (res.status === 401 || res.status === 403) {
-      throw new SourceAuthError(`${new URL(url).host} rejected the grant (${res.status})`);
+      throw new SourceAuthError(`${new URL(url).host} rejected the grant (${res.status})`, res.status);
     }
     if ((res.status === 429 || res.status >= 500) && attempt === 0) {
       const retryAfter = Number(res.headers.get('retry-after'));

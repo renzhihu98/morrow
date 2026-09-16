@@ -4,18 +4,32 @@
  */
 import { formatShortDate, getLocalParts, getReadingDate, type DossierFact, type SourceKind } from '@morrow/core';
 import { findTaboo } from '../ai/taboo';
-import type { CalendarAggregates, CalendarEventState, DossierAggregates, SpotifyAggregates } from './aggregates';
+import { listeningDays, type CalendarAggregates, type CalendarEventState, type DossierAggregates, type SpotifyAggregates } from './aggregates';
 
 const DAY_MS = 86_400_000;
 const WEEKDAYS = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
 const MAX_PEOPLE = 6;
 
-const pad = (n: number) => String(n).padStart(2, '0');
-const hhmm = (min: number) => {
-  const m = Math.round(min);
-  return `${pad(Math.floor(m / 60) % 24)}:${pad(m % 60)}`;
+/**
+ * Human part of the day for minutes since local midnight. Facts feed readings, and Morrow speaks about
+ * mornings and evenings, not clock times.
+ */
+export function partOfDay(min: number): string {
+  if (min < 6 * 60) return 'before dawn';
+  if (min < 7 * 60 + 30) return 'early morning';
+  if (min < 9 * 60 + 30) return 'morning';
+  if (min < 11 * 60 + 30) return 'late morning';
+  if (min < 13 * 60 + 30) return 'around midday';
+  if (min < 17 * 60) return 'afternoon';
+  if (min < 21 * 60) return 'evening';
+  return 'night';
+}
+
+const slotPart = (min: number) => {
+  const part = partOfDay(min);
+  return part === 'early morning' || part === 'late morning' ? 'morning' : part === 'around midday' ? 'lunchtime' : part;
 };
-const plural = (n: number, one: string, many = `${one}s`) => `${n} ${n === 1 ? one : many}`;
+
 
 function localDate(iso: string, tz: string) {
   return getReadingDate(new Date(iso), tz, 0);
@@ -47,6 +61,9 @@ const titleCase = (key: string) => key.replace(/_/g, ' ').replace(/\b\w/g, (c) =
 
 /** Past, attended, timed events. */
 const attended = (e: CalendarEventState, now: Date) => e.st !== 'x' && !e.d && !e.a && Date.parse(e.s) <= now.getTime();
+
+/** The user's own time: attended and not a copy on someone else's (read-only) calendar. */
+const ownTime = (e: CalendarEventState, now: Date) => attended(e, now) && !e.sh;
 
 // ─── people ────────────────────────────────────────────────────────────────
 
@@ -125,13 +142,13 @@ export function firstActivityByDay(agg: DossierAggregates, tz: string, now: Date
     else if (min === d.min) d.sources.add(source);
   };
   for (const e of Object.values(agg.calendar?.events ?? {})) {
-    if (!attended(e, now)) continue;
+    if (!ownTime(e, now)) continue;
     const date = localDate(e.s, tz);
     const wd = localWeekday(e.s, tz);
     if (wd === 0 || wd === 6) continue;
     note(date, localMinutes(e.s, tz), 'calendar');
   }
-  for (const [date, day] of Object.entries(agg.spotify?.days ?? {})) {
+  for (const [date, day] of Object.entries(agg.spotify ? listeningDays(agg.spotify, tz) : {})) {
     if (day.firstMin === null) continue;
     const [y, m, d] = date.split('-').map(Number) as [number, number, number];
     const wd = new Date(Date.UTC(y, m - 1, d)).getUTCDay();
@@ -150,10 +167,13 @@ function firstActivityFact(agg: DossierAggregates, tz: string, now: Date): Dossi
   const earlier = days.filter(([date]) => daysAgo(date) > 14).map(([, d]) => d.min);
   const sources = [...new Set(days.flatMap(([, d]) => [...d.sources]))].sort() as SourceKind[];
   const base = recent.length >= 3 ? mean(recent) : mean(days.map(([, d]) => d.min));
-  let value = `Weekdays start around ${hhmm(base)}`;
+  const part = partOfDay(base);
+  let value = `The first thing on a weekday usually lands ${part === 'around midday' ? part : part === 'before dawn' ? 'before dawn' : `in the ${part}`}`;
   if (recent.length >= 3 && earlier.length >= 3) {
     const shift = Math.round(mean(recent) - mean(earlier));
-    if (Math.abs(shift) >= 15) value += ` — ${Math.abs(shift)} min ${shift < 0 ? 'earlier' : 'later'} than the weeks before`;
+    const direction = shift < 0 ? 'earlier' : 'later';
+    if (Math.abs(shift) >= 45) value += `, noticeably ${direction} than last month`;
+    else if (Math.abs(shift) >= 15) value += `, a little ${direction} than last month`;
     else value += ', steady for two months';
   }
   return { id: 'rhythms.first_activity', category: 'rhythms', label: 'First light', value, sources };
@@ -165,7 +185,7 @@ export function recurringSeries(cal: CalendarAggregates, tz: string, now: Date):
   const series = new Map<string, Series>();
   const moved = new Set(cal.moves.map((m) => m.eventId));
   for (const [id, e] of Object.entries(cal.events)) {
-    if (!e.r || e.a || e.d) continue;
+    if (!e.r || e.a || e.d || e.sh) continue;
     const slot = e.o ?? e.s;
     if (Date.parse(slot) > now.getTime()) continue;
     let s = series.get(e.r);
@@ -183,7 +203,7 @@ export function recurringSeries(cal: CalendarAggregates, tz: string, now: Date):
 function slotFacts(cal: CalendarAggregates, tz: string, now: Date): DossierFact[] {
   const all = recurringSeries(cal, tz, now);
   const facts: DossierFact[] = [];
-  const label = (s: Series) => `${WEEKDAYS[s.weekday]}s at ${hhmm(s.minute)}`;
+  const label = (s: Series) => `${WEEKDAYS[s.weekday]} ${slotPart(s.minute)}s`;
 
   const protectedSlot = all
     .filter((s) => s.kept.length >= 4 && s.moved.length === 0 && s.cancelled.length === 0)
@@ -194,7 +214,7 @@ function slotFacts(cal: CalendarAggregates, tz: string, now: Date): DossierFact[
       id: 'rhythms.protected_time',
       category: 'rhythms',
       label: 'Protected time',
-      value: `${label(protectedSlot)} — kept ${protectedSlot.kept.length} of ${protectedSlot.kept.length} since ${since}`,
+      value: `${label(protectedSlot)} — never moved or cancelled, kept ${protectedSlot.kept.length} times since ${since}`,
       sources: ['calendar'],
     });
   }
@@ -208,7 +228,7 @@ function slotFacts(cal: CalendarAggregates, tz: string, now: Date): DossierFact[
       id: 'rhythms.slipping_slot',
       category: 'rhythms',
       label: 'The slot that slips',
-      value: `${label(fragile.s)} — moved or cancelled ${fragile.slipped} of ${fragile.total} times`,
+      value: `${label(fragile.s)} — moved or cancelled ${fragile.slipped} times out of ${fragile.total}`,
       sources: ['calendar'],
     });
   }
@@ -218,16 +238,17 @@ function slotFacts(cal: CalendarAggregates, tz: string, now: Date): DossierFact[
 function busiestDayFact(cal: CalendarAggregates, tz: string, now: Date): DossierFact | null {
   const since = now.getTime() - 56 * DAY_MS;
   const weekdays = Object.values(cal.events)
-    .filter((e) => attended(e, now) && Date.parse(e.s) >= since)
+    .filter((e) => ownTime(e, now) && Date.parse(e.s) >= since)
     .map((e) => localWeekday(e.s, tz));
   if (weekdays.length < 10) return null;
   const top = mostCommon(weekdays)!;
-  const perWeek = Math.round((top.count / 8) * 10) / 10;
+  const second = [...new Set(weekdays)].filter((d) => d !== top.value).map((d) => weekdays.filter((w) => w === d).length);
+  const clear = second.length === 0 || top.count >= Math.max(...second) * 1.5;
   return {
     id: 'rhythms.busiest_day',
     category: 'rhythms',
     label: 'Busiest day',
-    value: `${WEEKDAYS[top.value]} — about ${perWeek} meetings each, over the last 8 weeks`,
+    value: `${WEEKDAYS[top.value]}s ${clear ? 'are clearly the fullest day of the week' : 'are usually the fullest day, but only just'}, over the last two months`,
     sources: ['calendar'],
   };
 }
@@ -237,7 +258,9 @@ function busiestDayFact(cal: CalendarAggregates, tz: string, now: Date): Dossier
 function lateNightFact(sp: SpotifyAggregates, tz: string, now: Date): DossierFact | null {
   const today = getReadingDate(now, tz);
   const cutoff = new Date(Date.parse(`${today}T12:00:00Z`) - 30 * DAY_MS).toISOString().slice(0, 10);
-  const nights = Object.entries(sp.days).filter(([date, d]) => date > cutoff && d.late > 0);
+  const nights = Object.entries(listeningDays(sp, tz))
+    .filter(([date, d]) => date > cutoff && d.late > 0)
+    .sort(([a], [b]) => a.localeCompare(b));
   if (nights.length === 0) return null;
   const wd = mostCommon(
     nights.map(([date]) => {
@@ -251,7 +274,7 @@ function lateNightFact(sp: SpotifyAggregates, tz: string, now: Date): DossierFac
     id: 'rhythms.late_nights',
     category: 'rhythms',
     label: 'Late nights',
-    value: `Playing after 23:00 on ${plural(nights.length, 'night')} of the last 30${mostly} (${dates})`,
+    value: `Music playing late at night on ${nights.length} ${nights.length === 1 ? 'night' : 'nights'} this past month${mostly} (${dates})`,
     sources: ['spotify'],
   };
 }
@@ -266,6 +289,17 @@ function tasteFacts(sp: SpotifyAggregates): DossierFact[] {
     .slice(0, 3);
   if (top.length > 0) {
     facts.push({ id: 'tastes.top_artists', category: 'tastes', label: 'On repeat', value: `Lately: ${top.join(', ')}`, sources: ['spotify'] });
+  }
+  const settled = new Set((sp.top?.settled ?? []).map((a) => a.toLowerCase()));
+  const fresh = settled.size > 0 ? (sp.top?.artists ?? []).filter((a) => safe(a) && !settled.has(a.toLowerCase())).slice(0, 3) : [];
+  if (fresh.length > 0) {
+    facts.push({
+      id: 'tastes.new_in_rotation',
+      category: 'tastes',
+      label: 'New in rotation',
+      value: `${fresh.join(', ')} — in this month's heavy rotation, but not among your artists of the last six months`,
+      sources: ['spotify'],
+    });
   }
   if (returned.length > 0) {
     facts.push({

@@ -1,0 +1,11 @@
+{
+  "kind": "calendar#calendarList",
+  "nextPageToken": "CL_PAGE_2",
+  "items": [
+    { "id": "iris@example.com", "accessRole": "owner", "primary": true },
+    { "id": "family0abc@group.calendar.google.com", "accessRole": "writer" },
+    { "id": "dev@example.com", "accessRole": "reader" },
+    { "id": "en.usa#holiday@group.v.calendar.google.com", "accessRole": "reader" },
+    { "id": "addressbook#contacts@group.v.calendar.google.com", "accessRole": "reader" }
+  ]
+}

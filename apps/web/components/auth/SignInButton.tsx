@@ -1,7 +1,19 @@
 'use client';
 
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { authClient } from '@/lib/auth/client';
+
+const TZ_COOKIE = 'morrow_tz';
+
+/** Hands the browser timezone to the server for the user-create hook, so a new account never starts as UTC. */
+function rememberTimezone() {
+  try {
+    const tz = Intl.DateTimeFormat().resolvedOptions().timeZone;
+    if (tz) document.cookie = `${TZ_COOKIE}=${encodeURIComponent(tz)}; path=/; max-age=600; samesite=lax`;
+  } catch {
+    // No zone available: the account starts as UTC and TimezoneSync corrects it after sign-in.
+  }
+}
 
 const GoogleGlyph = () => (
   <svg width="18" height="18" viewBox="0 0 18 18" aria-hidden className="shrink-0">
@@ -15,9 +27,11 @@ const GoogleGlyph = () => (
 /** "Continue with Google" — Better Auth social sign-in (openid email profile only). */
 export function SignInButton({ callbackURL }: { callbackURL: string }) {
   const [state, setState] = useState<'idle' | 'working' | 'error'>('idle');
+  useEffect(rememberTimezone, []);
 
   const signIn = async () => {
     setState('working');
+    rememberTimezone();
     const { error } = await authClient.signIn.social({
       provider: 'google',
       callbackURL,

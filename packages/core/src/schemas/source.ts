@@ -32,5 +32,7 @@ export const Source = z.object({
   syncState: SourceSyncState.optional(),
   /** v0.2: events Morrow has distilled from this source (calendar events in window, Spotify plays). */
   eventCount: z.number().int().nonnegative().optional(),
+  /** v0.2.1: Calendar only — calendars read on the last sync (events are counted across all of them). */
+  calendarCount: z.number().int().nonnegative().optional(),
 });
 export type Source = z.infer<typeof Source>;

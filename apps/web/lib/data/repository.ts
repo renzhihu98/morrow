@@ -31,6 +31,8 @@ export type SourceState = {
   lastSyncedAt: string | null;
   eventCount: number;
   cursor: string | null;
+  /** Calendar: calendars read on the last sync (null for other sources / before the first multi-calendar sync). */
+  calendarCount?: number | null;
 };
 
 export type SourceStatePatch = Partial<Omit<SourceState, 'kind'>>;

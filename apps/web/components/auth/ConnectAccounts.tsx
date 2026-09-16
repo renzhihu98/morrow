@@ -7,7 +7,7 @@ import { FirstReading } from './FirstReading';
 
 type Props = { initialSources: Source[]; connectError: string | null };
 
-const CARDS: { kind: SourceKind; name: string; glyph: string; reads: string; never: string; hint: string; found: (n: number) => string }[] = [
+const CARDS: { kind: SourceKind; name: string; glyph: string; reads: string; never: string; hint: string; found: (n: number, calendars?: number) => string }[] = [
   {
     kind: 'calendar',
     name: 'Google Calendar',
@@ -15,7 +15,8 @@ const CARDS: { kind: SourceKind; name: string; glyph: string; reads: string; nev
     reads: "When things happen, who's invited, what moves.",
     never: 'Descriptions, notes, attachments.',
     hint: 'Start here',
-    found: (n) => `${n.toLocaleString('en-US')} ${n === 1 ? 'event' : 'events'} found · last 90 days`,
+    found: (n, calendars) =>
+      `${n.toLocaleString('en-US')} ${n === 1 ? 'event' : 'events'} found${calendars ? ` · ${calendars} ${calendars === 1 ? 'calendar' : 'calendars'}` : ''} · last 90 days`,
   },
   {
     kind: 'spotify',
@@ -45,7 +46,7 @@ function SourceCard({ card, source, onConnect, pending }: { card: (typeof CARDS)
       ? 'Needs reconnecting'
       : syncing
         ? 'Reading…'
-        : card.found(source?.eventCount ?? source?.stat?.value ?? 0);
+        : card.found(source?.eventCount ?? source?.stat?.value ?? 0, source?.calendarCount);
 
   return (
     <div

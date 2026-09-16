@@ -58,10 +58,12 @@ export async function fetchRecentlyPlayed(accessToken: string, afterMs: number |
   return [...unique.values()].sort((a, b) => a.playedAt.localeCompare(b.playedAt));
 }
 
+/** Short-term (≈4 weeks) top artists + tracks, and medium-term (≈6 months) artists to tell what's new in rotation. */
 export async function fetchTopItems(accessToken: string, fetchImpl?: FetchLike): Promise<TopItemsPayload[]> {
-  const [artists, tracks] = await Promise.all([
+  const [artists, tracks, settled] = await Promise.all([
     getJson<TopPage<SpotifyArtist>>(`${API}/me/top/artists?time_range=short_term&limit=10`, accessToken, fetchImpl),
     getJson<TopPage<SpotifyTrack>>(`${API}/me/top/tracks?time_range=short_term&limit=10`, accessToken, fetchImpl),
+    getJson<TopPage<SpotifyArtist>>(`${API}/me/top/artists?time_range=medium_term&limit=20`, accessToken, fetchImpl),
   ]);
   return [
     { type: 'top_items', itemType: 'artists', timeRange: 'short_term', items: artists.items.map((a) => ({ id: a.id, name: a.name })) },
@@ -71,5 +73,6 @@ export async function fetchTopItems(accessToken: string, fetchImpl?: FetchLike):
       timeRange: 'short_term',
       items: tracks.items.map((t) => ({ id: t.id, name: t.name, artist: t.artists?.[0]?.name })),
     },
+    { type: 'top_items', itemType: 'artists', timeRange: 'medium_term', items: settled.items.map((a) => ({ id: a.id, name: a.name })) },
   ];
 }

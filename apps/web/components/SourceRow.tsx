@@ -10,6 +10,7 @@ function meta(source: Source): string {
   const parts: string[] = [];
   if (source.provider !== source.name) parts.push(source.provider);
   if (source.stat) parts.push(`${source.stat.value.toLocaleString('en-US')} ${source.stat.label}`);
+  if (source.stat && source.calendarCount) parts.push(`${source.calendarCount} ${source.calendarCount === 1 ? 'calendar' : 'calendars'}`);
   else if (source.watchingCount > 0)
     parts.push(`Watching ${source.watchingCount} ${source.watchingCount === 1 ? 'prophecy' : 'prophecies'}`);
   return parts.join(' · ');

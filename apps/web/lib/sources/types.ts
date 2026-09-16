@@ -36,7 +36,21 @@ export type CalendarEventPayload = {
   originalStart?: string | null;
   /** Previous start when the event was moved; null if never moved (as far as Morrow can tell). */
   movedFrom: string | null;
+  /** Calendar this copy was read from (`primary` calendar id is the account email) and its access role. */
+  calendarId?: string;
+  accessRole?: CalendarAccessRole;
+  /** iCalendar UID — the same meeting on several calendars shares it (dedupe key with the start). */
+  iCalUID?: string | null;
+  /**
+   * On a calendar the user can only read (someone else's shared calendar): not the user's own time, so it
+   * never counts toward rhythms.
+   */
+  shared?: boolean;
+  /** The user is an attendee or the organiser (matched by their own address, not the calendar's). */
+  selfInvolved?: boolean;
 };
+
+export type CalendarAccessRole = 'owner' | 'writer' | 'reader' | 'freeBusyReader';
 
 export type EmailPayload = {
   type: 'email';

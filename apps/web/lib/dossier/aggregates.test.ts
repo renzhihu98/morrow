@@ -7,14 +7,14 @@ import topTracks from '../sources/__fixtures__/spotify-top-tracks.json';
 import { contactKey, toCalendarPayload, type GoogleCalendarEvent } from '../sources/google-calendar';
 import { toPlay, type SpotifyPlayHistory } from '../sources/spotify';
 import type { CalendarEventPayload, TopItemsPayload } from '../sources/types';
-import { calendarEventChanged, emptyAggregates, foldCalendar, foldSpotify, type DossierAggregates } from './aggregates';
+import { calendarEventChanged, emptyAggregates, foldCalendar, foldSpotify, listeningDays, normalizeAggregates, type DossierAggregates } from './aggregates';
 import { buildFacts, contactStats, recurringSeries } from './facts';
 
 const TZ = 'America/Los_Angeles';
 const NOW = new Date('2026-09-01T12:00:00-07:00');
 
 const calendarItems = [...calendarPage1.items, ...calendarPage2.items] as GoogleCalendarEvent[];
-const calendarPayloads = () => calendarItems.map(toCalendarPayload).filter((p): p is CalendarEventPayload => p !== null);
+const calendarPayloads = () => calendarItems.map((i) => toCalendarPayload(i)).filter((p): p is CalendarEventPayload => p !== null);
 const plays = () => (recentlyPlayed.items as SpotifyPlayHistory[]).map(toPlay).filter((p) => p !== null);
 const top: TopItemsPayload[] = [
   { type: 'top_items', itemType: 'artists', timeRange: 'short_term', items: topArtists.items.map((a) => ({ id: a.id, name: a.name })) },
@@ -24,7 +24,7 @@ const top: TopItemsPayload[] = [
 function fullAggregates(): DossierAggregates {
   const agg = emptyAggregates();
   agg.calendar = foldCalendar(null, calendarPayloads(), NOW);
-  agg.spotify = foldSpotify(null, plays(), top, TZ, NOW);
+  agg.spotify = foldSpotify(null, plays(), top, NOW);
   return agg;
 }
 
@@ -91,18 +91,42 @@ describe('foldCalendar', () => {
 });
 
 describe('foldSpotify', () => {
-  it('buckets plays by reading day, counts late nights, and advances the cursor', () => {
-    const agg = foldSpotify(null, plays(), top, TZ, NOW);
+  it('buckets plays by UTC hour (timezone-free), and advances the cursor', () => {
+    const agg = foldSpotify(null, plays(), top, NOW);
     expect(agg.plays).toBe(29);
-    expect(agg.days['2026-08-23']).toMatchObject({ plays: 4, late: 4, firstMin: null });
-    expect(agg.days['2026-08-24']).toMatchObject({ plays: 3, late: 0, firstMin: 7 * 60 + 20 });
+    expect(Object.values(agg.hours).reduce((n, h) => n + h.count, 0)).toBe(29);
+    expect(Object.keys(agg.hours).every((k) => /^\d{4}-\d\d-\d\dT\d\d$/.test(k))).toBe(true);
     expect(agg.cursorMs).toBe(Date.parse(recentlyPlayed.items[0]!.played_at));
     expect(agg.top?.artists).toEqual(['Phoebe Bridgers', 'Bon Iver', 'Frank Ocean']);
 
     // Polling again with the same page adds nothing (cursor dedupe).
-    const again = foldSpotify(agg, plays(), null, TZ, NOW);
+    const again = foldSpotify(agg, plays(), null, NOW);
     expect(again.plays).toBe(29);
     expect(again.top).toEqual(agg.top);
+  });
+
+  it('derives local listening days for whatever timezone the person has now', () => {
+    const agg = foldSpotify(null, plays(), top, NOW);
+    const la = listeningDays(agg, TZ);
+    expect(la['2026-08-23']).toMatchObject({ plays: 4, late: 4, firstMin: null });
+    expect(la['2026-08-24']).toMatchObject({ plays: 3, late: 0, firstMin: 7 * 60 + 20 });
+    // The same instants read in UTC: the LA late-night plays of 08.23 become a UTC morning — nothing about LA was stored.
+    const utc = listeningDays(agg, 'UTC');
+    expect(utc['2026-08-24']).toMatchObject({ late: 0, firstMin: 6 * 60 + 10 });
+  });
+
+  it('prunes hours older than the retention window', () => {
+    const agg = foldSpotify(null, plays(), null, new Date('2026-12-01T00:00:00Z'));
+    expect(Object.keys(agg.hours)).toHaveLength(0);
+    expect(agg.plays).toBe(29);
+  });
+
+  it('drops v1 (timezone-baked) listening aggregates but keeps calendar and forgotten ids', () => {
+    const v1 = { version: 1, forgotten: ['people.mom'], calendar: foldCalendar(null, calendarPayloads(), NOW), spotify: { cursorMs: 1, plays: 3, days: {}, artists: {}, top: null } };
+    const up = normalizeAggregates(JSON.parse(JSON.stringify(v1)))!;
+    expect(up).toMatchObject({ version: 2, forgotten: ['people.mom'], spotify: null });
+    expect(Object.keys(up.calendar!.events).length).toBeGreaterThan(0);
+    expect(normalizeAggregates(null)).toBeNull();
   });
 });
 
@@ -118,13 +142,16 @@ describe('buildFacts', () => {
       sources: ['calendar'],
     });
     expect(byId['people.mom']?.value).toBe('Met 6 times since 06.14, every 14 days or so · last 08.23');
-    expect(byId['rhythms.protected_time']?.value).toBe('Thursdays at 08:00 — kept 13 of 13 since 06.04');
-    expect(byId['rhythms.slipping_slot']?.value).toBe('Mondays at 09:00 — moved or cancelled 4 of 14 times');
+    expect(byId['rhythms.protected_time']?.value).toBe('Thursday mornings — never moved or cancelled, kept 13 times since 06.04');
+    expect(byId['rhythms.slipping_slot']?.value).toBe('Monday mornings — moved or cancelled 4 times out of 14');
     expect(byId['rhythms.late_nights']?.value).toBe(
-      'Playing after 23:00 on 4 nights of the last 30, mostly Sundays (08.16 · 08.23 · 08.26 · 08.30)',
+      'Music playing late at night on 4 nights this past month, mostly Sundays (08.16 · 08.23 · 08.26 · 08.30)',
     );
     expect(byId['rhythms.first_activity']).toMatchObject({ label: 'First light', sources: ['calendar', 'spotify'] });
-    expect(byId['rhythms.first_activity']?.value).toMatch(/^Weekdays start around 07:\d\d — \d+ min earlier than the weeks before$/);
+    expect(byId['rhythms.first_activity']?.value).toBe('The first thing on a weekday usually lands in the early morning, noticeably earlier than last month');
+    expect(byId['rhythms.busiest_day']?.value).toBe('Thursdays are clearly the fullest day of the week, over the last two months');
+    // No clock times or averages reach the model.
+    for (const f of facts.filter((f) => f.category === 'rhythms')) expect(f.value).not.toMatch(/\d{1,2}:\d\d|average|min\b/);
     expect(byId['tastes.top_artists']?.value).toBe('Lately: Phoebe Bridgers, Bon Iver, Frank Ocean');
 
     // The declined launch party is not a meeting with Sam; all-day events never count.
@@ -136,6 +163,22 @@ describe('buildFacts', () => {
     const series = recurringSeries(fullAggregates().calendar!, TZ, NOW);
     const standup = series.find((s) => s.id === '2standup')!;
     expect({ kept: standup.kept.length, cancelled: standup.cancelled.length, weekday: standup.weekday }).toEqual({ kept: 7, cancelled: 2, weekday: 2 });
+  });
+
+  it('derives rhythms in the current timezone from the same stored aggregates', () => {
+    const stored = JSON.parse(JSON.stringify(fullAggregates())) as DossierAggregates;
+    const la = Object.fromEntries(buildFacts(stored, TZ, NOW).map((f) => [f.id, f.value]));
+    const utc = Object.fromEntries(buildFacts(stored, 'UTC', NOW).map((f) => [f.id, f.value]));
+    expect(la['rhythms.first_activity']).toMatch(/^The first thing on a weekday usually lands in the early morning/);
+    expect(utc['rhythms.first_activity']).not.toBe(la['rhythms.first_activity']);
+  });
+
+  it('names artists new in rotation against the six-month list', () => {
+    const agg = fullAggregates();
+    agg.spotify!.top = { artists: ['Phoebe Bridgers', 'Ms Ray', 'Bon Iver'], tracks: [], settled: ['Bon Iver', 'Phoebe Bridgers'], at: NOW.toISOString() };
+    expect(buildFacts(agg, TZ, NOW).find((f) => f.id === 'tastes.new_in_rotation')?.value).toMatch(/^Ms Ray — /);
+    agg.spotify!.top.settled = [];
+    expect(buildFacts(agg, TZ, NOW).find((f) => f.id === 'tastes.new_in_rotation')).toBeUndefined();
   });
 
   it('skips forgotten facts and taboo values, and survives an empty dossier', () => {

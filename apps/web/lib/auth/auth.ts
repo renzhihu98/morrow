@@ -5,6 +5,7 @@ import { drizzleAdapter } from 'better-auth/adapters/drizzle';
 import { APIError, createAuthMiddleware } from 'better-auth/api';
 import { nextCookies } from 'better-auth/next-js';
 import { getDb } from '../db/client';
+import { TZ_COOKIE, isValidTimeZone, timezoneFromCookieHeader } from '../server/timezone';
 import { authSchema } from '../db/schema';
 import { onAccountGranted } from './grants';
 
@@ -107,6 +108,16 @@ function createAuth() {
       }),
     },
     databaseHooks: {
+      user: {
+        create: {
+          // Capture the browser zone set by the sign-in page (`morrow_tz`), so readings and rhythms start local.
+          before: async (user, ctx) => {
+            const fromCookie = ctx?.getCookie?.(TZ_COOKIE) ?? null;
+            const timezone = isValidTimeZone(fromCookie) ? fromCookie : timezoneFromCookieHeader(ctx?.headers?.get('cookie'));
+            return timezone ? { data: { ...user, timezone } } : undefined;
+          },
+        },
+      },
       account: {
         // A source grant just landed (OAuth callback) → sync it in the background.
         create: { after: async (account, ctx) => onAccountGranted(account, ctx?.path ?? null) },

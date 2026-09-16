@@ -48,13 +48,15 @@ export async function sealStaleReadings(repo: Repository, user: User, now: Date)
 
 /** Creates and opens the reading for `localDate`: generates the opening, issues the day's prophecy. */
 export async function openReading(repo: Repository, user: User, localDate: string, now: Date): Promise<Reading> {
-  const [dossier, summaries, prophecies, number] = await Promise.all([
+  const [dossier, summaries, prophecies, number, linked] = await Promise.all([
     repo.getDossier(user.id),
     repo.listSummaries(user.id, SUMMARY_MEMORY),
     repo.listProphecies(user.id),
     repo.nextProphecyNumber(user.id),
+    repo.listSources(user.id),
   ]);
-  const output = await generateDailyReading({ user, now, localDate, dossier, summaries, prophecies });
+  const sources = linked.filter((s) => s.status !== 'not_linked').map((s) => s.kind);
+  const output = await generateDailyReading({ user, now, localDate, dossier, summaries, prophecies, sources });
   const readingId = readingIdFor(localDate);
   const prophecyId = `p_${formatProphecyNumber(number)}`;
 

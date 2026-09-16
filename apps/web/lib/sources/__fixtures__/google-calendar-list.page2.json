@@ -1,0 +1,9 @@
+{
+  "kind": "calendar#calendarList",
+  "items": [
+    { "id": "e_2_en#weeknum@group.v.calendar.google.com", "accessRole": "reader" },
+    { "id": "boss@example.com", "accessRole": "freeBusyReader" },
+    { "id": "gone@example.com", "accessRole": "reader" },
+    { "id": "locked@example.com", "accessRole": "reader" }
+  ]
+}

@@ -3,7 +3,7 @@ import { and, asc, count, desc, eq, gte, isNotNull, lt, lte, sql } from 'drizzle
 import { sourceKindForAccount } from '../auth/grants';
 import { getDb } from '../db/client';
 import * as schema from '../db/schema';
-import { emptyAggregates } from '../dossier/aggregates';
+import { emptyAggregates, normalizeAggregates } from '../dossier/aggregates';
 import { SOURCE_CATALOG, SOURCE_ORDER } from '../sources/catalog';
 import { ReadingExistsError, type Repository, type SourceState } from './repository';
 
@@ -57,7 +57,11 @@ const toSourceState = (r: SourceRow): SourceState => ({
   lastSyncedAt: isoOrNull(r.lastSyncedAt),
   eventCount: r.eventCount,
   cursor: r.cursor,
+  calendarCount: calendarCountOf(r),
 });
+
+/** `sources.stats` holds `{ value, label: 'calendars' }` for Calendar. */
+const calendarCountOf = (r: SourceRow) => (r.stats?.label === 'calendars' ? r.stats.value : null);
 
 const toUser = (u: { id: string; name: string; timezone: string | null }): User => ({
   id: u.id,
@@ -230,6 +234,7 @@ export function createDrizzleRepository(): Repository {
           watchingCount: open.filter((p) => p.watching.includes(kind)).length,
           lastSyncedAt: linked ? isoOrNull(row?.lastSyncedAt ?? null) : null,
           ...(linked ? { syncState: row?.syncState ?? 'pending', eventCount: row?.eventCount ?? 0 } : {}),
+          ...(linked && row && calendarCountOf(row) ? { calendarCount: calendarCountOf(row)! } : {}),
         };
       });
     },
@@ -244,6 +249,7 @@ export function createDrizzleRepository(): Repository {
         ...(patch.lastSyncedAt !== undefined ? { lastSyncedAt: patch.lastSyncedAt } : {}),
         ...(patch.eventCount !== undefined ? { eventCount: patch.eventCount } : {}),
         ...(patch.cursor !== undefined ? { cursor: patch.cursor } : {}),
+        ...(patch.calendarCount !== undefined ? { stats: patch.calendarCount === null ? null : { value: patch.calendarCount, label: 'calendars' } } : {}),
       };
       await db
         .insert(sources)
@@ -267,7 +273,7 @@ export function createDrizzleRepository(): Repository {
     },
     async getAggregates(userId) {
       const [row] = await db.select({ aggregates: dossiers.aggregates }).from(dossiers).where(eq(dossiers.userId, userId));
-      return row?.aggregates ?? null;
+      return normalizeAggregates(row?.aggregates ?? null);
     },
     async saveDossier(dossier, aggregates) {
       const { userId, ...rest } = dossier;
@@ -284,7 +290,7 @@ export function createDrizzleRepository(): Repository {
       const patterns = row.patterns.filter((p) => p.id !== factId);
       if (facts.length === row.facts.length && patterns.length === row.patterns.length) return false;
       const sizeBytes = new TextEncoder().encode(JSON.stringify({ facts, patterns })).length;
-      const agg = row.aggregates ?? emptyAggregates();
+      const agg = normalizeAggregates(row.aggregates) ?? emptyAggregates();
       const aggregates = { ...agg, forgotten: [...new Set([...agg.forgotten, factId])] };
       await db.update(dossiers).set({ facts, patterns, sizeBytes, aggregates }).where(eq(dossiers.userId, userId));
       return true;
