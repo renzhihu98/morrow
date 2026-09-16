@@ -73,10 +73,14 @@ export type ForgetRequest = z.infer<typeof ForgetRequest>;
 export const OkResponse = z.object({ ok: z.literal(true) });
 export type OkResponse = z.infer<typeof OkResponse>;
 
-/** POST /api/sources/[kind]/connect — OAuth stub; `authorizeUrl` null in demo mode. */
+/**
+ * POST /api/sources/[kind]/connect — `url` (v0.2) and `authorizeUrl` are the same provider authorize URL
+ * (Better Auth linkSocial); both null in demo mode, where the source is linked immediately.
+ */
 export const ConnectSourceResponse = z.object({
   kind: SourceKind,
   authorizeUrl: z.string().nullable(),
+  url: z.string().nullable().optional(),
 });
 export type ConnectSourceResponse = z.infer<typeof ConnectSourceResponse>;
 
