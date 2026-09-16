@@ -1,0 +1,154 @@
+@import 'tailwindcss';
+@import '@morrow/tokens/tokens.css';
+
+/* next/font exposes hashed family names as variables; point the token font stacks at them. */
+:root {
+  --font-serif: var(--font-instrument-serif), 'Instrument Serif', Georgia, serif;
+  --font-sans: var(--font-geist), 'Geist', system-ui, sans-serif;
+  --font-mono: var(--font-geist-mono), 'Geist Mono', ui-monospace, monospace;
+  --color-core: color-mix(in srgb, var(--color-bg) 55%, var(--color-panel));
+}
+
+/* Tokens already live on :root (light/dark/data-theme) — `inline reference` maps utilities to them without re-emitting. */
+@theme inline reference {
+  --color-*: initial;
+  --color-bg: var(--color-bg);
+  --color-panel: var(--color-panel);
+  --color-subtle: var(--color-subtle);
+  --color-hairline: var(--color-hairline);
+  --color-hairline-strong: var(--color-hairline-strong);
+  --color-orbit-faint: var(--color-orbit-faint);
+  --color-orbit-line: var(--color-orbit-line);
+  --color-tick: var(--color-tick);
+  --color-text-faint: var(--color-text-faint);
+  --color-text-muted: var(--color-text-muted);
+  --color-placeholder: var(--color-placeholder);
+  --color-text-secondary: var(--color-text-secondary);
+  --color-text-primary: var(--color-text-primary);
+  --color-accent: var(--color-accent);
+  --color-accent-fill: var(--color-accent-fill);
+  --color-on-accent: var(--color-on-accent);
+  --color-danger: var(--color-danger);
+  --color-on-danger: var(--color-on-danger);
+  --color-accent-border: var(--color-accent-border);
+  --color-danger-border: var(--color-danger-border);
+  --color-core: var(--color-core);
+
+  --font-serif: var(--font-serif);
+  --font-sans: var(--font-sans);
+  --font-mono: var(--font-mono);
+
+  --radius-panel: var(--radius-panel);
+  --radius-card: var(--radius-card);
+  --radius-button: var(--radius-button);
+  --radius-glyph: var(--radius-glyph);
+  --radius-dot: var(--radius-dot);
+}
+
+/* Type scale (SPEC §4.2). Mobile-first: `text-answer-m lg:text-answer`. */
+@theme {
+  --text-display: 76px;
+  --text-display--line-height: 76px;
+  --text-display--letter-spacing: -0.015em;
+  --text-display-m: 46px;
+  --text-display-m--line-height: 46px;
+  --text-display-m--letter-spacing: -0.015em;
+  --text-title: 68px;
+  --text-title--line-height: 68px;
+  --text-title--letter-spacing: -0.015em;
+  --text-title-m: 46px;
+  --text-title-m--line-height: 46px;
+  --text-title-m--letter-spacing: -0.015em;
+  --text-confirm: 60px;
+  --text-confirm--line-height: 62px;
+  --text-confirm--letter-spacing: -0.01em;
+  --text-confirm-m: 42px;
+  --text-confirm-m--line-height: 44px;
+  --text-confirm-m--letter-spacing: -0.01em;
+  --text-answer: 42px;
+  --text-answer--line-height: 46px;
+  --text-answer--letter-spacing: -0.01em;
+  --text-answer-m: 32px;
+  --text-answer-m--line-height: 35px;
+  --text-answer-m--letter-spacing: -0.01em;
+  --text-prophecy: 28px;
+  --text-prophecy--line-height: 34px;
+  --text-prophecy-m: 23px;
+  --text-prophecy-m--line-height: 28px;
+  --text-list-item: 24px;
+  --text-list-item--line-height: 30px;
+  --text-list-item-m: 22px;
+  --text-list-item-m--line-height: 27px;
+  --text-row: 21px;
+  --text-row--line-height: 26px;
+  --text-row-m: 19px;
+  --text-row-m--line-height: 24px;
+  --text-body-lg: 18px;
+  --text-body-lg--line-height: 28px;
+  --text-body-lg-m: 16px;
+  --text-body-lg-m--line-height: 24px;
+  --text-body: 16px;
+  --text-body--line-height: 24px;
+  --text-body-m: 15px;
+  --text-body-m--line-height: 23px;
+  --text-label: 12px;
+  --text-label--line-height: 16px;
+  --text-label-sm: 11px;
+  --text-label-sm--line-height: 14px;
+
+  --animate-breathe: breathe 6s ease-in-out infinite;
+  --animate-spin-slow: spin 60s linear infinite;
+  --animate-blink: blink 1.1s steps(1) infinite;
+  --animate-pulse-dot: pulse-dot 1.4s ease-in-out infinite;
+
+  @keyframes breathe {
+    0%, 100% { opacity: 1; transform: scale(1); }
+    50% { opacity: 0.6; transform: scale(1.12); }
+  }
+  @keyframes blink {
+    50% { opacity: 0; }
+  }
+  @keyframes pulse-dot {
+    0%, 100% { opacity: 0.2; }
+    40% { opacity: 1; }
+  }
+}
+
+/* Mono labels: Geist Mono, uppercase, 0.04em. */
+@utility label {
+  font-family: var(--font-mono);
+  font-size: 12px;
+  line-height: 16px;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+@utility label-sm {
+  font-family: var(--font-mono);
+  font-size: 11px;
+  line-height: 14px;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+
+@layer base {
+  html {
+    background: var(--color-bg);
+    color: var(--color-text-primary);
+    font-family: var(--font-sans);
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+    font-synthesis: none;
+  }
+  /* No italics anywhere (SPEC §4.2). */
+  em, i, cite, address, dfn, var { font-style: normal; }
+  ::selection { background: var(--color-accent-border); }
+  :focus-visible { outline: 1px solid var(--color-accent); outline-offset: 3px; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after {
+    animation-duration: 0.001ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.001ms !important;
+  }
+}

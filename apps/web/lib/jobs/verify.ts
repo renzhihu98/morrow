@@ -1,0 +1,114 @@
+import { getReadingDate, type Message, type Prophecy, type User } from '@morrow/core';
+import type { Repository } from '../data';
+import type { CalendarEventPayload, EmailPayload, RawEvent } from '../sources/types';
+
+export type Outcome =
+  | { prophecy: Prophecy; status: 'fulfilled'; resolvedAt: string; evidence: RawEvent }
+  | { prophecy: Prophecy; status: 'expired'; resolvedAt: string };
+
+const inWindow = (p: Prophecy, at: string) => {
+  const t = Date.parse(at);
+  return t >= Date.parse(p.windowStart) && t <= Date.parse(p.windowEnd);
+};
+
+const sameContact = (expected: string, actual: string) =>
+  expected === 'any' || expected.trim().toLowerCase() === actual.trim().toLowerCase();
+
+/**
+ * Finds the first raw event (oldest first) that satisfies the prophecy's checkCondition inside its window.
+ * `listening_pattern` and `generic` need a model-based classifier and are never auto-fulfilled here.
+ */
+export function findEvidence(prophecy: Prophecy, events: RawEvent[]): RawEvent | null {
+  const cc = prophecy.checkCondition;
+  const sorted = [...events].sort((a, b) => a.occurredAt.localeCompare(b.occurredAt));
+  for (const e of sorted) {
+    if (!inWindow(prophecy, e.occurredAt)) continue;
+    const payload = e.payload;
+    switch (cc.type) {
+      case 'email_from_contact': {
+        if (payload.type !== 'email') continue;
+        const email: EmailPayload = payload;
+        if (email.direction !== 'inbound' || !sameContact(cc.contact, email.contact)) continue;
+        if (cc.firstInThread && !email.firstInThread) continue;
+        return e;
+      }
+      case 'calendar_event_with': {
+        if (payload.type !== 'calendar_event') continue;
+        const event: CalendarEventPayload = payload;
+        if (event.status !== 'confirmed') continue;
+        const withContact = cc.contact === 'any' ? event.attendees.length > 0 : event.attendees.some((a) => sameContact(cc.contact, a));
+        if (!withContact) continue;
+        if (cc.titleIncludes && !event.title.toLowerCase().includes(cc.titleIncludes.toLowerCase())) continue;
+        return e;
+      }
+      case 'listening_pattern':
+      case 'generic':
+        // TODO(verify): classify with MODELS.summary over distilled events once sources sync.
+        return null;
+    }
+  }
+  return null;
+}
+
+/** Pure verification step: which open prophecies are fulfilled or expired at `now`. */
+export function verifyProphecies(prophecies: Prophecy[], events: RawEvent[], now: Date): Outcome[] {
+  const outcomes: Outcome[] = [];
+  for (const prophecy of prophecies) {
+    if (prophecy.status !== 'open') continue;
+    const evidence = findEvidence(prophecy, events);
+    if (evidence && Date.parse(evidence.occurredAt) <= now.getTime()) {
+      outcomes.push({ prophecy, status: 'fulfilled', resolvedAt: evidence.occurredAt, evidence });
+    } else if (now.getTime() >= Date.parse(prophecy.windowEnd)) {
+      outcomes.push({ prophecy, status: 'expired', resolvedAt: prophecy.windowEnd });
+    }
+  }
+  return outcomes;
+}
+
+/**
+ * Applies outcomes for one user. Fulfilled prophecies are attached to the reading of the day they
+ * came true; if that reading is already open, Morrow announces it there immediately.
+ */
+export async function verifyUser(repo: Repository, user: User, now: Date): Promise<Outcome[]> {
+  const [prophecies, events] = await Promise.all([repo.listProphecies(user.id), repo.listRawEvents(user.id)]);
+  const outcomes = verifyProphecies(prophecies, events, now);
+  for (const o of outcomes) {
+    if (o.status === 'expired') {
+      await repo.resolveProphecy(user.id, o.prophecy.id, { status: 'expired', resolvedAt: o.resolvedAt, fulfilledInReadingId: null });
+      continue;
+    }
+    const localDate = getReadingDate(new Date(o.resolvedAt), user.timezone);
+    const readingId = `r_${localDate}`;
+    await repo.resolveProphecy(user.id, o.prophecy.id, { status: 'fulfilled', resolvedAt: o.resolvedAt, fulfilledInReadingId: readingId });
+    const reading = await repo.getReadingByDate(user.id, localDate);
+    if (reading?.status === 'open') {
+      const announcement: Message = {
+        id: `m_${localDate}_fulfilled_${o.prophecy.id}`,
+        readingId,
+        role: 'assistant',
+        parts: [
+          { type: 'prophecyRef', prophecyId: o.prophecy.id, event: 'fulfilled' },
+          { type: 'text', text: `It came true, ${user.name}.` },
+        ],
+        createdAt: now.toISOString(),
+      };
+      await repo.appendMessage(user.id, announcement);
+    }
+  }
+  return outcomes;
+}
+
+export async function runVerify(repo: Repository, now: Date) {
+  const users = await repo.listUsers();
+  const results = [];
+  for (const user of users) {
+    const outcomes = await verifyUser(repo, user, now);
+    results.push({
+      userId: user.id,
+      fulfilled: outcomes.filter((o) => o.status === 'fulfilled').map((o) => o.prophecy.id),
+      expired: outcomes.filter((o) => o.status === 'expired').map((o) => o.prophecy.id),
+    });
+  }
+  const purged = await repo.purgeExpiredRawEvents(now);
+  return { users: results, purgedRawEvents: purged };
+}

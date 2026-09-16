@@ -1,0 +1,158 @@
+import {
+  QUESTION_LIMIT,
+  SourceKind,
+  DossierCategory,
+  type Message,
+  type Prophecy,
+  type Reading,
+  type User,
+} from '@morrow/core';
+import { isStepCount, streamText, tool, toUIMessageStream, type ModelMessage, type StreamTextTransform, type ToolSet, type UIMessageStreamWriter } from 'ai';
+import { z } from 'zod';
+import type { MorrowUIMessage, StepData } from '../chat-types';
+import type { Repository } from '../data';
+import { MODELS } from './models';
+import { chatInstructions } from './prompts';
+import { findTaboo, scrubTaboo, TABOO_DEFLECTION } from './taboo';
+
+export type ChatTurn = {
+  repo: Repository;
+  user: User;
+  reading: Reading;
+  history: Message[];
+  question: string;
+  now: Date;
+  used: number;
+  abortSignal?: AbortSignal;
+};
+
+/** Stored transcript → model messages (text only; the dossier is in the instructions). */
+export function toModelMessages(history: Message[]): ModelMessage[] {
+  return history.flatMap((m): ModelMessage[] => {
+    const text = m.parts
+      .map((p) => (p.type === 'text' || p.type === 'observation' ? p.text : ''))
+      .filter(Boolean)
+      .join('\n');
+    return text ? [{ role: m.role, content: text }] : [];
+  });
+}
+
+/**
+ * Drops sentences touching taboo topics from streamed text. Buffers per text part until a sentence
+ * boundary, so nothing unsafe reaches the client even mid-stream.
+ */
+export const tabooTransform = <TOOLS extends ToolSet>(): StreamTextTransform<TOOLS> => () => {
+  const buffers = new Map<string, string>();
+  return new TransformStream({
+    transform(part, controller) {
+      if (part.type === 'text-delta') {
+        const buffered = (buffers.get(part.id) ?? '') + part.text;
+        const boundary = Math.max(buffered.lastIndexOf('. '), buffered.lastIndexOf('? '), buffered.lastIndexOf('! '));
+        if (boundary < 0) return void buffers.set(part.id, buffered);
+        const ready = scrubTaboo(buffered.slice(0, boundary + 2)).text;
+        buffers.set(part.id, buffered.slice(boundary + 2));
+        if (ready) controller.enqueue({ ...part, text: `${ready} ` });
+        return;
+      }
+      if (part.type === 'text-end') {
+        const rest = scrubTaboo(buffers.get(part.id) ?? '').text;
+        buffers.delete(part.id);
+        if (rest) controller.enqueue({ type: 'text-delta', id: part.id, text: rest });
+      }
+      controller.enqueue(part);
+    },
+  });
+};
+
+const SOURCE_FOR_CATEGORY: Record<DossierCategory, StepData['source']> = {
+  rhythms: 'calendar',
+  people: 'mail',
+  places: 'calendar',
+  tastes: 'spotify',
+};
+
+/** Streams a model answer into `writer`: tool calls surface as data-step, `observe` as data-observation. */
+export async function writeModelAnswer(writer: UIMessageStreamWriter<MorrowUIMessage>, turn: ChatTurn): Promise<void> {
+  const { repo, user, reading, now } = turn;
+  const [dossier, summaries, prophecies] = await Promise.all([
+    repo.getDossier(user.id),
+    repo.listSummaries(user.id, 7),
+    repo.listProphecies(user.id),
+  ]);
+
+  const step = (data: StepData) => writer.write({ type: 'data-step', id: data.id, data });
+
+  const tools = {
+    getDossierSection: tool({
+      description: 'Read one section of the dossier (distilled facts only — never raw events).',
+      inputSchema: z.object({ category: DossierCategory }),
+      execute: async ({ category }, { toolCallId }) => {
+        const source = SOURCE_FOR_CATEGORY[category];
+        const label = category.charAt(0).toUpperCase() + category.slice(1);
+        step({ id: toolCallId, source, label, detail: 'Reading…', status: 'active' });
+        const facts = dossier?.facts.filter((f) => f.category === category) ?? [];
+        step({ id: toolCallId, source, label, detail: `${facts.length} facts`, status: 'done' });
+        return { facts, patterns: dossier?.patterns ?? [] };
+      },
+    }),
+    getContactHistory: tool({
+      description: 'What Morrow knows about one person: dossier facts and prophecies about them.',
+      inputSchema: z.object({ contact: z.string().describe('Dossier contact key or name, e.g. "sam"') }),
+      execute: async ({ contact }, { toolCallId }) => {
+        const key = contact.trim().toLowerCase().replace(/\s+/g, '_');
+        const name = contact.charAt(0).toUpperCase() + contact.slice(1);
+        step({ id: toolCallId, source: 'mail', label: 'Mail', detail: `${name} — who writes first`, status: 'active' });
+        const facts = dossier?.facts.filter((f) => f.category === 'people' && f.id.includes(key)) ?? [];
+        const related = prophecies.filter((p: Prophecy) => 'contact' in p.checkCondition && p.checkCondition.contact === key);
+        step({ id: toolCallId, source: 'mail', label: 'Mail', detail: `${name} — ${facts.length ? facts.map((f) => f.value).join(' · ') : 'nothing yet'}`, status: 'done' });
+        return { facts, prophecies: related.map(({ number, statement, status, madeOn, resolvedAt }) => ({ number, statement, status, madeOn, resolvedAt })) };
+      },
+    }),
+    getOpenProphecies: tool({
+      description: 'Open prophecies with their windows and likelihoods.',
+      inputSchema: z.object({}),
+      execute: async (_input, { toolCallId }) => {
+        const open = prophecies.filter((p) => p.status === 'open');
+        step({ id: toolCallId, source: 'memory', label: 'Past readings', detail: `${open.length} prophecies still open`, status: 'done' });
+        return open.map(({ number, statement, windowStart, windowEnd, likelihood, watching }) => ({ number, statement, windowStart, windowEnd, likelihood, watching }));
+      },
+    }),
+    observe: tool({
+      description: "Deliver the headline of your answer. Call exactly once, before the plain-text explanation.",
+      inputSchema: z.object({
+        text: z.string().describe('One or two sentences, max 30 words.'),
+        evidenceRef: z.string().describe('Dossier fact or pattern id the answer rests on.'),
+        sourceLabel: z.string().describe('Short evidence line, e.g. "Calendar · 03.04 · 04.22".'),
+        sources: z.array(SourceKind).optional(),
+      }),
+      execute: async ({ text, evidenceRef, sourceLabel }) => {
+        const safe = findTaboo(text) ? TABOO_DEFLECTION : text;
+        writer.write({ type: 'data-observation', id: 'answer', data: { text: safe, evidenceRef, sourceLabel } });
+        return { delivered: true };
+      },
+    }),
+  };
+
+  const result = streamText({
+    model: MODELS.chat,
+    instructions: chatInstructions(
+      { user, now, localDate: reading.localDate, dossier, summaries, prophecies },
+      QUESTION_LIMIT - turn.used,
+    ),
+    messages: [...toModelMessages(turn.history), { role: 'user', content: turn.question }],
+    tools,
+    stopWhen: isStepCount(6),
+    experimental_transform: tabooTransform(),
+    abortSignal: turn.abortSignal,
+  });
+
+  // Tool call/result parts stay server-side; the client renders data-step / data-observation / text.
+  const uiStream = toUIMessageStream({ stream: result.stream, sendStart: false, sendFinish: false }).pipeThrough(
+    new TransformStream({
+      transform(chunk, controller) {
+        if (!chunk.type.startsWith('tool-') && chunk.type !== 'start-step' && chunk.type !== 'finish-step') controller.enqueue(chunk);
+      },
+    }),
+  );
+  writer.merge(uiStream);
+}
