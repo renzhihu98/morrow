@@ -1,4 +1,5 @@
 import { QUESTION_LIMIT } from '@morrow/core';
+import { useQueryClient } from '@tanstack/react-query';
 import { router, useLocalSearchParams, type Href } from 'expo-router';
 import { Pressable, ScrollView, StyleSheet, View } from 'react-native';
 import { initialWindowMetrics, useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -6,8 +7,10 @@ import { Dot } from '@/components/Dot';
 import { Header, type NavSection } from '@/components/Header';
 import { ProgressTrack } from '@/components/Reading';
 import { Txt } from '@/components/Txt';
+import { signOut } from '@/data/auth';
 import { useQuestionsUsed } from '@/data/chat';
-import { useProphecies, useReadings, useSources, useToday } from '@/data/queries';
+import { useDemoMode, useProphecies, useReadings, useSources, useToday } from '@/data/queries';
+import { exitDemo, useMe } from '@/data/session';
 import { pad2 } from '@/lib/format';
 import { useTheme } from '@/theme/ThemeProvider';
 import { em, sansStyle, serifStyle } from '@/theme/typography';
@@ -46,7 +49,16 @@ export default function MenuScreen() {
     router.navigate(href);
   };
 
-  const name = today.data?.user.name ?? '—';
+  const qc = useQueryClient();
+  const me = useMe();
+  const demo = useDemoMode();
+  const name = me.data?.user.name || today.data?.user.name || '—';
+  const initial = name === '—' ? '—' : name.trim().charAt(0).toUpperCase();
+
+  const onAccount = () => {
+    if (demo) exitDemo(qc);
+    else void signOut();
+  };
 
   // Full-screen modals can report zero insets on iOS; fall back to the window's metrics.
   const insets = useSafeAreaInsets();
@@ -97,9 +109,23 @@ export default function MenuScreen() {
         </View>
         <View style={styles.account}>
           <View style={[styles.avatar, { borderColor: palette.hairlineStrong }]}>
-            <Txt style={serifStyle(17, 20)}>{name.charAt(0)}</Txt>
+            <Txt style={serifStyle(17, 20)}>{initial}</Txt>
           </View>
-          <Txt style={[sansStyle(15, 22), { flex: 1 }]}>{name}</Txt>
+          <View style={{ flex: 1, alignItems: 'flex-start', gap: 2 }}>
+            <Txt style={sansStyle(15, 22)} numberOfLines={1}>
+              {name}
+            </Txt>
+            <Pressable
+              accessibilityRole="button"
+              accessibilityLabel={demo ? 'Leave demo and sign in' : 'Sign out'}
+              onPress={onAccount}
+              hitSlop={10}
+            >
+              <Txt variant="label" color="textMuted" style={{ fontSize: 10, lineHeight: 12, letterSpacing: em(0.04, 10) }}>
+                {demo ? 'SIGN IN' : 'SIGN OUT'}
+              </Txt>
+            </Pressable>
+          </View>
           <Pressable
             accessibilityRole="button"
             accessibilityLabel={`Settings. Theme: ${THEME_LABEL[preference].toLowerCase()}. Tap to change.`}

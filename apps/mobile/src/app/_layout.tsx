@@ -7,6 +7,7 @@ import * as SystemUI from 'expo-system-ui';
 import { useEffect, useState } from 'react';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 import { isApiError } from '@morrow/core';
+import { GateProvider, useGate } from '@/data/session';
 import { fontAssets } from '@/theme/fonts';
 import { ThemeProvider, useTheme } from '@/theme/ThemeProvider';
 
@@ -25,19 +26,34 @@ function makeQueryClient() {
   });
 }
 
-function ThemedStack() {
+function ThemedStack({ fontsReady }: { fontsReady: boolean }) {
   const { name, palette } = useTheme();
+  const { status } = useGate();
+  const inApp = status === 'ready' || status === 'demo';
+  const ready = fontsReady && status !== 'loading';
 
   useEffect(() => {
     SystemUI.setBackgroundColorAsync(palette.bg).catch(() => {});
   }, [palette.bg]);
 
+  useEffect(() => {
+    if (ready) SplashScreen.hideAsync().catch(() => {});
+  }, [ready]);
+
+  if (!ready) return null;
+
+  // Protected groups: signed out → (auth)/sign-in, not onboarded → (auth)/sources, else (app).
   return (
     <>
       <StatusBar style={name === 'dark' ? 'light' : 'dark'} />
       <Stack screenOptions={{ headerShown: false, contentStyle: { backgroundColor: palette.bg } }}>
-        <Stack.Screen name="(app)" />
-        <Stack.Screen name="menu" options={{ presentation: 'fullScreenModal', animation: 'fade' }} />
+        <Stack.Protected guard={inApp}>
+          <Stack.Screen name="(app)" />
+          <Stack.Screen name="menu" options={{ presentation: 'fullScreenModal', animation: 'fade' }} />
+        </Stack.Protected>
+        <Stack.Protected guard={!inApp}>
+          <Stack.Screen name="(auth)" options={{ animation: 'fade' }} />
+        </Stack.Protected>
       </Stack>
     </>
   );
@@ -46,19 +62,15 @@ function ThemedStack() {
 export default function RootLayout() {
   const [fontsLoaded, fontError] = useFonts(fontAssets);
   const [queryClient] = useState(makeQueryClient);
-  const ready = fontsLoaded || !!fontError;
-
-  useEffect(() => {
-    if (ready) SplashScreen.hideAsync().catch(() => {});
-  }, [ready]);
-
-  if (!ready) return null;
+  const fontsReady = fontsLoaded || !!fontError;
 
   return (
     <SafeAreaProvider>
       <QueryClientProvider client={queryClient}>
         <ThemeProvider>
-          <ThemedStack />
+          <GateProvider>
+            <ThemedStack fontsReady={fontsReady} />
+          </GateProvider>
         </ThemeProvider>
       </QueryClientProvider>
     </SafeAreaProvider>

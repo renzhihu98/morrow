@@ -20,11 +20,16 @@ export function SourceRow({
   timeZone,
   onConnect,
   connecting,
+  onDisconnect,
+  disconnecting,
 }: {
   source: Source;
   timeZone: string;
   onConnect?: () => void;
   connecting?: boolean;
+  /** Linked sources that can be unlinked (Calendar, Spotify). */
+  onDisconnect?: () => void;
+  disconnecting?: boolean;
 }) {
   const { palette } = useTheme();
   const linked = source.status === 'linked';
@@ -74,6 +79,20 @@ export function SourceRow({
           <Txt color="textSecondary" style={[sansStyle(14, 21), { marginTop: 10 }]}>
             {source.reads}
           </Txt>
+        ) : null}
+        {linked && onDisconnect ? (
+          <Pressable
+            accessibilityRole="button"
+            accessibilityLabel={`Disconnect ${source.name}`}
+            onPress={onDisconnect}
+            disabled={disconnecting}
+            hitSlop={8}
+            style={{ alignSelf: 'flex-start', marginTop: 8 }}
+          >
+            <Txt color="textMuted" style={sansStyle(13, 18)}>
+              {disconnecting ? 'Disconnecting…' : 'Disconnect'}
+            </Txt>
+          </Pressable>
         ) : null}
       </View>
     </View>

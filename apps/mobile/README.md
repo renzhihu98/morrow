@@ -23,9 +23,24 @@ pnpm --filter @morrow/mobile ios               # starts Metro and opens the iOS 
 
 JSON calls use `createApiClient` from `@morrow/core` with a 4 s timeout. Chat uses `useChat` (`@ai-sdk/react`) with `DefaultChatTransport` and `expo/fetch` against `POST /api/chat`. It sends only the newest message (SPEC §10) and renders `data-step`, `data-observation` and `data-quota` parts. A `409` puts the composer in its sealed state ("Today's reading →" refetches today). A `429` puts it in its limit state.
 
+## Sign in & onboarding (v0.2, SPEC §12)
+
+- **Auth:** `src/data/auth.ts` creates a Better Auth client (`better-auth/react`) against `${EXPO_PUBLIC_API_URL}/api/auth` with `expoClient({ scheme: "morrow", storagePrefix: "morrow", storage: SecureStore })`. The session cookie lives in SecureStore. Sign-in is Google only (`authClient.signIn.social`), and the flow runs in an in-app auth session (`expo-web-browser`).
+- **Gate:** `src/data/session.tsx` works out a status from `useSession()` and `GET /api/me`, and `src/app/_layout.tsx` maps it onto protected route groups. Signed out goes to `(auth)/sign-in`. Signed in with `onboardedAt` null goes to `(auth)/sources`. Everyone else goes to `(app)`.
+- **Connect accounts:** Calendar and Spotify use `authClient.linkSocial` with incremental scopes. "Draw my first reading →" and "Skip for now" call `POST /api/onboarding/complete`. Today shows the orbit in its `reading` state until that response arrives.
+- **Authenticated calls:** JSON calls (`createApiClient` with a custom fetch) and chat (`expo/fetch`) both send `cookie: await authClient.getCookie()` with `credentials: "omit"`. A `401` signs you out locally and returns you to sign-in. On sign-in the app sends the device timezone once (`POST /api/me/timezone`).
+- **Sources screen:** Connect uses `linkSocial`. Disconnect calls `DELETE /api/sources/[kind]`.
+
+### Google sign-in on a device or simulator
+
+- The web server (`apps/web`) must be running with Better Auth configured: `GOOGLE_CLIENT_ID/SECRET`, `SPOTIFY_CLIENT_ID/SECRET`, `BETTER_AUTH_SECRET`, `DATABASE_URL`.
+- On a **physical device**, set `EXPO_PUBLIC_API_URL=http://<your LAN IP>:3000`, because `localhost` on the phone is the phone. The server's `BETTER_AUTH_URL` must match an origin the phone can reach, and its OAuth redirect URIs must be registered for that origin.
+- The server must trust the app's deep links: `morrow://` for dev and production builds, and `exp://` while running in Expo Go.
+- Bundle ID / package: `com.morrow.app`. Scheme: `morrow`.
+
 ## Demo / offline mode
 
-If a request fails with a network error (no server, wrong host, timeout), the app switches to **demo mode**:
+If a request fails with a network error (no server, wrong host, timeout), the app switches to **demo mode**. A `401` never triggers demo mode. When the server can't be reached before sign-in, the sign-in screen shows **CAN'T REACH MORROW · EXPLORE THE DEMO →**. In demo mode, the menu's account row reads **SIGN IN**, and tapping it leaves demo mode.
 
 - Queries resolve to `fixtures.api` from `@morrow/core`, which contains the Iris story from 09.16 to 09.30.
 - Chat plays a scripted UI-message stream built on the device (`src/lib/chat-protocol.ts → demoScript`). It has the same parts as the server's demo mode: Calendar done → Spotify active → Past readings pending, then the fixture answer.
@@ -39,7 +54,9 @@ Other errors, like `404` or `500`, are still shown as errors.
 ```
 src/
   app/                    Expo Router routes
-    _layout.tsx           fonts + splash, QueryClient, ThemeProvider, root Stack (menu = full-screen modal)
+    _layout.tsx           fonts + splash, QueryClient, ThemeProvider, auth gate → protected (auth) / (app) groups
+    +native-intent.tsx    deep links (OAuth returns never route with the cookie param)
+    (auth)/sign-in.tsx    13 sign in · (auth)/sources.tsx 14 connect accounts
     menu.tsx              08 menu sheet
     (app)/index.tsx       Today: 01 invocation · 03 fulfilled · 02/06/07 conversation
     (app)/readings/       04 archive · [date] 05 sealed reading
@@ -48,7 +65,8 @@ src/
   components/             Header, Orbit (+ MiniOrbit, FadingOrbit), Composer, Reading (TurnLabel, EvidenceLine,
                           ProphecyPanel, ProphecyCard/WindowBar, ReadingSteps, IndexList, RecordMarks),
                           Transcript, SourceRow, DossierRow, ConfirmInput, Page
-  data/                   api client + demo fallback, TanStack Query hooks, useMorrowChat transport
+  data/                   auth client, session gate, api client (cookie + 401) + demo fallback, TanStack Query hooks,
+                          useMorrowChat transport
   lib/                    pure helpers (format, chat protocol + demo script) with jest tests
   theme/                  ThemeProvider (system + persisted override), fonts, type scale helpers
 ```

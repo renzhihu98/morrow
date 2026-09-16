@@ -9,11 +9,11 @@
     "userInterfaceStyle": "automatic",
     "backgroundColor": "#0C0D10",
     "ios": {
-      "bundleIdentifier": "app.morrow.mobile",
+      "bundleIdentifier": "com.morrow.app",
       "supportsTablet": false
     },
     "android": {
-      "package": "app.morrow.mobile",
+      "package": "com.morrow.app",
       "adaptiveIcon": {
         "backgroundColor": "#0C0D10",
         "foregroundImage": "./assets/images/splash-icon.png"
@@ -38,7 +38,9 @@
             "backgroundColor": "#0C0D10"
           }
         }
-      ]
+      ],
+      "expo-secure-store",
+      "expo-web-browser"
     ],
     "experiments": {
       "reactCompiler": false

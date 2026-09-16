@@ -1,4 +1,5 @@
 import {
+  ApiError,
   fixtures,
   type DossierResponse,
   type SourceKind,
@@ -7,6 +8,8 @@ import {
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useSyncExternalStore } from 'react';
 import { api, isDemoMode, readingDetailFixture, subscribeDemoMode, withFallback } from './api';
+import { authClient, LINKABLE } from './auth';
+import { meKey, useFirstReading, useGate } from './session';
 
 /** In-session edits applied on top of fixtures while in demo mode. */
 const demoEdits = { forgottenFacts: new Set<string>(), forgotEverything: false };
@@ -36,8 +39,15 @@ export const queryKeys = {
   dossier: ['dossier'] as const,
 };
 
-export const useToday = () =>
-  useQuery({ queryKey: queryKeys.today, queryFn: () => withFallback(api.getToday, () => fixtures.api.today) });
+/** Today's reading. Paused while the first reading is being drawn (the onboarding response seeds it). */
+export function useToday() {
+  const drawing = useFirstReading().state === 'drawing';
+  return useQuery({
+    queryKey: queryKeys.today,
+    queryFn: () => withFallback(api.getToday, () => fixtures.api.today),
+    enabled: !drawing,
+  });
+}
 
 export const useReadings = () =>
   useQuery({ queryKey: queryKeys.readings, queryFn: () => withFallback(api.getReadings, () => fixtures.api.readings) });
@@ -91,9 +101,42 @@ export function useForgetEverything() {
   });
 }
 
-export function useConnectSource() {
+export type LinkResult = { linked: boolean; notice: string | null };
+
+/**
+ * Connect a source via Better Auth account linking (§12.3): opens the provider in an auth session
+ * with incremental scopes, then refreshes sources. Gmail / Instagram aren't linkable in v0.2.
+ */
+export function useLinkSource(callbackURL: string) {
+  const qc = useQueryClient();
+  const { userId } = useGate();
   return useMutation({
-    mutationFn: (kind: SourceKind) => withFallback(() => api.connectSource(kind), () => ({ kind, authorizeUrl: null })),
+    mutationFn: async (kind: SourceKind): Promise<LinkResult> => {
+      const link = LINKABLE[kind];
+      if (!link) return { linked: false, notice: 'Morrow will ask for this source when a prophecy needs it.' };
+      if (isDemoMode()) return { linked: false, notice: 'Demo mode: start the Morrow server to connect real accounts.' };
+      const res = await authClient.linkSocial({ provider: link.provider, scopes: link.scopes, callbackURL });
+      if (res.error) throw new ApiError(res.error.status ?? 0, res.error.status === 401 ? 'unauthorized' : 'unknown', res.error.message);
+      return { linked: true, notice: null };
+    },
+    onSettled: () => {
+      void qc.invalidateQueries({ queryKey: queryKeys.sources });
+      void qc.invalidateQueries({ queryKey: meKey(userId) });
+    },
+  });
+}
+
+/** `DELETE /api/sources/[kind]` — unlink + delete that source's raw events + rebuild the dossier. */
+export function useDisconnectSource() {
+  const qc = useQueryClient();
+  const { userId } = useGate();
+  return useMutation({
+    mutationFn: (kind: SourceKind) => withFallback(() => api.disconnectSource(kind), () => ({ ok: true as const })),
+    onSettled: () => {
+      void qc.invalidateQueries({ queryKey: queryKeys.sources });
+      void qc.invalidateQueries({ queryKey: queryKeys.dossier });
+      void qc.invalidateQueries({ queryKey: meKey(userId) });
+    },
   });
 }
 

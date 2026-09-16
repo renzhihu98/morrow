@@ -1,11 +1,12 @@
 import type { SourceKind } from '@morrow/core';
 import { Link } from 'expo-router';
 import { useState } from 'react';
-import { Linking, StyleSheet, View } from 'react-native';
+import { Alert, StyleSheet, View } from 'react-native';
 import { Hairline, Page, PageState, PageTitle } from '@/components/Page';
 import { SourceRow } from '@/components/SourceRow';
 import { Txt } from '@/components/Txt';
-import { useConnectSource, useSources, useToday } from '@/data/queries';
+import { isLinkable } from '@/data/auth';
+import { useDisconnectSource, useLinkSource, useSources, useToday } from '@/data/queries';
 import { useTheme } from '@/theme/ThemeProvider';
 import { sansStyle } from '@/theme/typography';
 
@@ -13,7 +14,8 @@ import { sansStyle } from '@/theme/typography';
 export default function SourcesScreen() {
   const q = useSources();
   const today = useToday();
-  const connect = useConnectSource();
+  const link = useLinkSource('/sources');
+  const disconnect = useDisconnectSource();
   const { palette } = useTheme();
   const [notice, setNotice] = useState<string | null>(null);
   const tz = today.data?.user.timezone ?? 'UTC';
@@ -22,13 +24,28 @@ export default function SourcesScreen() {
 
   const onConnect = (kind: SourceKind) => {
     setNotice(null);
-    connect.mutate(kind, {
-      onSuccess: (res) => {
-        if (res.authorizeUrl) void Linking.openURL(res.authorizeUrl);
-        else setNotice('Morrow will ask for this source when a prophecy needs it.');
-      },
-      onError: () => setNotice("Couldn't start the connection. Try again."),
+    link.mutate(kind, {
+      onSuccess: (res) => setNotice(res.notice),
+      onError: () => setNotice("Couldn't finish connecting. Try again."),
     });
+  };
+
+  const onDisconnect = (kind: SourceKind, name: string) => {
+    Alert.alert(
+      `Disconnect ${name}?`,
+      'Morrow unlinks the account, deletes its raw events and rebuilds your dossier without it.',
+      [
+        { text: 'Cancel', style: 'cancel' },
+        {
+          text: 'Disconnect',
+          style: 'destructive',
+          onPress: () => {
+            setNotice(null);
+            disconnect.mutate(kind, { onError: () => setNotice(`Couldn't disconnect ${name}. Try again.`) });
+          },
+        },
+      ],
+    );
   };
 
   return (
@@ -45,7 +62,9 @@ export default function SourcesScreen() {
                 source={s}
                 timeZone={tz}
                 onConnect={() => onConnect(s.kind)}
-                connecting={connect.isPending && connect.variables === s.kind}
+                connecting={link.isPending && link.variables === s.kind}
+                onDisconnect={isLinkable(s.kind) ? () => onDisconnect(s.kind, s.name) : undefined}
+                disconnecting={disconnect.isPending && disconnect.variables === s.kind}
               />
             ))}
             <Hairline />

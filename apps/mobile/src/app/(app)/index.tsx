@@ -19,6 +19,7 @@ import { Transcript } from '@/components/Transcript';
 import { Txt } from '@/components/Txt';
 import { useMorrowChat } from '@/data/chat';
 import { queryKeys, useProphecies, useSources, useToday } from '@/data/queries';
+import { useFirstReading } from '@/data/session';
 import { assistantView, userText, type MorrowUIMessage } from '@/lib/chat-protocol';
 import { pad2, shortDateOf } from '@/lib/format';
 import { useTheme } from '@/theme/ThemeProvider';
@@ -29,19 +30,48 @@ const FULFILLED_SUGGESTIONS = ['What comes next?', 'Help me write back', 'Show m
 
 export default function TodayScreen() {
   const today = useToday();
+  const first = useFirstReading();
   const { palette } = useTheme();
 
   if (!today.data) {
     return (
       <SafeAreaView edges={['top']} style={{ flex: 1, backgroundColor: palette.bg }}>
         <Header active="today" />
-        <View style={{ paddingHorizontal: 24 }}>
-          <PageState error={today.error} onRetry={() => void today.refetch()} />
-        </View>
+        {today.error ? (
+          <View style={{ paddingHorizontal: 24 }}>
+            <PageState error={today.error} onRetry={() => void today.refetch()} />
+          </View>
+        ) : (
+          <DrawingReading first={first.state === 'drawing'} />
+        )}
       </SafeAreaView>
     );
   }
   return <TodayView key={today.data.reading.id} data={today.data} />;
+}
+
+/** Step 3 "First reading" (and any cold load): the orbit turns while Morrow draws today's reading. */
+function DrawingReading({ first }: { first: boolean }) {
+  return (
+    <View accessibilityLiveRegion="polite">
+      <View style={[styles.orbitWrap, { paddingTop: 12 }]}>
+        <Orbit state="reading" size={236} />
+      </View>
+      <View style={styles.gutter}>
+        <Txt variant="label" color="accent" style={{ paddingTop: 20 }}>
+          {first ? 'STEP 3 OF 3 · FIRST READING' : 'READING…'}
+        </Txt>
+        <Txt variant="display" accessibilityRole="header" style={{ paddingTop: 14 }}>
+          {first ? 'Morrow is reading.' : 'One moment.'}
+        </Txt>
+        <Txt color="textSecondary" style={{ paddingTop: 14 }}>
+          {first
+            ? 'Reading your sources for the first time and drawing today’s reading. This can take a minute.'
+            : 'Morrow is gathering today’s reading.'}
+        </Txt>
+      </View>
+    </View>
+  );
 }
 
 function useKeyboardOpen() {

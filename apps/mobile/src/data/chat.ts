@@ -11,21 +11,32 @@ import {
   type MorrowUIMessage,
   type ScriptedChunk,
 } from '@/lib/chat-protocol';
-import { api, isDemoMode, isUnreachable, setDemoMode } from './api';
+import { api, isDemoMode, isUnreachable, setDemoMode, withAuthHeaders } from './api';
+import { handleUnauthorized } from './auth';
 
 type SendOptions = Parameters<ChatTransport<MorrowUIMessage>['sendMessages']>[0];
 
 /**
- * `expo/fetch` (streaming-capable) + typed errors for §10 pre-stream failures:
- * 409 → reading_sealed, 429 → question_limit, connection failures → network_error.
+ * `expo/fetch` (streaming-capable) with the session cookie + typed errors for §10 pre-stream failures:
+ * 401 → unauthorized (signs out locally), 409 → reading_sealed, 429 → question_limit,
+ * connection failures → network_error.
  */
 const chatFetch = (async (input: RequestInfo | URL, init?: RequestInit) => {
   let res: Response;
   try {
-    res = (await expoFetch(String(input), init as Parameters<typeof expoFetch>[1])) as unknown as Response;
+    const headers = await withAuthHeaders(init?.headers);
+    res = (await expoFetch(String(input), {
+      ...(init as Parameters<typeof expoFetch>[1]),
+      headers,
+      credentials: 'omit',
+    })) as unknown as Response;
   } catch (e) {
     if (e instanceof Error && e.name === 'AbortError') throw e;
     throw new ApiError(0, 'network_error', e instanceof Error ? e.message : String(e));
+  }
+  if (res.status === 401) {
+    handleUnauthorized();
+    throw new ApiError(401, 'unauthorized');
   }
   if (res.status === 409) throw new ApiError(409, 'reading_sealed');
   if (res.status === 429) throw new ApiError(429, 'question_limit');
