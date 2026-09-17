@@ -228,9 +228,11 @@ function slotFacts(cal: CalendarAggregates, tz: string, now: Date): DossierFact[
     });
   }
 
+  // Two different series can sit in the same weekday slot; naming both "Wednesday evenings" would read as a
+  // contradiction ("never moved" and "always moves"), so the slipping one has to be a different slot.
   const fragile = all
     .map((s) => ({ s, slipped: s.moved.length + s.cancelled.length, total: s.kept.length + s.moved.length + s.cancelled.length }))
-    .filter(({ slipped, total }) => slipped >= 2 && total >= 4)
+    .filter(({ s, slipped, total }) => slipped >= 2 && total >= 4 && (!protectedSlot || label(s) !== label(protectedSlot)))
     .sort((a, b) => b.slipped / b.total - a.slipped / a.total)[0];
   if (fragile) {
     facts.push({

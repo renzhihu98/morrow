@@ -197,7 +197,7 @@ export function pursuitFacts(
     const latest = [...threads].reverse().find((th) => th.n)?.n;
     const carried = [past.length > 0 ? `${past.length} on the calendar` : null, threads.length > 0 ? `${threads.length} by mail` : null].filter(Boolean).join(', ');
     const parts = [
-      `${pursuit.summary.charAt(0).toUpperCase()}${pursuit.summary.slice(1)}`,
+      `${pursuit.summary.charAt(0).toUpperCase()}${pursuit.summary.slice(1).replace(/[.\s]+$/, '')}`,
       activity[0] ? `You have been carrying this since ${fmt(activity[0])} (${carried})` : null,
       momentum ? `It is ${momentum}` : null,
       waiting > 0 ? `${waiting === 1 ? 'One answer has' : `${waiting} answers have`} not come back yet` : null,

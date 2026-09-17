@@ -304,3 +304,14 @@ describe('mail facts and search', async () => {
     expect(searchMail(mail, index, { contact: 'sam', when: 'all' }, TZ, NOW).total).toBe(2); // the taboo thread never comes back
   });
 });
+
+describe('slot facts', async () => {
+  const { buildFacts } = await import('./facts');
+  it('never calls the same slot both protected and slipping', () => {
+    const facts = buildFacts(fullAggregates(), TZ, NOW);
+    const slot = (id: string) => facts.find((f) => f.id === id)?.value.split('—')[0]?.trim();
+    const protectedSlot = slot('rhythms.protected_time');
+    const slipping = slot('rhythms.slipping_slot');
+    if (protectedSlot && slipping) expect(slipping).not.toBe(protectedSlot);
+  });
+});
