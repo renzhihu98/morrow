@@ -19,11 +19,11 @@ const dossier: Dossier = {
 
 const ctx = { user: { id: 'u_1', name: 'Iris', timezone: 'America/Los_Angeles' }, now: new Date('2026-09-02T05:00:00-07:00'), localDate: '2026-09-02', dossier, summaries: [], prophecies: [] };
 
-const draft = (evidenceRef: string, text = 'Sam keeps sliding to Thursday.'): { output: DailyReadingOutput } => ({
+const draft = (evidenceRef: string, text = 'Something you keep making room for keeps sliding.'): { output: DailyReadingOutput } => ({
   output: {
     observation: { text, evidenceRef, sourceLabel: 'Calendar · 06.08 · 07.13' },
     prophecy: {
-      statement: 'Sam will suggest a Thursday.',
+      statement: 'Someone who has been waiting will suggest a day, and you will take it.',
       checkCondition: { type: 'calendar_event_with', contact: 'sam_okafor', titleIncludes: null },
       windowDays: 10,
       likelihood: 0.6,
@@ -86,8 +86,8 @@ describe('generateDailyReading grounding', () => {
       likelihood: 0.6,
       watching: ['calendar', 'spotify', 'mail'],
     };
-    const good = draft('people.sam_okafor', 'Sam keeps moving on your calendar, and you keep letting it.');
-    good.output.prophecy.statement = 'The dinner with Sam that keeps sliding will finally happen.';
+    const good = draft('people.sam_okafor', 'Someone keeps moving on your calendar, and you keep letting it.');
+    good.output.prophecy.statement = 'The plan that keeps sliding will finally happen.';
     good.output.prophecy.watching = ['calendar', 'mail'];
     generateText.mockResolvedValueOnce(bad).mockResolvedValueOnce(good);
     const out = await generateDailyReading({ ...ctx, sources: ['calendar', 'spotify'] }, { judge: null });
@@ -107,7 +107,7 @@ describe('generateDailyReading grounding', () => {
     const out = await generateDailyReading(ctx, { judge });
     expect(judge).toHaveBeenCalledTimes(3);
     expect(generateText.mock.calls[1]![0].prompt).toContain('A reviewer rejected it: The check tests something else.');
-    expect(out.prophecy.statement).toBe('Sam will suggest a Thursday.');
+    expect(out.prophecy.statement).toBe('Someone who has been waiting will suggest a day, and you will take it.');
 
     judge.mockReset().mockResolvedValueOnce(null);
     generateText.mockClear();
@@ -133,7 +133,7 @@ describe('reviewDraft', () => {
     reviewDraft({ observation, prophecy: { ...base.prophecy, ...patch } }, { dossier, sources }, resolveEvidence(dossier, observation.evidenceRef));
 
   it('accepts a hopeful, human prophecy with a checkable condition', () => {
-    expect(review({ statement: 'Sam will be the one to suggest an evening, before you think to ask.' })).toEqual([]);
+    expect(review({ statement: 'The one you keep making room for will ask for an evening, before you think to ask.' })).toEqual([]);
     expect(
       review({
         statement: 'A voice you have never played will slip into your rotation before the month turns.',
@@ -143,20 +143,20 @@ describe('reviewDraft', () => {
   });
 
   it('rejects clock times, digits and metric vocabulary', () => {
-    expect(review({ statement: 'Sam will call at eight o\'clock.' }).join()).toContain('clock time');
-    expect(review({ statement: 'You will have 3 meetings with Sam.' }).join()).toContain('digits');
+    expect(review({ statement: 'Someone will call at eight o\'clock.' }).join()).toContain('clock time');
+    expect(review({ statement: 'You will have 3 quiet meetings this week.' }).join()).toContain('digits');
     expect(review({ statement: 'Monday will remain your busiest day.' }).join()).toMatch(/metric language.*only extends a trend/);
     expect(review({}, undefined, { ...base.observation, text: 'Your weekdays start 18 minutes later on average.' }).join()).toContain('reads like a statistic');
   });
 
   it('rejects prophecies that promise more than the check can see', () => {
-    expect(review({ statement: 'Sam will write, and it will move your search forward.' }).join()).toContain('promises more than its checkCondition');
-    expect(review({ statement: 'A call with Sam will turn into something bigger.' }).join()).toContain('promises more than its checkCondition');
+    expect(review({ statement: 'They will write, and it will move your search forward.' }).join()).toContain('promises more than its checkCondition');
+    expect(review({ statement: 'A call you are waiting on will turn into something bigger.' }).join()).toContain('promises more than its checkCondition');
     expect(
-      review({ statement: 'Sam will finally reach out.', checkCondition: { type: 'email_from_contact', contact: 'sam_okafor', firstInThread: false } }, ['calendar', 'mail']).join(),
+      review({ statement: 'The quiet one will finally reach out.', checkCondition: { type: 'email_from_contact', contact: 'sam_okafor', firstInThread: false } }, ['calendar', 'mail']).join(),
     ).toContain('firstInThread is false');
     expect(
-      review({ statement: 'Sam will write to you before the week is out.', checkCondition: { type: 'email_from_contact', contact: 'sam_okafor', firstInThread: false } }, ['calendar', 'mail']),
+      review({ statement: 'The one who has gone quiet will write before the week is out.', checkCondition: { type: 'email_from_contact', contact: 'sam_okafor', firstInThread: false } }, ['calendar', 'mail']),
     ).toEqual([]);
   });
 

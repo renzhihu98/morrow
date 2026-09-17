@@ -55,6 +55,8 @@ export type Persona = {
   aggregates: DossierAggregates;
   /** What a grader may expect the model to have seen (used for recital checks). */
   literals: string[];
+  /** Names of people, calendars and pursuits — a reading must never say any of them out loud. */
+  names: string[];
 };
 
 function persona(args: {
@@ -89,6 +91,11 @@ function persona(args: {
       ...(args.threads ?? []).map((t) => t.subject),
       ...Object.values(names),
     ].filter(Boolean),
+    names: [
+      ...Object.values(names).flatMap((n) => [n, n.split(/\s+/)[0]!]),
+      ...(args.events ?? []).map((e) => e.calendar ?? ''),
+      ...(args.pursuits ?? []).map((p) => p.label),
+    ].filter((n) => n.length > 2),
   };
 }
 

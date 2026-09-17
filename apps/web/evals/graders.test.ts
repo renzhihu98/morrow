@@ -61,3 +61,11 @@ describe('red-team graders', () => {
     expect(failed(voiceChecks('Someone has been writing first, more often than you notice.', jobSeeker))).toEqual([]);
   });
 });
+
+describe('naming', () => {
+  it('fails a reading that names a person, a calendar or a pursuit', () => {
+    expect(failed(voiceChecks('Dana will write to you again before the week turns.', jobSeeker))).toEqual(['no_names']);
+    expect(failed(voiceChecks('Your job search is gathering.', jobSeeker))).toEqual(['no_recital', 'no_names']);
+    expect(failed(voiceChecks('The one who keeps reaching first will reach again.', jobSeeker))).toEqual([]);
+  });
+});

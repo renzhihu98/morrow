@@ -157,7 +157,7 @@ describe('syncUser', () => {
     const dossier = (await repo.getDossier(user.id))!;
     const byId = Object.fromEntries(dossier.facts.map((f) => [f.id, f.value]));
     expect(byId['people.priya_raman']).toBeUndefined();
-    expect(byId['people.dev']).toMatch(/^Met 8 times/);
+    expect(byId['people.dev']).toMatch(/^You make room for them .*8 times/);
     expect(byId['rhythms.protected_time']).toMatch(/^Thursday mornings/);
 
     const primaryOnly = createMemoryRepository();

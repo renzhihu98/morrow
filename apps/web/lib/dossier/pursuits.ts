@@ -195,19 +195,18 @@ export function pursuitFacts(
     const waiting = threads.filter((th) => th.st === 'waiting_on_them').length;
     const unanswered = threads.filter((th) => th.st === 'waiting_on_you').length;
     const latest = [...threads].reverse().find((th) => th.n)?.n;
+    const carried = [past.length > 0 ? `${past.length} on the calendar` : null, threads.length > 0 ? `${threads.length} by mail` : null].filter(Boolean).join(', ');
     const parts = [
-      pursuit.summary,
-      activity[0] ? `going since ${fmt(activity[0])}` : null,
-      past.length > 0 ? `${past.length} on the calendar so far` : null,
-      threads.length > 0 ? `${threads.length} email ${threads.length === 1 ? 'thread' : 'threads'}` : null,
-      momentum,
-      waiting > 0 ? `waiting to hear back on ${waiting}` : null,
-      unanswered > 0 ? `${unanswered} waiting on your reply` : null,
-      ahead.length > 0 ? `${ahead.length} still ahead, next on ${fmt(ahead[0]!.s)}` : events.length > 0 ? 'nothing booked ahead' : null,
-      latest ? `latest: ${latest}` : null,
+      `${pursuit.summary.charAt(0).toUpperCase()}${pursuit.summary.slice(1)}`,
+      activity[0] ? `You have been carrying this since ${fmt(activity[0])} (${carried})` : null,
+      momentum ? `It is ${momentum}` : null,
+      waiting > 0 ? `${waiting === 1 ? 'One answer has' : `${waiting} answers have`} not come back yet` : null,
+      unanswered > 0 ? `${unanswered === 1 ? 'one conversation waits' : `${unanswered} conversations wait`} on you` : null,
+      ahead.length > 0 ? `The next step is already set for ${fmt(ahead[0]!.s)}${ahead.length > 1 ? `, with ${ahead.length - 1} more behind it` : ''}` : events.length > 0 ? 'Nothing is set ahead yet' : null,
+      latest ? `Where it stands: ${latest}` : null,
     ].filter(Boolean);
     const sources = [...(events.length > 0 ? (['calendar'] as const) : []), ...(threads.length > 0 ? (['mail'] as const) : [])];
-    facts.push({ id: `pursuits.${pursuit.key}`, category: 'pursuits', label: pursuit.label, value: parts.join(' · '), sources });
+    facts.push({ id: `pursuits.${pursuit.key}`, category: 'pursuits', label: pursuit.label, value: `${parts.join('. ')}.`, sources });
   }
   return facts;
 }

@@ -211,10 +211,13 @@ export function mailPeopleFacts(mail: MailAggregates | null | undefined, tz: str
         .filter(([id, t]) => s.threads.has(id) && t.n)
         .sort((a, b) => b[1].at.localeCompare(a[1].at))[0]?.[1];
       const parts = [
-        `${s.threads.size} threads by mail`,
-        s.firstWriter > 0 ? `they wrote first ${s.firstWriter === 1 ? 'once' : `${s.firstWriter} times`}` : 'you usually write first',
-        `last ${date(s.last, tz)}`,
-        latest?.n ? `latest: ${latest.n}` : null,
+        s.firstWriter > s.threads.size / 2
+          ? `They are usually the one to reach first (${s.firstWriter} of ${s.threads.size} threads)`
+          : s.firstWriter > 0
+            ? `You open most of it, though they reach first sometimes (${s.firstWriter} of ${s.threads.size} threads)`
+            : `You are always the one to open the thread (${s.threads.size} of them)`,
+        `last word ${date(s.last, tz)}`,
+        latest?.n ? `where it stands: ${latest.n}` : null,
       ].filter(Boolean);
       return { id: `people.${key}`, category: 'people' as const, label: name.split(/\s+/)[0] ?? name, value: parts.join(' · '), sources: ['mail' as const] };
     });
@@ -231,7 +234,7 @@ export function mailRhythmFacts(mail: MailAggregates | null | undefined, tz: str
       id: 'rhythms.mail_unanswered',
       category: 'rhythms',
       label: 'Unanswered',
-      value: `${onYou.length} ${onYou.length === 1 ? 'thread waits' : 'threads wait'} on your reply, oldest from ${date(onYou[0]![1].at, tz)} · ${onYou
+      value: `The next word is yours in ${onYou.length === 1 ? 'one conversation' : `${onYou.length} conversations`}, the oldest since ${date(onYou[0]![1].at, tz)} — ${onYou
         .slice(0, 3)
         .map(([, t]) => t.n)
         .join(' · ')}`,
@@ -244,7 +247,7 @@ export function mailRhythmFacts(mail: MailAggregates | null | undefined, tz: str
       id: 'rhythms.mail_waiting',
       category: 'rhythms',
       label: 'Waiting on',
-      value: `${onThem.length} ${onThem.length === 1 ? 'thread where you wrote last' : 'threads where you wrote last'} · ${onThem
+      value: `You have said your piece and are waiting in ${onThem.length === 1 ? 'one conversation' : `${onThem.length} conversations`} — ${onThem
         .slice(0, 3)
         .map(([, t]) => t.n)
         .join(' · ')}`,

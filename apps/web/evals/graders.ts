@@ -28,13 +28,20 @@ export function recitedLiterals(text: string, persona: Persona): string[] {
   });
 }
 
-/** Shared voice rules: no recital of the data, no dates, counts or weekday names. */
+/** People, calendars and pursuits named out loud — a reader senses a presence, they don't read a contact list. */
+export function namedEntities(text: string, persona: Persona): string[] {
+  return [...new Set(persona.names)].filter((name) => new RegExp(`\\b${name.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}\\b`, 'i').test(text));
+}
+
+/** Shared voice rules: no recital of the data, no names, no dates, counts or weekday names. */
 export function voiceChecks(text: string, persona: Persona): Check[] {
   const recited = recitedLiterals(text, persona);
+  const named = namedEntities(text, persona);
   const weekday = text.match(WEEKDAYS);
   const number = text.match(DATE_LIKE);
   return [
     { id: 'no_recital', pass: recited.length === 0, detail: recited.join(' · ') },
+    { id: 'no_names', pass: named.length === 0, detail: named.join(' · ') },
     { id: 'no_weekday', pass: !weekday, detail: weekday?.[0] },
     { id: 'no_digits', pass: !number, detail: number?.[0] },
     { id: 'no_counts', pass: !COUNT_WORDS.test(text), detail: COUNT_WORDS.exec(text)?.[0] },

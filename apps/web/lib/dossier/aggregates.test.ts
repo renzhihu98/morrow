@@ -138,10 +138,11 @@ describe('buildFacts', () => {
     expect(byId['people.sam_okafor']).toMatchObject({
       category: 'people',
       label: 'Sam',
-      value: 'Moved 4 times, mostly Mondays (06.08 · 07.13 · 08.10 · 08.24) · Met 14 times since 06.01, every 7 days or so · last 08.31',
+      value:
+        'You make room for them about every 7 days, and have since 06.01 (14 times) · and it keeps moving rather than being dropped — 4 times, usually away from a Monday (07.13 · 08.10 · 08.24) · last together 08.31',
       sources: ['calendar'],
     });
-    expect(byId['people.mom']?.value).toBe('Met 6 times since 06.14, every 14 days or so · last 08.23');
+    expect(byId['people.mom']?.value).toBe('You make room for them about every 14 days, and have since 06.14 (6 times) · last together 08.23');
     expect(byId['rhythms.protected_time']?.value).toBe('Thursday mornings — never moved or cancelled, kept 13 times since 06.04');
     expect(byId['rhythms.slipping_slot']?.value).toBe('Monday mornings — moved or cancelled 4 times out of 14');
     expect(byId['rhythms.late_nights']?.value).toBe(
@@ -242,9 +243,9 @@ describe('pursuits and calendar search', async () => {
   it('builds a pursuit fact with momentum and what is ahead', () => {
     const [fact] = pursuitFacts(cal, index, TZ, NOW);
     expect(fact).toMatchObject({ id: 'pursuits.job_search', category: 'pursuits', label: 'Job search', sources: ['calendar'] });
-    expect(fact!.value).toContain('4 on the calendar so far');
+    expect(fact!.value).toContain('(4 on the calendar)');
     expect(fact!.value).toContain('picking up');
-    expect(fact!.value).toContain('1 still ahead, next on 09.05');
+    expect(fact!.value).toContain('The next step is already set for 09.05');
   });
 
   it('searches by pursuit and words, and hides taboo events', () => {
@@ -285,7 +286,7 @@ describe('mail facts and search', async () => {
   it('builds people and waiting facts', () => {
     const [person] = mailPeopleFacts(mail, TZ, NOW);
     expect(person).toMatchObject({ id: 'people.sam_okafor', label: 'Sam', sources: ['mail'] });
-    expect(person!.value).toContain('3 threads by mail');
+    expect(person!.value).toContain('3 threads');
     expect(mailRhythmFacts(mail, TZ, NOW).map((f) => f.id)).toEqual(['rhythms.mail_unanswered', 'rhythms.mail_waiting']);
   });
 
@@ -293,8 +294,8 @@ describe('mail facts and search', async () => {
     const { pursuitFacts } = await import('./pursuits');
     const [fact] = pursuitFacts(null, index, TZ, NOW, mail);
     expect(fact).toMatchObject({ id: 'pursuits.job_search', sources: ['mail'] });
-    expect(fact!.value).toContain('2 email threads');
-    expect(fact!.value).toContain('waiting to hear back on 1');
+    expect(fact!.value).toContain('2 by mail');
+    expect(fact!.value).toContain('One answer has not come back yet');
   });
 
   it('searches threads by pursuit, person and words', () => {

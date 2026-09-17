@@ -14,7 +14,7 @@ import { generateText, Output } from 'ai';
 import { z } from 'zod';
 import { hasModelAccess, isDemoData } from '../server/env';
 import { MODELS } from './models';
-import { connectedSources, dailyReadingPrompt, dossierContacts, dossierPursuits, SUMMARY_INSTRUCTIONS } from './prompts';
+import { connectedSources, dailyReadingPrompt, dossierContacts, dossierNames, dossierPursuits, SUMMARY_INSTRUCTIONS } from './prompts';
 import { findTaboo, isReadingSafe } from './taboo';
 
 export type ReadingContext = {
@@ -82,6 +82,14 @@ export function reviewDraft(output: DailyReadingOutput, ctx: Pick<ReadingContext
 
   if (/\d/.test(statement)) problems.push('The prophecy contains digits. Write it without numbers, dates or clock times.');
   else if (CLOCK_TIME.test(statement)) problems.push('The prophecy names a clock time. Speak of mornings, evenings or a day instead.');
+  // A reader senses a presence, they never read out a name.
+  const said = `${observation.text} ${statement}`;
+  const named = dossierNames(ctx.dossier).filter((name) => new RegExp(`\\b${name.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}\\b`, 'i').test(said));
+  if (named.length > 0) {
+    problems.push(
+      `The reading names ${named.join(', ')}. Never say a name: say what they are to this person ("the one who keeps writing first", "the door you have been preparing for").`,
+    );
+  }
   const metric = statement.match(METRIC_WORDS);
   if (metric) problems.push(`The prophecy uses metric language ("${metric[0]}"). Predict a moment in their life, not a measurement.`);
   const extra = statement.match(OVERPROMISE);
@@ -273,15 +281,15 @@ export function templatedReading(ctx: Pick<ReadingContext, 'dossier' | 'localDat
     if (contact) {
       return fact.value.startsWith('Moved')
         ? {
-            text: `${fact.label} keeps moving on your calendar, and it is rarely about ${fact.label}.`,
-            statement: `The plan with ${fact.label} that keeps sliding will finally happen.`,
+            text: 'Someone you keep making room for keeps sliding to another day, and it is rarely about them.',
+            statement: 'The plan that keeps sliding will finally hold.',
             checkCondition: { type: 'calendar_event_with', contact, titleIncludes: null },
             windowDays: 14,
             likelihood: 0.55,
           }
         : {
-            text: `You keep making time for ${fact.label}, even in the full weeks.`,
-            statement: `${fact.label} will be the one to suggest getting together next, before you get the chance to ask.`,
+            text: 'You keep making room for one person, even in the weeks that leave room for nothing.',
+            statement: 'The one you keep making room for will reach first this time, before you think to ask.',
             checkCondition: { type: 'calendar_event_with', contact, titleIncludes: null },
             windowDays: 14,
             likelihood: 0.5,

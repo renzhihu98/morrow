@@ -116,17 +116,24 @@ function peopleFacts(cal: CalendarAggregates, tz: string, now: Date): DossierFac
   return contactStats(cal, tz, now)
     .slice(0, MAX_PEOPLE)
     .map((s) => {
+      // The dossier is evidence, but it should still read like something noticed, not a row of counts.
       const parts: string[] = [];
-      if (s.moves.length >= 2) {
-        const dates = s.moves.slice(-4).map((m) => formatShortDate(localDate(m, tz)));
-        parts.push(`Moved ${s.moves.length} times${s.usualMoveWeekday ? `, mostly ${s.usualMoveWeekday}s` : ''} (${dates.join(' · ')})`);
-      }
       if (s.meetings.length >= 2) {
         const since = formatShortDate(localDate(s.meetings[0]!, tz));
-        parts.push(`Met ${s.meetings.length} times since ${since}${s.everyDays ? `, every ${s.everyDays} days or so` : ''}`);
+        parts.push(
+          s.everyDays
+            ? `You make room for them about every ${s.everyDays} days, and have since ${since} (${s.meetings.length} times)`
+            : `You have made room for them ${s.meetings.length} times since ${since}`,
+        );
+      }
+      if (s.moves.length >= 2) {
+        const dates = s.moves.slice(-3).map((m) => formatShortDate(localDate(m, tz)));
+        parts.push(
+          `${parts.length > 0 ? 'and it' : 'It'} keeps moving rather than being dropped — ${s.moves.length} times${s.usualMoveWeekday ? `, usually away from a ${s.usualMoveWeekday}` : ''} (${dates.join(' · ')})`,
+        );
       }
       const last = s.meetings.at(-1);
-      if (last) parts.push(`last ${formatShortDate(localDate(last, tz))}`);
+      if (last) parts.push(`last together ${formatShortDate(localDate(last, tz))}`);
       return { id: `people.${s.contact}`, category: 'people' as const, label: s.name.split(/\s+/)[0] ?? s.name, value: parts.join(' · '), sources: ['calendar'] };
     });
 }
