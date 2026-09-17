@@ -1,0 +1,20 @@
+{
+  "at": "2026-09-17T20:39:50.154Z",
+  "passRate": 0.9727272727272728,
+  "byCheck": {
+    "answered": 0.8,
+    "grounded": 1,
+    "judge_answers": 1,
+    "judge_grounded": 1,
+    "judge_no_recital": 0.8888888888888888,
+    "judge_voice": 0.8888888888888888,
+    "looked_first": 1,
+    "no_digits": 1,
+    "no_recital": 1,
+    "no_taboo": 1,
+    "no_weekday": 1,
+    "observed_once": 1,
+    "one_checkable_promise": 1,
+    "within_length": 1
+  }
+}

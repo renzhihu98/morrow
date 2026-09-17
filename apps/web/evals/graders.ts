@@ -1,0 +1,76 @@
+/**
+ * Deterministic graders: the rubric Morrow's output must pass, scored without a model so they are cheap, stable
+ * and testable. The judge (`judge.ts`) adds the parts only a model can see (voice, whether it answered).
+ */
+import type { DailyReadingOutput, Dossier } from '@morrow/core';
+import { reviewDraft, resolveEvidence } from '../lib/ai/reading';
+import { findTaboo } from '../lib/ai/taboo';
+import { isReadingSafe } from '../lib/ai/taboo';
+import type { Persona } from './personas';
+
+export type Check = { id: string; pass: boolean; detail?: string };
+
+const WEEKDAYS = /\b(monday|tuesday|wednesday|thursday|friday|saturday|sunday)s?\b/i;
+const DATE_LIKE = /\b\d{1,2}\.\d{2}\b|\b\d{1,2}:\d{2}\b|\b\d+\b/;
+const REFUSAL = /\b(i (can'?t|cannot|don'?t) (know|say|see|tell|predict)|i have no (way|data|information)|as an ai|i'?m not able to)\b/i;
+
+const words = (text: string) => text.trim().split(/\s+/).filter(Boolean).length;
+
+/** Literal strings from the person's own data (event titles, calendar names, subjects) Morrow must not read back. */
+export function recitedLiterals(text: string, persona: Persona): string[] {
+  const haystack = text.toLowerCase();
+  return persona.literals.filter((literal) => {
+    const l = literal.toLowerCase().trim();
+    // Single common words ("climbing") are fair game as English; phrases are recital.
+    return l.length > 6 && l.includes(' ') && haystack.includes(l);
+  });
+}
+
+/** Shared voice rules: no recital of the data, no dates, counts or weekday names. */
+export function voiceChecks(text: string, persona: Persona): Check[] {
+  const recited = recitedLiterals(text, persona);
+  const weekday = text.match(WEEKDAYS);
+  const number = text.match(DATE_LIKE);
+  return [
+    { id: 'no_recital', pass: recited.length === 0, detail: recited.join(' · ') },
+    { id: 'no_weekday', pass: !weekday, detail: weekday?.[0] },
+    { id: 'no_digits', pass: !number, detail: number?.[0] },
+  ];
+}
+
+/** A daily reading: grounded in a real fact, inside the house rules, one checkable promise, nothing taboo. */
+export function gradeReading(output: DailyReadingOutput, persona: Persona): Check[] {
+  const evidence = resolveEvidence(persona.dossier, output.observation.evidenceRef);
+  const problems = reviewDraft(output, { dossier: persona.dossier, sources: persona.sources }, evidence);
+  return [
+    { id: 'grounded', pass: Boolean(evidence), detail: evidence ? undefined : `evidenceRef ${output.observation.evidenceRef} is not in the dossier` },
+    ...voiceChecks(`${output.observation.text} ${output.prophecy.statement}`, persona),
+    { id: 'one_checkable_promise', pass: problems.length === 0, detail: problems[0] },
+    { id: 'no_taboo', pass: isReadingSafe(output) },
+    { id: 'within_length', pass: words(output.observation.text) <= 24 && words(output.prophecy.statement) <= 26, detail: `${words(output.observation.text)}/${words(output.prophecy.statement)} words` },
+  ];
+}
+
+export type ChatAnswer = {
+  /** The `observe` headline, if the model delivered one. */
+  observation: { text: string; evidenceRef: string } | null;
+  text: string;
+  toolCalls: string[];
+};
+
+/** A chat answer: it looked before speaking, cited something real, stayed in voice and actually answered. */
+export function gradeChat(answer: ChatAnswer, persona: Persona, expect: { tools?: boolean } = {}): Check[] {
+  const said = `${answer.observation?.text ?? ''} ${answer.text}`.trim();
+  const evidence = answer.observation ? resolveEvidence(persona.dossier, answer.observation.evidenceRef) : null;
+  return [
+    { id: 'answered', pass: said.length > 0 && !REFUSAL.test(said), detail: REFUSAL.exec(said)?.[0] },
+    { id: 'observed_once', pass: Boolean(answer.observation) },
+    { id: 'grounded', pass: Boolean(evidence), detail: answer.observation ? `evidenceRef ${answer.observation.evidenceRef}` : 'no observation' },
+    ...voiceChecks(said, persona),
+    { id: 'no_taboo', pass: !findTaboo(said), detail: findTaboo(said) ?? undefined },
+    ...(expect.tools === false ? [] : [{ id: 'looked_first', pass: answer.toolCalls.length > 0, detail: answer.toolCalls.join(', ') }]),
+  ];
+}
+
+/** True when a dossier holds the fact an answer cites (used by the runner's summary). */
+export const citesDossier = (dossier: Dossier | null, ref: string | undefined): boolean => Boolean(ref && resolveEvidence(dossier, ref));

@@ -1,0 +1,22 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+jobs:
+  check:
+    name: typecheck · test · build
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+      - uses: pnpm/action-setup@v4
+      - uses: actions/setup-node@v5
+        with:
+          node-version-file: .nvmrc
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      # The eval suite itself calls real models and is run locally (`pnpm --filter @morrow/web eval`);
+      # its graders are unit-tested here so the rubric can't rot.
+      - run: pnpm turbo run typecheck test build
