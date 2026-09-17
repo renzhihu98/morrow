@@ -158,8 +158,9 @@ export async function listMessageIds(accessToken: string, query: string, max: nu
 }
 
 /** How long to back off after Gmail's per-minute quota trips, and how often before settling for a partial sync. */
-const RATE_LIMIT_PAUSE_MS = 60_000;
-const MAX_RATE_LIMIT_PAUSES = 6;
+const RATE_LIMIT_PAUSE_MS = 45_000;
+/** Keeps a sync (with its retries) inside a 300 s function; the rest is picked up next time. */
+const MAX_RATE_LIMIT_PAUSES = 3;
 
 const isRateLimited = (e: unknown) => e instanceof SourceSyncError && /rate limited/.test(e.message);
 

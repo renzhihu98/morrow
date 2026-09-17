@@ -1,11 +1,12 @@
 import { prophecyRecord } from '@morrow/core';
-import { connection } from 'next/server';
+import { after, connection } from 'next/server';
 import { Suspense } from 'react';
 import { Orbit } from '@/components/Orbit';
 import { Today } from '@/components/Today';
 import { requirePageUser, toCoreUser } from '@/lib/auth/session';
 import { getRepository } from '@/lib/data';
 import { now } from '@/lib/server/env';
+import { syncIfStale } from '@/lib/jobs/sync-on-visit';
 import { getTodayView } from '@/lib/server/readings';
 import { SOURCE_ABBR } from '@/lib/sources/catalog';
 
@@ -38,6 +39,7 @@ async function TodayContent() {
   const user = toCoreUser(await requirePageUser());
   const repo = getRepository();
   const today = await getTodayView(repo, user, now());
+  after(() => syncIfStale(repo, user, new Date()));
   const [sources, prophecies] = await Promise.all([repo.listSources(today.user.id), repo.listProphecies(today.user.id)]);
   const linked = sources.filter((s) => s.status === 'linked');
   const events = linked.reduce((n, s) => n + (s.stat?.label === 'events' ? s.stat.value : 0), 0);

@@ -3,16 +3,17 @@ import type { VercelConfig } from '@vercel/config/v1';
 /**
  * Vercel project config (project root: apps/web).
  * Cron requests carry `Authorization: Bearer $CRON_SECRET`.
+ * Hobby plan: crons run at most once a day (and anywhere within the hour), so the jobs are daily and the app also
+ * syncs stale sources when someone opens Today (`lib/jobs/sync-on-visit.ts`); readings are drawn lazily on visit.
  */
 export const config: VercelConfig = {
   framework: 'nextjs',
   crons: [
-    // Hourly at :50: sync connected sources (Calendar window, Spotify `after` cursor) and purge expired raw events,
-    // so the dawn job at :00 reads a fresh dossier.
-    { path: '/api/cron/sync', schedule: '50 * * * *' },
-    // Hourly: each user's reading turns over at 04:00 in *their* timezone, so the job checks every hour.
-    { path: '/api/cron/dawn', schedule: '0 * * * *' },
-    // Every 30 minutes: verify open prophecies against newly synced events.
-    { path: '/api/cron/verify', schedule: '*/30 * * * *' },
+    // Daily at 10:50 UTC (early morning in the Americas): sync connected sources and purge expired raw events.
+    { path: '/api/cron/sync', schedule: '50 10 * * *' },
+    // Daily at 11:00 UTC: seal yesterday and draw today's readings ahead of the first visit.
+    { path: '/api/cron/dawn', schedule: '0 11 * * *' },
+    // Daily at 23:00 UTC: verify open prophecies against newly synced events.
+    { path: '/api/cron/verify', schedule: '0 23 * * *' },
   ],
 };
