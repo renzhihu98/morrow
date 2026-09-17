@@ -3,9 +3,13 @@ import { FIXTURE_NOW } from '@morrow/core';
 /** Postgres is used when DATABASE_URL is set; otherwise the in-memory fixture repository. */
 export const hasDatabase = (): boolean => Boolean(process.env.DATABASE_URL);
 
-/** A model is reachable through AI Gateway with an API key or a Vercel OIDC token. */
+/**
+ * A model is reachable through AI Gateway with an API key or a Vercel OIDC token. Locally the token comes from
+ * `vercel env pull`; on Vercel it isn't in process.env at all — it arrives per request (`x-vercel-oidc-token`)
+ * and the gateway provider reads it from there — so running on Vercel counts as access.
+ */
 export const hasModelAccess = (): boolean =>
-  Boolean(process.env.AI_GATEWAY_API_KEY || process.env.VERCEL_OIDC_TOKEN);
+  Boolean(process.env.AI_GATEWAY_API_KEY || process.env.VERCEL_OIDC_TOKEN || process.env.VERCEL);
 
 /** Demo data mode: no database → fixtures, and the clock starts at FIXTURE_NOW. */
 export const isDemoData = (): boolean => !hasDatabase();
