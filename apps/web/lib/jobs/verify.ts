@@ -29,7 +29,9 @@ export function findEvidence(prophecy: Prophecy, events: RawEvent[]): RawEvent |
       case 'email_from_contact': {
         if (payload.type !== 'email') continue;
         const email: EmailPayload = payload;
-        if (email.direction !== 'inbound' || !sameContact(cc.contact, email.contact)) continue;
+        if (email.direction !== 'inbound') continue;
+        if (cc.contact === 'any' ? !cc.subjectIncludes : !sameContact(cc.contact, email.contact)) continue;
+        if (cc.subjectIncludes && !`${email.subject ?? ''} ${email.snippet ?? ''}`.toLowerCase().includes(cc.subjectIncludes.toLowerCase())) continue;
         if (cc.firstInThread && !email.firstInThread) continue;
         return e;
       }
@@ -37,7 +39,9 @@ export function findEvidence(prophecy: Prophecy, events: RawEvent[]): RawEvent |
         if (payload.type !== 'calendar_event') continue;
         const event: CalendarEventPayload = payload;
         if (event.status !== 'confirmed') continue;
-        const withContact = cc.contact === 'any' ? event.attendees.length > 0 : event.attendees.some((a) => sameContact(cc.contact, a));
+        // `any` + titleIncludes is a pursuit check (an interview gets booked); `any` alone means "with someone".
+        const withContact =
+          cc.contact === 'any' ? Boolean(cc.titleIncludes) || event.attendees.length > 0 : event.attendees.some((a) => sameContact(cc.contact, a));
         if (!withContact) continue;
         if (cc.titleIncludes && !event.title.toLowerCase().includes(cc.titleIncludes.toLowerCase())) continue;
         return e;

@@ -1,5 +1,6 @@
 import type { Metadata, Viewport } from 'next';
 import { Geist, Geist_Mono, Instrument_Serif } from 'next/font/google';
+import { THEME_SCRIPT } from '@/lib/ui/theme';
 import './globals.css';
 
 const serif = Instrument_Serif({ weight: '400', style: 'normal', subsets: ['latin'], variable: '--font-instrument-serif' });
@@ -12,18 +13,13 @@ export const metadata: Metadata = {
 };
 
 export const viewport: Viewport = {
-  themeColor: [
-    { media: '(prefers-color-scheme: dark)', color: '#0C0D10' },
-    { media: '(prefers-color-scheme: light)', color: '#F3F4F6' },
-  ],
+  themeColor: '#0C0D10',
 };
 
-/** Applies a stored theme before first paint (no flash). System theme when unset. */
-const THEME_SCRIPT = `try{var t=localStorage.getItem('morrow-theme');if(t==='dark'||t==='light')document.documentElement.dataset.theme=t}catch(e){}`;
 
 export default function RootLayout({ children }: LayoutProps<'/'>) {
   return (
-    <html lang="en" className={`${serif.variable} ${sans.variable} ${mono.variable}`} suppressHydrationWarning>
+    <html lang="en" className={`${serif.variable} ${sans.variable} ${mono.variable}`} data-theme="dark" suppressHydrationWarning>
       <head>
         <script dangerouslySetInnerHTML={{ __html: THEME_SCRIPT }} />
       </head>

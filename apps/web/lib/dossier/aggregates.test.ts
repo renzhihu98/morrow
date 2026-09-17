@@ -196,3 +196,110 @@ describe('buildFacts', () => {
     expect(buildFacts(stored, TZ, NOW)).toEqual(buildFacts(fullAggregates(), TZ, NOW));
   });
 });
+
+describe('pursuits and calendar search', async () => {
+  const { pursuitFacts } = await import('./pursuits');
+  const { searchCalendar } = await import('./calendar-search');
+  const day = (n: number, hour = 10) => new Date(NOW.getTime() + n * 86_400_000 + (hour - 12) * 3_600_000).toISOString();
+  const event = (id: string, n: number, title: string, extra: Partial<CalendarEventPayload> = {}): CalendarEventPayload => ({
+    type: 'calendar_event',
+    eventId: id,
+    title,
+    attendees: [],
+    start: day(n),
+    end: day(n, 11),
+    status: 'confirmed',
+    movedFrom: null,
+    calendarId: 'jobs@group.calendar.google.com',
+    calendarName: 'Job search',
+    accessRole: 'owner',
+    selfInvolved: true,
+    ...extra,
+  });
+  const cal = foldCalendar(
+    null,
+    [
+      event('a', -40, 'Application sent'),
+      event('b', -10, 'Recruiter call'),
+      event('c', -5, 'Portfolio review', { details: 'Bring the case study' }),
+      event('d', -3, 'Recruiter call'),
+      event('e', 4, 'Final interview', { location: 'Studio, 2nd floor' }),
+      event('f', -2, 'Dentist'),
+    ],
+    NOW,
+  );
+  const index = {
+    pursuits: [{ key: 'job_search', label: 'Job search', summary: 'applications, recruiter calls and interviews' }],
+    titles: { 'application sent': 'job_search', 'recruiter call': 'job_search', 'portfolio review': 'job_search', 'final interview': 'job_search', dentist: null },
+    at: NOW.toISOString(),
+  };
+
+  it('keeps calendar names, details and locations on own events', () => {
+    expect(cal.calendars).toEqual({ 'jobs@group.calendar.google.com': 'Job search' });
+    expect(cal.events.e).toMatchObject({ t: 'Final interview', l: 'Studio, 2nd floor', k: 'jobs@group.calendar.google.com' });
+  });
+
+  it('builds a pursuit fact with momentum and what is ahead', () => {
+    const [fact] = pursuitFacts(cal, index, TZ, NOW);
+    expect(fact).toMatchObject({ id: 'pursuits.job_search', category: 'pursuits', label: 'Job search', sources: ['calendar'] });
+    expect(fact!.value).toContain('4 on the calendar so far');
+    expect(fact!.value).toContain('picking up');
+    expect(fact!.value).toContain('1 still ahead, next on 09.05');
+  });
+
+  it('searches by pursuit and words, and hides taboo events', () => {
+    expect(searchCalendar(cal, index, { pursuit: 'job_search', when: 'upcoming' }, TZ, NOW).events.map((e) => e.title)).toEqual(['Final interview']);
+    const found = searchCalendar(cal, index, { query: 'case study', when: 'past' }, TZ, NOW);
+    expect(found.events[0]).toMatchObject({ title: 'Portfolio review', calendar: 'Job search', partOfDay: 'late morning' });
+    expect(searchCalendar(cal, index, { query: null, when: 'all' }, TZ, NOW).events.map((e) => e.title)).not.toContain('Dentist');
+  });
+});
+
+describe('mail facts and search', async () => {
+  const { foldMail, mailPeopleFacts, mailRhythmFacts, threadInputs } = await import('./mail');
+  const { searchMail } = await import('./mail-search');
+  const at = (n: number) => new Date(NOW.getTime() + n * 86_400_000).toISOString();
+  const msg = (id: string, th: string, n: number, dir: 'inbound' | 'outbound', extra: Record<string, unknown> = {}) => ({
+    type: 'email' as const, messageId: id, threadId: th, contact: 'sam_okafor', direction: dir, firstInThread: id === th,
+    people: [{ key: 'sam_okafor', email: 'sam@studio.co', displayName: 'Sam Okafor' }], subject: `Subject ${th}`, snippet: '', body: `body ${id}`, sentAt: at(n), ...extra,
+  });
+  const messages = [msg('a', 'a', -10, 'inbound'), msg('b', 'a', -9, 'outbound'), msg('c', 'c', -3, 'inbound'), msg('d', 'd', -2, 'outbound', { subject: 'Therapy notes' })];
+  const notes = new Map([
+    ['a', { note: 'Sam asked about a second interview; you said Thursday works.', kind: 'pursuit' as const, status: 'waiting_on_them' as const }],
+    ['c', { note: 'Sam sent the offer details and asked for a call.', kind: 'pursuit' as const, status: 'waiting_on_you' as const }],
+  ]);
+  const mail = foldMail(null, messages, notes, NOW);
+  const index = { pursuits: [{ key: 'job_search', label: 'Job search', summary: 'interviews' }], titles: {}, threads: { a: 'job_search', c: 'job_search' }, at: NOW.toISOString() };
+
+  it('keeps timing, people and notes but never bodies', () => {
+    expect(JSON.stringify(mail)).not.toContain('body a');
+    expect(mail.threads.a).toMatchObject({ s: 'Subject a', n: notes.get('a')!.note, st: 'waiting_on_them' });
+    expect(mail.cursorMs).toBe(Date.parse(at(-2)));
+  });
+
+  it('never sends taboo threads to the note writer, and skips threads already noted', () => {
+    expect(threadInputs(messages, null).map((t) => t.threadId)).toEqual(['c', 'a']);
+    expect(threadInputs(messages.slice(0, 2), mail)).toEqual([]);
+  });
+
+  it('builds people and waiting facts', () => {
+    const [person] = mailPeopleFacts(mail, TZ, NOW);
+    expect(person).toMatchObject({ id: 'people.sam_okafor', label: 'Sam', sources: ['mail'] });
+    expect(person!.value).toContain('3 threads by mail');
+    expect(mailRhythmFacts(mail, TZ, NOW).map((f) => f.id)).toEqual(['rhythms.mail_unanswered', 'rhythms.mail_waiting']);
+  });
+
+  it('merges calendar and mail into one pursuit fact', async () => {
+    const { pursuitFacts } = await import('./pursuits');
+    const [fact] = pursuitFacts(null, index, TZ, NOW, mail);
+    expect(fact).toMatchObject({ id: 'pursuits.job_search', sources: ['mail'] });
+    expect(fact!.value).toContain('2 email threads');
+    expect(fact!.value).toContain('waiting to hear back on 1');
+  });
+
+  it('searches threads by pursuit, person and words', () => {
+    expect(searchMail(mail, index, { pursuit: 'job_search', when: 'all' }, TZ, NOW).threads.map((t) => t.subject)).toEqual(['Subject c', 'Subject a']);
+    expect(searchMail(mail, index, { query: 'offer', when: 'last_week' }, TZ, NOW).threads[0]).toMatchObject({ subject: 'Subject c', youWroteLast: false, status: 'waiting_on_you' });
+    expect(searchMail(mail, index, { contact: 'sam', when: 'all' }, TZ, NOW).total).toBe(2); // the taboo thread never comes back
+  });
+});

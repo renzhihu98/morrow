@@ -10,7 +10,7 @@ export const POST = authed(async (user, req) => {
   if (!body.success) return apiError('bad_request', 'Type FORGET to confirm.');
   const repo = getRepository();
   if (isAuthEnabled()) {
-    for (const kind of ['calendar', 'spotify'] as const) await disconnectSource(user.id, kind, { purge: false });
+    for (const kind of ['mail', 'calendar', 'spotify'] as const) await disconnectSource(user.id, kind, { purge: false });
   }
   await repo.forgetEverything(user.id);
   return ok();

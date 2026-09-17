@@ -4,6 +4,7 @@ import { redirect } from 'next/navigation';
 import { connection } from 'next/server';
 import { SignInButton } from '@/components/auth/SignInButton';
 import { Orbit } from '@/components/Orbit';
+import { ThemeToggle } from '@/components/ThemeToggle';
 import { Wordmark } from '@/components/TopBar';
 import { currentUser, isAuthEnabled } from '@/lib/auth/session';
 
@@ -29,7 +30,10 @@ export default async function SignInPage({ searchParams }: PageProps<'/sign-in'>
     <div className="relative flex min-h-dvh flex-col overflow-hidden">
       <header className="relative z-10 flex items-center justify-between px-6 py-5 lg:px-12 lg:py-7">
         <Wordmark />
-        <span className="label text-text-muted">Private beta · v0.1</span>
+        <div className="flex items-center gap-5">
+          <span className="label hidden text-text-muted sm:inline">Private beta · v0.1</span>
+          <ThemeToggle withLabel />
+        </div>
       </header>
 
       <div

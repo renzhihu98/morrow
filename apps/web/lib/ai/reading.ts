@@ -15,7 +15,7 @@ import { generateText, Output } from 'ai';
 import { z } from 'zod';
 import { hasModelAccess, isDemoData } from '../server/env';
 import { MODELS } from './models';
-import { connectedSources, dailyReadingPrompt, dossierContacts, SUMMARY_INSTRUCTIONS } from './prompts';
+import { connectedSources, dailyReadingPrompt, dossierContacts, dossierPursuits, SUMMARY_INSTRUCTIONS } from './prompts';
 import { findTaboo, isReadingSafe } from './taboo';
 
 export type ReadingContext = {
@@ -44,6 +44,10 @@ const isEmpty = (d: Dossier | null) => !d || (d.facts.length === 0 && d.patterns
 const CLOCK_TIME = /\b\d{1,2}[:.]\d{2}\b|\b\d{1,2}\s?(am|pm|a\.m\.|p\.m\.)|o'?clock\b/i;
 const METRIC_WORDS =
   /\b(drift\w*|start(ing)? times?|average\w*|on average|percent\w*|per (day|week|month)|meetings? (a|per|each) (day|week)|busiest|trend\w*|metric\w*|statistic\w*|frequency|minutes?|hours?|schedul\w+ (will|density)|first activity|calendar density|settles? back|data)\b|%/i;
+/** Outcome or progress claims no checkCondition can observe. */
+const OVERPROMISE =
+  /\b(step (closer|forward)|next step|move[sd]? (things |it |your \w+ )?(forward|ahead|along)|carr(y|ies) (your|the) \w+ (forward|further)|turns? into|leads? to|opens? (the|a) (next )?door|take[s]? shape|come[s]? together|pays? off|and (it|that|this) will)\b/i;
+
 const EXTRAPOLATION =
   /\b(keeps?|continues?|remains?|stays?) (on )?(drifting|shifting|trending|rising|falling|climbing|getting|being)\b|\b(will|to) (keep|continue) (on )?\w+ing\b|\bcontinues? to\b|\b(will|to) (remain|stay) (the same|steady|your|at|near|around)\b|\bsettle(s|d)? (back|down)\b|\bpattern (will )?(continues?|holds?|breaks?)\b/i;
 const STOP = new Set(
@@ -81,6 +85,14 @@ export function reviewDraft(output: DailyReadingOutput, ctx: Pick<ReadingContext
   else if (CLOCK_TIME.test(statement)) problems.push('The prophecy names a clock time. Speak of mornings, evenings or a day instead.');
   const metric = statement.match(METRIC_WORDS);
   if (metric) problems.push(`The prophecy uses metric language ("${metric[0]}"). Predict a moment in their life, not a measurement.`);
+  const extra = statement.match(OVERPROMISE);
+  if (extra) {
+    problems.push(`The prophecy promises more than its checkCondition can see ("${extra[0]}"). Describe only the one event the check observes — no outcome, progress or second claim.`);
+  }
+  const cc0 = prophecy.checkCondition;
+  if (cc0.type === 'email_from_contact' && !cc0.firstInThread && /\b(writes? first|reach(es)? out|finally)\b/i.test(statement)) {
+    problems.push('The prophecy says they write first / reach out / finally, but checkCondition.firstInThread is false. Say they "write" or "reply", or set firstInThread: true.');
+  }
   if (EXTRAPOLATION.test(statement)) problems.push('The prophecy only extends a trend ("keeps", "continues", "settles back"). Predict something that happens: a person, a plan, a choice, a song.');
   if (CLOCK_TIME.test(observation.text)) problems.push('The observation names a clock time. Say it the way a person would ("your mornings", "late on Sundays").');
   const obsMetric = observation.text.match(
@@ -103,7 +115,11 @@ export function reviewDraft(output: DailyReadingOutput, ctx: Pick<ReadingContext
   if (required && !sources.includes(required)) {
     problems.push(`checkCondition ${cc.type} needs ${required}, which is not connected. Connected: ${sources.join(', ') || 'none'}.`);
   }
-  if ((cc.type === 'calendar_event_with' || cc.type === 'email_from_contact') && !contacts.has(cc.contact)) {
+  const word = cc.type === 'calendar_event_with' ? cc.titleIncludes : cc.type === 'email_from_contact' ? cc.subjectIncludes : null;
+  const pursuitCheck = 'contact' in cc && cc.contact === 'any' && Boolean(word?.trim()) && dossierPursuits(ctx.dossier).length > 0;
+  if ('contact' in cc && cc.contact === 'any' && !pursuitCheck) {
+    problems.push(`checkCondition.contact "any" needs a ${cc.type === 'email_from_contact' ? 'subjectIncludes' : 'titleIncludes'} word from one of the pursuits, e.g. "interview".`);
+  } else if ((cc.type === 'calendar_event_with' || cc.type === 'email_from_contact') && !pursuitCheck && !contacts.has(cc.contact)) {
     problems.push(
       contacts.size > 0
         ? `checkCondition.contact "${cc.contact}" is not a person in the dossier. Use one of: ${[...contacts].join(', ')} — or a different kind of prophecy.`
@@ -137,7 +153,7 @@ export type ProphecyJudge = (output: DailyReadingOutput, evidence: DossierFact |
 
 const JudgeOutput = z.object({
   humanNotMetric: z.boolean().describe('The prophecy is about a moment in the person\'s life (a person, a plan, a choice, a song, an evening), not a data restatement or trend forecast.'),
-  hopefulAndVivid: z.boolean().describe('Hopeful or warm, specific and concrete enough to picture; not vague, ominous or sad.'),
+  hopefulAndVivid: z.boolean().describe('Hopeful or warm, and personal enough to picture the moment — a reader\'s voice (thresholds, seasons, a word from someone) is good; empty generalities that could fit anyone, ominous or sad lines are not. It should not recite company names, schedules or dates.'),
   checkMatchesStatement: z.boolean().describe('If the checkCondition came true, a reasonable person would say the prophecy came true.'),
   reason: z.string().describe('One short sentence: what to fix, or "fine".'),
 });
@@ -153,7 +169,7 @@ export const judgeProphecy: ProphecyJudge = async (output, evidence) => {
       model: MODELS.summary,
       output: Output.object({ schema: JudgeOutput }),
       instructions:
-        'You review one daily prophecy from Morrow, a fortune teller that reads a person\'s calendar and music. Good prophecies are hopeful, specific moments in a life: a person reaching out, a plan finally happening, a small choice, a new voice in their rotation, a free evening kept. A new artist or song finding its way into their life counts as a moment. Bad ones restate or extrapolate a statistic (start times, how busy a day is, counts), are vague or abstract, or have a check that tests something else. Be strict but fair.',
+        'You review one daily prophecy from Morrow, a fortune teller that reads a person\'s calendar, email and music. Good prophecies are hopeful, specific moments in a life: a person writing, something for a pursuit landing on the calendar, a plan happening, a new voice in their rotation, a free evening kept. Bad ones restate or extrapolate a statistic, are vague or abstract, or promise something the check cannot see. checkMatchesStatement: judge the core event only — if the check fires, would a reasonable person say this came true? Warm wording and small imagery ("before the week is out", "a quiet yes to an evening") are fine when the event itself matches; a second promised outcome (progress, a result, what it leads to) is not. Be strict about the event, generous about the voice.',
       prompt: `Observation: ${output.observation.text}\nFact it rests on: ${'statement' in evidence ? evidence.statement : `${evidence.label}: ${evidence.value}`}\nProphecy: ${output.prophecy.statement}\ncheckCondition: ${JSON.stringify(output.prophecy.checkCondition)}`,
       abortSignal: AbortSignal.timeout(8000),
     });
@@ -259,7 +275,7 @@ export function templatedReading(ctx: Pick<ReadingContext, 'dossier' | 'localDat
       return fact.value.startsWith('Moved')
         ? {
             text: `${fact.label} keeps moving on your calendar, and it is rarely about ${fact.label}.`,
-            statement: `The plan with ${fact.label} that keeps sliding will finally happen, and it will be easy.`,
+            statement: `The plan with ${fact.label} that keeps sliding will finally happen.`,
             checkCondition: { type: 'calendar_event_with', contact, titleIncludes: null },
             windowDays: 14,
             likelihood: 0.55,
@@ -377,7 +393,7 @@ const DEMO_TEMPLATES: DemoTemplate[] = [
       return {
         observation: { text: p.statement, evidenceRef: `dossier.${p.id}`, sourceLabel: p.sources.map(cap).join(' · ') },
         prophecy: {
-          statement: 'This week you will make one small choice that surprises you, and it will feel right.',
+          statement: 'This week you will make one small choice that surprises you.',
           checkCondition: { type: 'generic', description: `A day that contradicts: ${p.statement}` },
           windowDays: 7,
           likelihood: 0.5,

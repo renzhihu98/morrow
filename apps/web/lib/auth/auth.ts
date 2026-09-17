@@ -1,5 +1,5 @@
 import { expo } from '@better-auth/expo';
-import { SOURCE_OAUTH } from '@morrow/core';
+import { SOURCE_OAUTH, type SourceKind } from '@morrow/core';
 import { betterAuth } from 'better-auth';
 import { drizzleAdapter } from 'better-auth/adapters/drizzle';
 import { APIError, createAuthMiddleware } from 'better-auth/api';
@@ -12,13 +12,14 @@ import { onAccountGranted } from './grants';
 /** Sign-in asks for identity only (SPEC §12.2); sources add scopes via linkSocial (§12.3). */
 export const GOOGLE_SIGN_IN_SCOPES = ['openid', 'email', 'profile'];
 
-/** Scopes + params Better Auth's linkSocial must use per provider, whichever client calls it (web or Expo). */
-export const LINK_PARAMS: Record<string, { scopes: string[]; additionalParams?: Record<string, string> }> = {
-  google: {
-    scopes: [...SOURCE_OAUTH.calendar.scopes],
-    // Refresh tokens are only issued with offline access + an explicit consent screen.
-    additionalParams: { access_type: 'offline', prompt: 'consent' },
-  },
+// Refresh tokens are only issued with offline access + an explicit consent screen; include_granted_scopes keeps
+// Calendar when Mail is added to the same Google account (and the other way round).
+const GOOGLE_LINK = { access_type: 'offline', prompt: 'consent', include_granted_scopes: 'true' };
+
+/** Scopes + params Better Auth's linkSocial must use per source, whichever client calls it (web or Expo). */
+export const LINK_PARAMS: Partial<Record<SourceKind, { scopes: string[]; additionalParams?: Record<string, string> }>> = {
+  calendar: { scopes: [...SOURCE_OAUTH.calendar.scopes], additionalParams: GOOGLE_LINK },
+  mail: { scopes: [...SOURCE_OAUTH.mail.scopes], additionalParams: GOOGLE_LINK },
   spotify: { scopes: [...SOURCE_OAUTH.spotify.scopes] },
 };
 
@@ -92,15 +93,19 @@ function createAuth() {
         }
         // Enforce source scopes on linkSocial regardless of what the client asked for.
         if (ctx.path === '/link-social') {
-          const params = LINK_PARAMS[ctx.body?.provider as string];
-          if (!params) throw new APIError('BAD_REQUEST', { message: 'This source cannot be linked.' });
+          const provider = ctx.body?.provider as string;
           const requested: string[] = Array.isArray(ctx.body?.scopes) ? ctx.body.scopes : [];
+          // Google grants Calendar and/or Mail: keep whichever source scopes were asked for (Calendar by default).
+          const kinds = (Object.keys(LINK_PARAMS) as SourceKind[]).filter((k) => SOURCE_OAUTH[k as keyof typeof SOURCE_OAUTH]?.provider === provider);
+          if (kinds.length === 0) throw new APIError('BAD_REQUEST', { message: 'This source cannot be linked.' });
+          const asked = kinds.filter((k) => LINK_PARAMS[k]!.scopes.some((s) => requested.includes(s)));
+          const chosen = asked.length > 0 ? asked : [kinds[0]!];
           return {
             context: {
               body: {
                 ...ctx.body,
-                scopes: [...new Set([...requested, ...params.scopes])],
-                additionalParams: { ...(ctx.body?.additionalParams ?? {}), ...(params.additionalParams ?? {}) },
+                scopes: [...new Set(chosen.flatMap((k) => LINK_PARAMS[k]!.scopes))],
+                additionalParams: { ...(ctx.body?.additionalParams ?? {}), ...Object.assign({}, ...chosen.map((k) => LINK_PARAMS[k]!.additionalParams ?? {})) },
               },
             },
           };

@@ -1,6 +1,6 @@
 import type { Dossier, Message, Prophecy, Reading, Source, User } from '@morrow/core';
 import { and, asc, count, desc, eq, gte, isNotNull, lt, lte, sql } from 'drizzle-orm';
-import { sourceKindForAccount } from '../auth/grants';
+import { sourceKindsForAccount } from '../auth/grants';
 import { getDb } from '../db/client';
 import * as schema from '../db/schema';
 import { emptyAggregates, normalizeAggregates } from '../dossier/aggregates';
@@ -221,7 +221,7 @@ export function createDrizzleRepository(): Repository {
           .where(and(eq(prophecies.userId, userId), eq(prophecies.status, 'open'))),
       ]);
       const granted = new Set(
-        grants.filter((g) => g.accessToken || g.refreshToken).map((g) => sourceKindForAccount(g)),
+        grants.filter((g) => g.accessToken || g.refreshToken).flatMap((g) => sourceKindsForAccount(g)),
       );
       return SOURCE_ORDER.map((kind): Source => {
         const row = rows.find((r) => r.kind === kind);
@@ -230,7 +230,7 @@ export function createDrizzleRepository(): Repository {
         return {
           ...SOURCE_CATALOG[kind],
           status: !linked ? 'not_linked' : needsReauth || row?.syncState === 'error' ? 'error' : 'linked',
-          stat: linked && row && row.eventCount > 0 ? { value: row.eventCount, label: kind === 'spotify' ? 'plays' : 'events' } : null,
+          stat: linked && row && row.eventCount > 0 ? { value: row.eventCount, label: kind === 'spotify' ? 'plays' : kind === 'mail' ? 'messages' : 'events' } : null,
           watchingCount: open.filter((p) => p.watching.includes(kind)).length,
           lastSyncedAt: linked ? isoOrNull(row?.lastSyncedAt ?? null) : null,
           ...(linked ? { syncState: row?.syncState ?? 'pending', eventCount: row?.eventCount ?? 0 } : {}),

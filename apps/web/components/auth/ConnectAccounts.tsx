@@ -12,8 +12,8 @@ const CARDS: { kind: SourceKind; name: string; glyph: string; reads: string; nev
     kind: 'calendar',
     name: 'Google Calendar',
     glyph: 'CA',
-    reads: "When things happen, who's invited, what moves.",
-    never: 'Descriptions, notes, attachments.',
+    reads: "What's on every calendar, who's invited, what moves.",
+    never: 'Attachments, video-call links, other people’s private events.',
     hint: 'Start here',
     found: (n, calendars) =>
       `${n.toLocaleString('en-US')} ${n === 1 ? 'event' : 'events'} found${calendars ? ` · ${calendars} ${calendars === 1 ? 'calendar' : 'calendars'}` : ''} · last 90 days`,
@@ -27,10 +27,18 @@ const CARDS: { kind: SourceKind; name: string; glyph: string; reads: string; nev
     hint: 'Recommended',
     found: (n) => `${n.toLocaleString('en-US')} ${n === 1 ? 'play' : 'plays'} found · recently played`,
   },
+  {
+    kind: 'mail',
+    name: 'Gmail',
+    glyph: 'MA',
+    reads: "Who you write to, what threads are about, what's waiting on a reply.",
+    never: 'Promotions, social, spam. Messages are read once into notes, then deleted.',
+    hint: 'Deepest reading',
+    found: (n) => `${n.toLocaleString('en-US')} ${n === 1 ? 'message' : 'messages'} found · last 14 days`,
+  },
 ];
 
 const LATER = [
-  { glyph: 'MA', name: 'Gmail', reads: 'Senders and timing, to see who writes first.' },
   { glyph: 'IG', name: 'Instagram', reads: 'Who you keep up with, the places you return to.' },
 ];
 
@@ -96,7 +104,7 @@ export function ConnectAccounts({ initialSources, connectError }: Props) {
   const router = useRouter();
   const [sources, setSources] = useState(initialSources);
   const [pendingKind, setPendingKind] = useState<SourceKind | null>(null);
-  const [error, setError] = useState<string | null>(connectError ? `${connectError === 'spotify' ? 'Spotify' : 'Google Calendar'} wasn't connected. Try again.` : null);
+  const [error, setError] = useState<string | null>(connectError ? `${connectError === 'spotify' ? 'Spotify' : connectError === 'mail' ? 'Gmail' : 'Google Calendar'} wasn't connected. Try again.` : null);
   const [drawing, setDrawing] = useState(false);
 
   const byKind = (k: SourceKind) => sources.find((s) => s.kind === k);
@@ -150,7 +158,7 @@ export function ConnectAccounts({ initialSources, connectError }: Props) {
           What may Morrow read?
         </h1>
         <p className="max-w-[330px] pt-5 text-[15px] leading-6 text-text-secondary">
-          Start with two. Your first reading is drawn from these, and Morrow asks before it needs more.
+          Start with what you're comfortable sharing. The more Morrow can read, the less it has to guess.
         </p>
         <ol className="flex flex-col gap-3 pt-9">
           {[

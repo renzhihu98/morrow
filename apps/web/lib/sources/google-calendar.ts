@@ -1,8 +1,9 @@
 /**
  * Google Calendar (read-only, `calendar.readonly`). SPEC §12.3: events from the last 90 days and next 30 on every
  * calendar in the user's list (except Google-generated ones and free/busy-only calendars), `singleEvents=true`,
- * and only the whitelisted fields — requested with the `fields` parameter so the rest (descriptions,
- * attachments, conferencing, locations, calendar names) never leaves Google.
+ * and only the whitelisted fields — requested with the `fields` parameter: title, details (description, plain
+ * text, trimmed), location and the calendar's name are read so Morrow knows what the time is *for*; attachments,
+ * conferencing and attendee notes never leave Google.
  */
 import { SourceAuthError, SourceSyncError, getJson, type FetchLike } from './errors';
 import type { CalendarAccessRole, CalendarEventPayload, CalendarPerson } from './types';
@@ -16,11 +17,33 @@ const MAX_LIST_PAGES = 10;
 const CALENDAR_CONCURRENCY = 4;
 
 export const CALENDAR_FIELDS =
-  'nextPageToken,items(id,iCalUID,status,summary,start,end,created,updated,recurringEventId,originalStartTime,' +
+  'nextPageToken,items(id,iCalUID,status,summary,description,location,start,end,created,updated,recurringEventId,originalStartTime,' +
   'organizer(email,displayName,self),attendees(email,displayName,responseStatus,self,resource))';
 
-/** calendarList whitelist: ids and roles only (never calendar names or descriptions). */
-export const CALENDAR_LIST_FIELDS = 'nextPageToken,items(id,accessRole,primary,deleted)';
+/** calendarList whitelist: ids, roles and the name the user sees (their own override first). */
+export const CALENDAR_LIST_FIELDS = 'nextPageToken,items(id,summary,summaryOverride,accessRole,primary,deleted)';
+
+/** Stored lengths: enough to know what an event is about, not a copy of the user's notes. */
+export const DETAILS_MAX = 500;
+export const LOCATION_MAX = 120;
+
+/** Calendar descriptions are often HTML; keep plain text only. */
+export function plainDetails(html: string | undefined): string | null {
+  if (!html) return null;
+  const text = html
+    .replace(/<br\s*\/?>|<\/(p|div|li)>/gi, '\n')
+    .replace(/<[^>]+>/g, '')
+    .replace(/&nbsp;/g, ' ')
+    .replace(/&amp;/g, '&')
+    .replace(/&lt;/g, '<')
+    .replace(/&gt;/g, '>')
+    .replace(/&quot;/g, '"')
+    .replace(/&#39;/g, "'")
+    .replace(/[ \t]+/g, ' ')
+    .replace(/\s*\n\s*/g, '\n')
+    .trim();
+  return text ? text.slice(0, DETAILS_MAX) : null;
+}
 
 type GTime = { dateTime?: string; date?: string; timeZone?: string };
 type GPerson = { email?: string; displayName?: string; responseStatus?: string; self?: boolean; resource?: boolean };
@@ -31,6 +54,8 @@ export type GoogleCalendarEvent = {
   iCalUID?: string;
   status?: 'confirmed' | 'tentative' | 'cancelled';
   summary?: string;
+  description?: string;
+  location?: string;
   start?: GTime;
   end?: GTime;
   created?: string;
@@ -43,11 +68,11 @@ export type GoogleCalendarEvent = {
 
 type EventsPage = { items?: GoogleCalendarEvent[]; nextPageToken?: string };
 
-export type GoogleCalendarListEntry = { id: string; accessRole?: CalendarAccessRole; primary?: boolean; deleted?: boolean };
+export type GoogleCalendarListEntry = { id: string; summary?: string; summaryOverride?: string; accessRole?: CalendarAccessRole; primary?: boolean; deleted?: boolean };
 type CalendarListPage = { items?: GoogleCalendarListEntry[]; nextPageToken?: string };
 
 /** Where an event copy was read from. `selfEmails` identify the user (the primary calendar id is their address). */
-export type CalendarSource = { calendarId: string; accessRole: CalendarAccessRole; primary: boolean; selfEmails: string[] };
+export type CalendarSource = { calendarId: string; calendarName?: string | null; accessRole: CalendarAccessRole; primary: boolean; selfEmails: string[] };
 
 /**
  * Stable dossier key for a person: display name if present, else the email local part.
@@ -111,6 +136,8 @@ export function toCalendarPayload(item: GoogleCalendarEvent, source?: CalendarSo
     type: 'calendar_event',
     eventId: item.id,
     title: (item.summary ?? '').slice(0, 120),
+    details: plainDetails(item.description),
+    location: item.location ? item.location.trim().slice(0, LOCATION_MAX) : null,
     attendees: [...new Set(people.map((p) => p.key))],
     people,
     organizer: item.organizer
@@ -130,6 +157,7 @@ export function toCalendarPayload(item: GoogleCalendarEvent, source?: CalendarSo
     ...(source
       ? {
           calendarId: source.calendarId,
+          calendarName: source.calendarName ?? null,
           accessRole: source.accessRole,
           iCalUID: item.iCalUID ?? null,
           shared: !own,
@@ -277,6 +305,7 @@ export async function fetchCalendarEvents(
       summary.roles[role] = (summary.roles[role] ?? 0) + 1;
       const source: CalendarSource = {
         calendarId: r.calendar.id,
+        calendarName: (r.calendar.summaryOverride || r.calendar.summary || '').trim().slice(0, 80) || null,
         accessRole: r.calendar.accessRole ?? 'reader',
         primary: Boolean(r.calendar.primary),
         selfEmails,

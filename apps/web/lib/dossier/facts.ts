@@ -5,6 +5,8 @@
 import { formatShortDate, getLocalParts, getReadingDate, type DossierFact, type SourceKind } from '@morrow/core';
 import { findTaboo } from '../ai/taboo';
 import { listeningDays, type CalendarAggregates, type CalendarEventState, type DossierAggregates, type SpotifyAggregates } from './aggregates';
+import { mailPeopleFacts, mailRhythmFacts } from './mail';
+import { pursuitFacts } from './pursuits';
 
 const DAY_MS = 86_400_000;
 const WEEKDAYS = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
@@ -327,8 +329,21 @@ export function buildFacts(agg: DossierAggregates, timeZone: string, now: Date):
     const late = lateNightFact(agg.spotify, timeZone, now);
     if (late) facts.push(late);
   }
+  facts.push(...mailRhythmFacts(agg.mail, timeZone, now));
+  facts.push(...pursuitFacts(agg.calendar, agg.pursuits, timeZone, now, agg.mail));
   if (agg.calendar) facts.push(...peopleFacts(agg.calendar, timeZone, now));
+  facts.push(...mailPeopleFacts(agg.mail, timeZone, now));
   if (agg.spotify) facts.push(...tasteFacts(agg.spotify));
   const forgotten = new Set(agg.forgotten);
-  return facts.filter((f) => !forgotten.has(f.id) && !findTaboo(`${f.label} ${f.value}`));
+  return mergeById(facts).filter((f) => !forgotten.has(f.id) && !findTaboo(`${f.label} ${f.value}`));
+}
+
+/** The same person seen in Calendar and Mail becomes one fact with both sources. */
+function mergeById(facts: DossierFact[]): DossierFact[] {
+  const byId = new Map<string, DossierFact>();
+  for (const f of facts) {
+    const seen = byId.get(f.id);
+    byId.set(f.id, seen ? { ...seen, value: `${seen.value} · ${f.value}`, sources: [...new Set([...seen.sources, ...f.sources])] } : f);
+  }
+  return [...byId.values()];
 }

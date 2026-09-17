@@ -20,14 +20,14 @@ export function FirstReading({ sources, onCancel }: Props) {
   const [progress, setProgress] = useState(0);
   const started = useRef(-1);
 
-  const linked = sources.filter((s) => s.status !== 'not_linked' && (s.kind === 'calendar' || s.kind === 'spotify'));
+  const STEP_COPY: Partial<Record<Source['kind'], { label: string; detail: string }>> = {
+    calendar: { label: 'Calendar', detail: 'Who you make time for, what keeps moving' },
+    mail: { label: 'Mail', detail: 'Who you write to, what waits on a reply' },
+    spotify: { label: 'Spotify', detail: 'What you play, and when' },
+  };
+  const linked = sources.filter((s) => s.status !== 'not_linked' && STEP_COPY[s.kind]);
   const steps: Omit<StepData, 'status'>[] = [
-    ...linked.map((s) => ({
-      id: s.kind,
-      source: s.kind,
-      label: s.kind === 'calendar' ? 'Calendar' : 'Spotify',
-      detail: s.kind === 'calendar' ? 'Who you make time for, what keeps moving' : 'What you play, and when',
-    })),
+    ...linked.map((s) => ({ id: s.kind, source: s.kind, ...STEP_COPY[s.kind]! })),
     { id: 'dossier', source: 'memory' as const, label: 'Dossier', detail: 'Distilling what stays' },
     { id: 'reading', source: 'memory' as const, label: 'First reading', detail: 'Choosing what to tell you' },
   ];

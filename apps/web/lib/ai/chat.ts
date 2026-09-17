@@ -11,6 +11,8 @@ import { isStepCount, streamText, tool, toUIMessageStream, type ModelMessage, ty
 import { z } from 'zod';
 import type { MorrowUIMessage, StepData } from '../chat-types';
 import type { Repository } from '../data';
+import { searchCalendar } from '../dossier/calendar-search';
+import { searchMail } from '../dossier/mail-search';
 import { MODELS } from './models';
 import { chatInstructions } from './prompts';
 import { resolveEvidence } from './reading';
@@ -67,6 +69,7 @@ export const tabooTransform = <TOOLS extends ToolSet>(): StreamTextTransform<TOO
 
 const SOURCE_FOR_CATEGORY: Record<DossierCategory, StepData['source']> = {
   rhythms: 'calendar',
+  pursuits: 'calendar',
   people: 'calendar',
   places: 'calendar',
   tastes: 'spotify',
@@ -111,6 +114,41 @@ export async function writeModelAnswer(writer: UIMessageStreamWriter<MorrowUIMes
         return { facts, prophecies: related.map(({ number, statement, status, madeOn, resolvedAt }) => ({ number, statement, status, madeOn, resolvedAt })) };
       },
     }),
+    searchCalendar: tool({
+      description:
+        'Search the events on their calendars that they are part of: title, calendar name, location and details. Use it for anything about a specific plan, pursuit or event (e.g. a job search → pursuit "job_search", or query "interview recruiter offer").',
+      inputSchema: z.object({
+        query: z.string().nullable().describe('Words to look for, any of them (e.g. "interview offer"). Null to list by pursuit or time only.'),
+        pursuit: z.string().nullable().describe('A pursuit key from the dossier (the part after "pursuits."), or null.'),
+        when: z.enum(['past', 'upcoming', 'all']),
+      }),
+      execute: async ({ query, pursuit, when }, { toolCallId }) => {
+        const subject = pursuit ? (dossier?.facts.find((f) => f.id === `pursuits.${pursuit}`)?.label ?? pursuit.replace(/_/g, ' ')) : query || 'events';
+        step({ id: toolCallId, source: 'calendar', label: 'Calendar', detail: `${subject} — searching`, status: 'active' });
+        const aggregates = await repo.getAggregates(user.id);
+        const found = searchCalendar(aggregates?.calendar ?? null, aggregates?.pursuits, { query, pursuit, when }, user.timezone, now);
+        step({ id: toolCallId, source: 'calendar', label: 'Calendar', detail: `${subject} — ${found.total} ${when === 'upcoming' ? 'ahead' : when === 'past' ? 'so far' : 'found'}`, status: 'done' });
+        return found;
+      },
+    }),
+    searchMail: tool({
+      description:
+        'Search their email threads: subject, who, a note on what each thread is about and where it stands (waiting on them / on you). Use it for people, plans and pursuits (e.g. pursuit "job_search", or query "recruiter interview offer").',
+      inputSchema: z.object({
+        query: z.string().nullable().describe('Words to look for, any of them. Null to list by pursuit, person or time.'),
+        pursuit: z.string().nullable().describe('A pursuit key from the dossier (after "pursuits."), or null.'),
+        contact: z.string().nullable().describe('A person key or first name, or null.'),
+        when: z.enum(['last_week', 'last_month', 'all']),
+      }),
+      execute: async ({ query, pursuit, contact, when }, { toolCallId }) => {
+        const subject = pursuit ? (dossier?.facts.find((f) => f.id === `pursuits.${pursuit}`)?.label ?? pursuit.replace(/_/g, ' ')) : contact || query || 'threads';
+        step({ id: toolCallId, source: 'mail', label: 'Mail', detail: `${subject} — reading`, status: 'active' });
+        const aggregates = await repo.getAggregates(user.id);
+        const found = searchMail(aggregates?.mail, aggregates?.pursuits, { query, pursuit, contact, when }, user.timezone, now);
+        step({ id: toolCallId, source: 'mail', label: 'Mail', detail: `${subject} — ${found.total} ${found.total === 1 ? 'thread' : 'threads'}`, status: 'done' });
+        return found;
+      },
+    }),
     getOpenProphecies: tool({
       description: 'Open prophecies with their windows and likelihoods.',
       inputSchema: z.object({}),
@@ -124,7 +162,7 @@ export async function writeModelAnswer(writer: UIMessageStreamWriter<MorrowUIMes
       description: "Deliver the headline of your answer. Call exactly once, before the plain-text explanation.",
       inputSchema: z.object({
         text: z.string().describe('One or two sentences, max 30 words.'),
-        evidenceRef: z.string().describe('Dossier fact or pattern id the answer rests on.'),
+        evidenceRef: z.string().describe('Dossier fact or pattern id the answer rests on (a pursuit fact when you searched its events).'),
         sourceLabel: z.string().describe('Short evidence line, e.g. "Calendar · 03.04 · 04.22".'),
         sources: z.array(SourceKind).optional(),
       }),

@@ -7,7 +7,7 @@ import { TABOO_TOPICS, type DailyReadingOutput, type TabooTopic } from '@morrow/
  */
 const PATTERNS: Record<TabooTopic, RegExp> = {
   health:
-    /\b(ill(ness)?|sick(ness)?|disease|diagnos\w*|symptom\w*|cancer|tumou?r|doctor|hospital\w*|therap(y|ist)|medicat\w*|depress\w*|anxiety|panic attack|insomnia|injur\w*|surgery|mental health|burn(ed|t)?[- ]?out)\b/i,
+    /\b(ill(ness)?|sick(ness)?|disease|diagnos\w*|symptom\w*|cancer|tumou?r|doctor|hospital\w*|therap(y|ist)|medicat\w*|depress\w*|anxiety|panic attack|insomnia|injur\w*|surgery|mental health|burn(ed|t)?[- ]?out|dentist\w*|dental|clinic|physio\w*|psychiatr\w*|dermatolog\w*|check-?up)\b/i,
   pregnancy: /\b(pregnan\w*|expecting a (baby|child)|conceiv\w*|fertility|miscarr\w*|ivf|trimester|due date)\b/i,
   death: /\b(die[sd]?|dying|death|dead|funeral|grie(f|ving)|pass(es|ed)? away|mortal\w*|suicid\w*|terminal)\b/i,
   money_stress:

@@ -5,6 +5,8 @@
  */
 import { getLocalParts, getReadingDate } from '@morrow/core';
 import type { CalendarEventPayload, PlayPayload, TopItemsPayload } from '../sources/types';
+import type { MailAggregates } from './mail';
+import type { PursuitIndex } from './pursuits';
 
 const DAY_MS = 86_400_000;
 /** Calendar events older than this (by end) are dropped from the index. */
@@ -23,8 +25,14 @@ export type CalendarEventState = {
   st: 'c' | 't' | 'x';
   /** contact keys of other attendees */
   p: string[];
-  /** title, truncated (verification of `titleIncludes`; never put into facts or prompts) */
+  /** title, truncated (verification of `titleIncludes`, pursuits, calendar search) */
   t?: string;
+  /** details: description as plain text, trimmed */
+  x?: string;
+  /** location */
+  l?: string;
+  /** calendar id (name in `CalendarAggregates.calendars`) */
+  k?: string;
   /** declined by the user */
   d?: true;
   /** all-day */
@@ -47,6 +55,8 @@ export type CalendarAggregates = {
   moves: CalendarMove[];
   /** contact key → display name (first seen) */
   names: Record<string, string>;
+  /** calendar id → the calendar's name as the user sees it (latest sync) */
+  calendars?: Record<string, string>;
 };
 
 /**
@@ -82,6 +92,10 @@ export type DossierAggregates = {
   forgotten: string[];
   calendar: CalendarAggregates | null;
   spotify: SpotifyAggregates | null;
+  /** Gmail messages (timing, people) and thread notes (`mail.ts`). Optional: added without a version bump. */
+  mail?: MailAggregates | null;
+  /** Calendar titles grouped into pursuits (`pursuits.ts`). Optional: added without a version bump. */
+  pursuits?: PursuitIndex | null;
 };
 
 export const emptyAggregates = (): DossierAggregates => ({ version: AGGREGATES_VERSION, forgotten: [], calendar: null, spotify: null });
@@ -95,7 +109,7 @@ export function normalizeAggregates(stored: unknown): DossierAggregates | null {
   if (!stored || typeof stored !== 'object') return null;
   const agg = stored as Partial<DossierAggregates> & { version?: number };
   if (agg.version === AGGREGATES_VERSION) return agg as DossierAggregates;
-  return { version: AGGREGATES_VERSION, forgotten: agg.forgotten ?? [], calendar: agg.calendar ?? null, spotify: null };
+  return { version: AGGREGATES_VERSION, forgotten: agg.forgotten ?? [], calendar: agg.calendar ?? null, spotify: null, mail: agg.mail ?? null, pursuits: agg.pursuits ?? null };
 }
 
 const STATUS: Record<CalendarEventPayload['status'], CalendarEventState['st']> = { confirmed: 'c', tentative: 't', cancelled: 'x' };
@@ -107,8 +121,8 @@ const STATUS: Record<CalendarEventPayload['status'], CalendarEventState['st']> =
  */
 export function foldCalendar(prev: CalendarAggregates | null, events: CalendarEventPayload[], now: Date): CalendarAggregates {
   const agg: CalendarAggregates = prev
-    ? { events: { ...prev.events }, moves: [...prev.moves], names: { ...prev.names } }
-    : { events: {}, moves: [], names: {} };
+    ? { events: { ...prev.events }, moves: [...prev.moves], names: { ...prev.names }, calendars: { ...prev.calendars } }
+    : { events: {}, moves: [], names: {}, calendars: {} };
   const seen = new Set(agg.moves.map((m) => `${m.eventId}|${Date.parse(m.from)}`));
   const addMove = (e: CalendarEventPayload, from: string) => {
     const key = `${e.eventId}|${Date.parse(from)}`;
@@ -129,8 +143,16 @@ export function foldCalendar(prev: CalendarAggregates | null, events: CalendarEv
     }
     const state: CalendarEventState = { s: e.start, e: e.end, st: STATUS[e.status] ?? 'c', p: othersOnly ? [] : e.attendees };
     if (e.shared) state.sh = true;
-    // Titles are only kept for events the user is part of (verification of `titleIncludes`).
-    if (e.title && !othersOnly) state.t = e.title.slice(0, 60);
+    if (e.calendarId) {
+      state.k = e.calendarId;
+      if (e.calendarName) agg.calendars![e.calendarId] = e.calendarName;
+    }
+    // What an event is about is only kept for events the user is part of.
+    if (!othersOnly) {
+      if (e.title) state.t = e.title.slice(0, 120);
+      if (e.details) state.x = e.details;
+      if (e.location) state.l = e.location;
+    }
     if (e.selfResponse === 'declined') state.d = true;
     if (e.allDay) state.a = true;
     if (e.recurringEventId) state.r = e.recurringEventId;
@@ -232,6 +254,8 @@ export function calendarEventChanged(prev: CalendarEventState | undefined, e: Ca
     Date.parse(prev.e) !== Date.parse(e.end) ||
     prev.st !== STATUS[e.status] ||
     prev.p.join(',') !== e.attendees.join(',') ||
+    (prev.t ?? '') !== (e.title ?? '').slice(0, 120) ||
+    (prev.x ?? null) !== (e.details ?? null) ||
     Boolean(prev.d) !== (e.selfResponse === 'declined')
   );
 }

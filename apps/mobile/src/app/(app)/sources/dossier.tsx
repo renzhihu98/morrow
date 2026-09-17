@@ -10,7 +10,7 @@ import { formatBytes } from '@/lib/format';
 import { useTheme } from '@/theme/ThemeProvider';
 import { monoStyle, sansStyle } from '@/theme/typography';
 
-const CATEGORIES: DossierCategory[] = ['rhythms', 'people', 'places', 'tastes'];
+const CATEGORIES: DossierCategory[] = ['rhythms', 'pursuits', 'people', 'places', 'tastes'];
 
 /** Screen 11 — the distilled dossier (readable ↔ raw JSON), forget a single fact. */
 export default function DossierScreen() {

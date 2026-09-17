@@ -21,6 +21,23 @@ const json = (body: unknown, status = 200) => new Response(JSON.stringify(body),
 
 const PRIMARY_ONLY = { items: [{ id: 'iris@example.com', accessRole: 'owner', primary: true }] };
 
+const b64 = (text: string) => Buffer.from(text).toString('base64url');
+const GMAIL: Record<string, object> = {
+  m1: {
+    id: 'm1', threadId: 'm1', labelIds: ['INBOX', 'IMPORTANT'], snippet: 'Could you do Thursday?', internalDate: String(Date.parse('2026-08-28T16:00:00Z')),
+    payload: { mimeType: 'multipart/alternative', headers: [{ name: 'From', value: 'Sam Okafor <sam.okafor@studio.co>' }, { name: 'To', value: 'iris@example.com' }, { name: 'Subject', value: 'Second interview' }, { name: 'X-Secret', value: 'nope' }],
+      parts: [{ mimeType: 'text/plain', body: { data: b64('Hi Iris,\nCould you do Thursday for a second interview?\n\nOn Tue, Aug 25 Iris wrote:\n> earlier') } }, { mimeType: 'text/html', body: { data: b64('<p>html</p>') } }] },
+  },
+  m2: {
+    id: 'm2', threadId: 'm1', labelIds: ['SENT'], snippet: 'Thursday works', internalDate: String(Date.parse('2026-08-28T18:00:00Z')),
+    payload: { mimeType: 'text/plain', headers: [{ name: 'From', value: 'iris@example.com' }, { name: 'To', value: '"Sam Okafor" <sam.okafor@studio.co>' }, { name: 'Subject', value: 'Re: Second interview' }], body: { data: b64('Thursday works.') } },
+  },
+  m3: {
+    id: 'm3', threadId: 'm3', labelIds: ['INBOX', 'CATEGORY_UPDATES'], snippet: 'Weekly digest', internalDate: String(Date.parse('2026-08-29T08:00:00Z')),
+    payload: { mimeType: 'text/html', headers: [{ name: 'From', value: 'Digest <no-reply@news.example>' }, { name: 'To', value: 'iris@example.com' }, { name: 'Subject', value: 'Your week' }, { name: 'List-Unsubscribe', value: '<mailto:u@x>' }], body: { data: b64('<div>Top stories</div>') } },
+  },
+};
+
 function fakeFetch(overrides: { calendarStatus?: number; calendars?: 'primary' | 'many' } = {}) {
   const calls: string[] = [];
   const fetch = vi.fn(async (input: string) => {
@@ -38,6 +55,12 @@ function fakeFetch(overrides: { calendarStatus?: number; calendars?: 'primary' |
       if (calendarId === 'dev@example.com') return json(sharedReaderEvents);
       if (calendarId === 'locked@example.com') return json({ error: { code: 403 } }, 403);
       return json({ error: { code: 404 } }, 404);
+    }
+    if (url.host === 'gmail.googleapis.com') {
+      if (url.pathname.endsWith('/profile')) return json({ emailAddress: 'iris@example.com' });
+      if (url.pathname.endsWith('/messages')) return json(url.searchParams.get('q')?.startsWith('after:') ? {} : { messages: [{ id: 'm3' }, { id: 'm2' }, { id: 'm1' }] });
+      const id = url.pathname.split('/').pop()!;
+      return GMAIL[id] ? json(GMAIL[id]) : json({ error: { code: 404 } }, 404);
     }
     if (url.pathname === '/v1/me/player/recently-played') {
       return json(url.searchParams.get('after') ? { items: [], next: null, cursors: null } : recentlyPlayed);
@@ -64,6 +87,7 @@ describe('syncUser', () => {
     expect(results.map((r) => [r.kind, r.ok])).toEqual([
       ['calendar', true],
       ['spotify', true],
+      ['mail', true],
     ]);
 
     const calendarCalls = calls.filter((c) => c.includes('googleapis') && c.includes('/events'));
@@ -125,7 +149,7 @@ describe('syncUser', () => {
     expect(raw.some((e) => e.payload.type === 'calendar_event' && e.payload.title === 'Gym')).toBe(false);
 
     const agg = (await repo.getAggregates(user.id))!.calendar!;
-    expect(agg.events.devgym0826).toEqual({ s: '2026-08-26T05:30:00-07:00', e: '2026-08-26T06:30:00-07:00', st: 'c', p: [], sh: true });
+    expect(agg.events.devgym0826).toEqual({ s: '2026-08-26T05:30:00-07:00', e: '2026-08-26T06:30:00-07:00', st: 'c', p: [], sh: true, k: 'dev@example.com' });
     expect(agg.events.pairing0828).toMatchObject({ p: ['dev'], sh: true, t: 'Pairing' });
     expect(agg.events['2standup_20260825T173000Z']?.sh).toBeUndefined();
 
@@ -189,5 +213,42 @@ describe('verification over the calendar index', () => {
       new Date('2026-09-16T08:00:00-07:00'),
     );
     expect(outcome).toMatchObject({ status: 'fulfilled', resolvedAt: '2026-09-15T19:30:00-07:00' });
+  });
+});
+
+describe('plainDetails', async () => {
+  const { plainDetails, DETAILS_MAX } = await import('./google-calendar');
+  it('strips HTML from event descriptions and trims them', () => {
+    expect(plainDetails('<p>Round two&nbsp;with <b>design</b></p><br>Bring portfolio')).toBe('Round two with design\nBring portfolio');
+    expect(plainDetails(undefined)).toBeNull();
+    expect(plainDetails('x'.repeat(900))!.length).toBe(DETAILS_MAX);
+  });
+});
+
+describe('mail sync', () => {
+  it('reads Gmail with its query, maps direction, people and bodies, and folds timing without bodies', async () => {
+    const repo = createMemoryRepository();
+    const { fetch, calls } = fakeFetch();
+    const results = await syncUser(repo, user, NOW, { kinds: ['mail'], deps: { getAccessToken: async () => 'token', fetch } });
+    expect(results).toMatchObject([{ kind: 'mail', ok: true, fetched: 3, eventCount: 3 }]);
+    const list = new URL(calls.find((c) => c.includes('/messages?'))!);
+    expect(list.searchParams.get('q')).toContain('newer_than:14d');
+    expect(list.searchParams.get('q')).toContain('-category:promotions');
+
+    const raw = (await repo.listRawEvents(user.id)).filter((e) => e.sourceKind === 'mail').map((e) => e.payload);
+    const first = raw.find((p) => p.type === 'email' && p.messageId === 'm1');
+    expect(first).toMatchObject({ direction: 'inbound', firstInThread: true, contact: 'sam_okafor', subject: 'Second interview', automated: false, body: 'Hi Iris,\nCould you do Thursday for a second interview?' });
+    expect(raw.find((p) => p.type === 'email' && p.messageId === 'm2')).toMatchObject({ direction: 'outbound', firstInThread: false, people: [{ key: 'sam_okafor' }] });
+    expect(raw.find((p) => p.type === 'email' && p.messageId === 'm3')).toMatchObject({ automated: true });
+
+    const agg = (await repo.getAggregates(user.id))!.mail!;
+    expect(agg.messages.m1).toEqual({ t: '2026-08-28T16:00:00.000Z', d: 'i', th: 'm1', p: ['sam_okafor'], f: true });
+    expect(agg.threads.m1).toMatchObject({ s: 'Re: Second interview' });
+    expect(JSON.stringify(agg)).not.toContain('Thursday for a second');
+
+    // Incremental: the cursor is used and nothing new is refetched.
+    const again = await syncUser(repo, user, NOW, { kinds: ['mail'], deps: { getAccessToken: async () => 'token', fetch } });
+    expect(again).toMatchObject([{ kind: 'mail', ok: true, fetched: 0, eventCount: 3 }]);
+    expect(calls.filter((c) => c.includes('/messages?')).at(-1)).toContain('after%3A');
   });
 });

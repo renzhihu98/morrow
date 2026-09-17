@@ -9,6 +9,8 @@ export const CheckCondition = z.discriminatedUnion('type', [
     contact: z.string(),
     /** Inbound email must start a new thread (the contact "writes first"). */
     firstInThread: z.boolean(),
+    /** With contact "any": a word the subject must contain (e.g. "interview"). */
+    subjectIncludes: z.string().nullable().optional(),
   }),
   z.object({
     type: z.literal('calendar_event_with'),

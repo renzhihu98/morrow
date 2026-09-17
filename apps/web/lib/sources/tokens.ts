@@ -1,12 +1,12 @@
 import type { SourceKind } from '@morrow/core';
 import { and, eq } from 'drizzle-orm';
 import { getAuth } from '../auth/auth';
-import { sourceKindForAccount } from '../auth/grants';
+import { sourceKindsForAccount } from '../auth/grants';
 import { getDb } from '../db/client';
 import { accounts } from '../db/schema';
 import { SourceAuthError } from './errors';
 
-export const PROVIDER_FOR: Partial<Record<SourceKind, 'google' | 'spotify'>> = { calendar: 'google', spotify: 'spotify' };
+export const PROVIDER_FOR: Partial<Record<SourceKind, 'google' | 'spotify'>> = { calendar: 'google', mail: 'google', spotify: 'spotify' };
 
 /** The Better Auth account row granting `kind` for this user, if any. */
 export async function findSourceAccount(userId: string, kind: SourceKind) {
@@ -16,7 +16,7 @@ export async function findSourceAccount(userId: string, kind: SourceKind) {
     .select()
     .from(accounts)
     .where(and(eq(accounts.userId, userId), eq(accounts.providerId, providerId)));
-  return rows.find((a) => sourceKindForAccount(a) === kind && (a.accessToken || a.refreshToken)) ?? null;
+  return rows.find((a) => sourceKindsForAccount(a).includes(kind) && (a.accessToken || a.refreshToken)) ?? null;
 }
 
 /**

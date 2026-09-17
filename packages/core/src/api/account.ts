@@ -32,8 +32,9 @@ export type TimezoneRequest = z.infer<typeof TimezoneRequest>;
 export const ConnectSourceRequest = z.object({ callbackURL: z.string().optional() });
 export type ConnectSourceRequest = z.infer<typeof ConnectSourceRequest>;
 
-/** Google Calendar and Spotify scopes requested when linking (mirrored server-side). */
+/** Scopes requested when linking each source (mirrored server-side). Calendar and Mail share the Google account. */
 export const SOURCE_OAUTH = {
   calendar: { provider: 'google', scopes: ['https://www.googleapis.com/auth/calendar.readonly'] },
+  mail: { provider: 'google', scopes: ['https://www.googleapis.com/auth/gmail.readonly'] },
   spotify: { provider: 'spotify', scopes: ['user-read-recently-played', 'user-top-read'] },
 } as const;

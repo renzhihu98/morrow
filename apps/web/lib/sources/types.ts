@@ -19,6 +19,9 @@ export type CalendarEventPayload = {
   eventId: string;
   /** Event summary (title). */
   title: string;
+  /** Description as plain text, trimmed (DETAILS_MAX). */
+  details?: string | null;
+  location?: string | null;
   /** Contact keys of the other attendees (never the user). */
   attendees: string[];
   people?: CalendarPerson[];
@@ -38,6 +41,8 @@ export type CalendarEventPayload = {
   movedFrom: string | null;
   /** Calendar this copy was read from (`primary` calendar id is the account email) and its access role. */
   calendarId?: string;
+  /** The calendar's name as the user sees it (e.g. "Job search"). */
+  calendarName?: string | null;
   accessRole?: CalendarAccessRole;
   /** iCalendar UID — the same meeting on several calendars shares it (dedupe key with the start). */
   iCalUID?: string | null;
@@ -52,14 +57,27 @@ export type CalendarEventPayload = {
 
 export type CalendarAccessRole = 'owner' | 'writer' | 'reader' | 'freeBusyReader';
 
+export type MailPerson = { key: string; email: string | null; displayName: string | null };
+
 export type EmailPayload = {
   type: 'email';
   threadId: string;
-  /** Contact key of the other party. */
+  /** Contact key of the other party (sender when inbound, first recipient when outbound). */
   contact: string;
   direction: 'inbound' | 'outbound';
   /** True when this message started the thread. */
   firstInThread: boolean;
+  messageId?: string;
+  /** The other people on the message (never the user). */
+  people?: MailPerson[];
+  subject?: string;
+  snippet?: string;
+  /** What this message says, plain text without quoted replies, trimmed (BODY_MAX). Raw events only. */
+  body?: string;
+  /** Mailing lists, notifications, no-reply senders. */
+  automated?: boolean;
+  sentAt?: string;
+  labels?: string[];
 };
 
 export type PlayPayload = {

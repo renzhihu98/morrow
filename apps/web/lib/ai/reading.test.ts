@@ -87,7 +87,7 @@ describe('generateDailyReading grounding', () => {
       watching: ['calendar', 'spotify', 'mail'],
     };
     const good = draft('people.sam_okafor', 'Sam keeps moving on your calendar, and you keep letting it.');
-    good.output.prophecy.statement = 'The dinner with Sam that keeps sliding will finally happen, and it will be easy.';
+    good.output.prophecy.statement = 'The dinner with Sam that keeps sliding will finally happen.';
     good.output.prophecy.watching = ['calendar', 'mail'];
     generateText.mockResolvedValueOnce(bad).mockResolvedValueOnce(good);
     const out = await generateDailyReading({ ...ctx, sources: ['calendar', 'spotify'] }, { judge: null });
@@ -147,6 +147,17 @@ describe('reviewDraft', () => {
     expect(review({ statement: 'You will have 3 meetings with Sam.' }).join()).toContain('digits');
     expect(review({ statement: 'Monday will remain your busiest day.' }).join()).toMatch(/metric language.*only extends a trend/);
     expect(review({}, undefined, { ...base.observation, text: 'Your weekdays start 18 minutes later on average.' }).join()).toContain('reads like a statistic');
+  });
+
+  it('rejects prophecies that promise more than the check can see', () => {
+    expect(review({ statement: 'Sam will write, and it will move your search forward.' }).join()).toContain('promises more than its checkCondition');
+    expect(review({ statement: 'A call with Sam will turn into something bigger.' }).join()).toContain('promises more than its checkCondition');
+    expect(
+      review({ statement: 'Sam will finally reach out.', checkCondition: { type: 'email_from_contact', contact: 'sam_okafor', firstInThread: false } }, ['calendar', 'mail']).join(),
+    ).toContain('firstInThread is false');
+    expect(
+      review({ statement: 'Sam will write to you before the week is out.', checkCondition: { type: 'email_from_contact', contact: 'sam_okafor', firstInThread: false } }, ['calendar', 'mail']),
+    ).toEqual([]);
   });
 
   it('rejects checkConditions the sources and dossier cannot observe', () => {

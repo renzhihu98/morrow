@@ -26,6 +26,7 @@ export async function getAuthCookie(): Promise<string> {
 /** Sources that can be linked from the app in v0.2, with their OAuth provider + incremental scopes (§12.3). */
 export const LINKABLE: Partial<Record<SourceKind, { provider: 'google' | 'spotify'; scopes: string[] }>> = {
   calendar: { provider: 'google', scopes: ['https://www.googleapis.com/auth/calendar.readonly'] },
+  mail: { provider: 'google', scopes: ['https://www.googleapis.com/auth/gmail.readonly'] },
   spotify: { provider: 'spotify', scopes: ['user-read-recently-played', 'user-top-read'] },
 };
 

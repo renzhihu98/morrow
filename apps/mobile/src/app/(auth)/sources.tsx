@@ -20,14 +20,20 @@ const CARDS: Card[] = [
   {
     kind: 'calendar',
     name: 'Google Calendar',
-    reads: "Reads when things happen and who's invited.",
-    never: 'Never descriptions, notes, attachments.',
+    reads: "Reads what's on every calendar and who's invited.",
+    never: 'Never attachments or video-call links.',
   },
   {
     kind: 'spotify',
     name: 'Spotify',
     reads: 'Reads what you play, and when.',
     never: 'Never messages, followers, your profile.',
+  },
+  {
+    kind: 'mail',
+    name: 'Gmail',
+    reads: "Reads who you write to and what's waiting on a reply.",
+    never: 'Never promotions or spam. Messages become notes, then are deleted.',
   },
 ];
 
@@ -98,9 +104,9 @@ export default function ConnectAccountsScreen() {
             LATER · WHEN A PROPHECY NEEDS IT
           </Txt>
           <Hairline dashed />
-          <View style={styles.laterRow} accessible accessibilityLabel="Gmail and Instagram. Locked until a prophecy needs them.">
+          <View style={styles.laterRow} accessible accessibilityLabel="Instagram. Locked until a prophecy needs it.">
             <Txt color="textSecondary" style={serifStyle(19, 24)}>
-              Gmail · Instagram
+              Instagram
             </Txt>
             <Txt color="textFaint" style={monoStyle(10, 12)}>
               LOCKED

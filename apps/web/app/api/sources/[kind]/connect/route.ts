@@ -25,7 +25,7 @@ export const POST = authed(async (_user, req: Request, ctx: RouteContext<'/api/s
   if (!provider) return apiError('bad_request', 'Morrow will ask for this source when a prophecy needs it.');
   const body = ConnectSourceRequest.safeParse(await req.json().catch(() => ({})));
   const callbackURL = body.success && body.data.callbackURL ? body.data.callbackURL : '/sources';
-  const params = LINK_PARAMS[provider]!;
+  const params = LINK_PARAMS[kind]!;
   try {
     const result = await getAuth().api.linkSocialAccount({
       headers: req.headers,

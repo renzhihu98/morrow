@@ -474,7 +474,7 @@ const sources: Source[] = [
     name: 'Mail',
     provider: 'Gmail',
     status: 'linked',
-    reads: 'Who writes first, who you wait on. Senders and timing only.',
+    reads: 'Who writes first, who you wait on, what each thread is about.',
     stat: null,
     watchingCount: watching('mail'),
     lastSyncedAt: at('2026-09-30', '09:00'),

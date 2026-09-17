@@ -2,7 +2,7 @@ import { z } from 'zod';
 import { IsoDateTime } from './common';
 import { SourceKind } from './source';
 
-export const DossierCategory = z.enum(['rhythms', 'people', 'places', 'tastes']);
+export const DossierCategory = z.enum(['rhythms', 'pursuits', 'people', 'places', 'tastes']);
 export type DossierCategory = z.infer<typeof DossierCategory>;
 
 export const DossierFact = z.object({

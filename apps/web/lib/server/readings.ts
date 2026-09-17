@@ -120,13 +120,28 @@ export async function openReading(repo: Repository, user: User, localDate: strin
   return reading;
 }
 
-/** get-or-create today's reading (sealing yesterday's first). */
+const g = globalThis as typeof globalThis & { __morrowOpening?: Map<string, Promise<Reading>> };
+/** Readings being drawn right now, per user and day (a draw takes tens of seconds; every page load would start one). */
+const opening = (g.__morrowOpening ??= new Map());
+
+/**
+ * get-or-create today's reading (sealing yesterday's first). Concurrent requests for the same day share one draw
+ * instead of each generating their own; the unique (user, local_date) row still guards across instances.
+ */
 export async function ensureTodayReading(repo: Repository, user: User, now: Date): Promise<Reading> {
   const localDate = getReadingDate(now, user.timezone);
   const existing = await repo.getReadingByDate(user.id, localDate);
   if (existing) return existing;
-  await sealStaleReadings(repo, user, now);
-  return openReading(repo, user, localDate, now);
+  const key = `${user.id}:${localDate}`;
+  let draw = opening.get(key);
+  if (!draw) {
+    draw = (async () => {
+      await sealStaleReadings(repo, user, now);
+      return openReading(repo, user, localDate, now);
+    })().finally(() => opening.delete(key));
+    opening.set(key, draw);
+  }
+  return draw;
 }
 
 export async function getTodayView(repo: Repository, user: User, now: Date): Promise<TodayResponse> {
@@ -143,8 +158,9 @@ export async function getTodayView(repo: Repository, user: User, now: Date): Pro
   };
 }
 
+/** Past readings list. Never draws today's reading (Today does); yesterday's is sealed so it shows as past. */
 export async function getReadingsView(repo: Repository, user: User, now: Date): Promise<ReadingsResponse> {
-  await ensureTodayReading(repo, user, now);
+  await sealStaleReadings(repo, user, now);
   return repo.listReadings(user.id);
 }
 

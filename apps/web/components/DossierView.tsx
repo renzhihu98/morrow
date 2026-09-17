@@ -8,7 +8,7 @@ import { SOURCE_ABBR } from '@/lib/sources/catalog';
 import { formatKb } from '@/lib/ui/format';
 import { KeyValueList } from './Labels';
 
-const CATEGORIES: DossierCategory[] = ['rhythms', 'people', 'places', 'tastes'];
+const CATEGORIES: DossierCategory[] = ['rhythms', 'pursuits', 'people', 'places', 'tastes'];
 
 export function downloadJson(filename: string, data: unknown) {
   const url = URL.createObjectURL(new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' }));

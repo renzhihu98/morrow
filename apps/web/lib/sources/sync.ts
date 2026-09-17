@@ -6,12 +6,14 @@ import { RAW_EVENT_TTL_HOURS, getReadingDate, type SourceKind, type User } from 
 import { getRepository, type Repository } from '../data';
 import { calendarEventChanged, calendarEventCount, emptyAggregates, foldCalendar, foldSpotify, type DossierAggregates } from '../dossier/aggregates';
 import { rebuildDossier } from '../dossier/build';
+import { foldMail, noteThreads, threadInputs } from '../dossier/mail';
 import { SourceAuthError, type FetchLike } from './errors';
 import { fetchCalendarEvents, type CalendarSyncSummary } from './google-calendar';
+import { fetchMail } from './gmail';
 import { fetchRecentlyPlayed, fetchTopItems, type PlayItem } from './spotify';
 import type { PlayPayload, RawEvent } from './types';
 
-export const SYNCABLE: SourceKind[] = ['calendar', 'spotify'];
+export const SYNCABLE: SourceKind[] = ['calendar', 'mail', 'spotify'];
 
 export type SyncDeps = {
   getAccessToken: (userId: string, kind: SourceKind) => Promise<string>;
@@ -19,7 +21,7 @@ export type SyncDeps = {
 };
 
 export type SyncResult =
-  | { kind: SourceKind; ok: true; fetched: number; stored: number; eventCount: number; calendars?: CalendarSyncSummary }
+  | { kind: SourceKind; ok: true; fetched: number; stored: number; eventCount: number; calendars?: CalendarSyncSummary; threadsNoted?: number }
   | { kind: SourceKind; ok: false; state: 'needs_reauth' | 'error'; error: string };
 
 const HOUR_MS = 3_600_000;
@@ -67,6 +69,28 @@ export async function syncSource(
         calendarCount: calendars.used,
       });
       return { kind, ok: true, fetched, stored: changed.length, eventCount, calendars };
+    }
+
+    if (kind === 'mail') {
+      const prev = agg.mail ?? null;
+      const { messages, complete } = await fetchMail(token, now, prev?.cursorMs || null, (id) => Boolean(prev?.messages[id]), deps.fetch, (done, total, note) =>
+        console.log(`[morrow] mail sync ${user.id}: ${done}/${total} messages${note ? ` · ${note}` : ''}`),
+      );
+      const inputs = threadInputs(messages, prev);
+      console.log(`[morrow] mail sync ${user.id}: noting ${inputs.length} threads`);
+      // Bodies are kept raw for 24h (verification) and read once here, into one note per changed thread.
+      await repo.addRawEvents(messages.map((m) => raw(`mail:${user.id}:${m.messageId}`, m.sentAt!, m)));
+      const notes = await noteThreads(inputs);
+      agg.mail = foldMail(prev, messages, notes, now);
+      const eventCount = Object.keys(agg.mail.messages).length;
+      await repo.updateSourceState(user.id, kind, {
+        syncState: 'ok',
+        lastError: complete ? null : 'Gmail rate limit: part of the mailbox is still to be read; the next sync continues.',
+        lastSyncedAt: now.toISOString(),
+        eventCount,
+        cursor: String(agg.mail.cursorMs),
+      });
+      return { kind, ok: true, fetched: messages.length, stored: messages.length, eventCount, threadsNoted: notes.size };
     }
 
     if (kind === 'spotify') {
@@ -143,5 +167,6 @@ export async function purgeSource(repo: Repository, user: User, kind: SourceKind
   const agg = (await repo.getAggregates(user.id)) ?? emptyAggregates();
   if (kind === 'calendar') agg.calendar = null;
   if (kind === 'spotify') agg.spotify = null;
+  if (kind === 'mail') agg.mail = null;
   await rebuildDossier(repo, user, now, agg);
 }
