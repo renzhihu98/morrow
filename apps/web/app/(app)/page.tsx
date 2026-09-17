@@ -8,7 +8,7 @@ import { getRepository } from '@/lib/data';
 import { now } from '@/lib/server/env';
 import { syncIfStale } from '@/lib/jobs/sync-on-visit';
 import { getTodayView } from '@/lib/server/readings';
-import { SOURCE_ABBR } from '@/lib/sources/catalog';
+import { sourceName } from '@/lib/ui/format';
 
 /** Today (screens 01/02/03/06/07). Same payload as GET /api/today, built server-side. */
 export default async function TodayPage() {
@@ -49,7 +49,7 @@ async function TodayContent() {
     <Today
       key={today.reading.id}
       initial={today}
-      linkedAbbr={linked.map((s) => SOURCE_ABBR[s.kind]).join(' · ')}
+      linkedSources={linked.map((s) => sourceName(s.kind)).join(' · ')}
       linkedCount={linked.length}
       readingCaption={
         events > 0 ? `Reading ${events} events across ${linked.length} sources` : `Reading across ${linked.length} sources`

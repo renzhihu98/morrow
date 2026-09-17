@@ -38,14 +38,11 @@ export function Page({ active, children, bar, footer, refreshing, onRefresh, scr
   );
 }
 
-/** Mono eyebrow + large serif page title. */
-export function PageTitle({ eyebrow, title, children }: { eyebrow: string; title: string; children?: ReactNode }) {
+/** Large serif page title. */
+export function PageTitle({ title, children }: { title: string; children?: ReactNode }) {
   return (
     <View style={styles.titleBlock}>
-      <Txt variant="label" color="textMuted">
-        {eyebrow}
-      </Txt>
-      <Txt variant="title" accessibilityRole="header" style={{ marginTop: 10 }}>
+      <Txt variant="title" accessibilityRole="header">
         {title}
       </Txt>
       {children ? <View style={{ marginTop: 18 }}>{children}</View> : null}
@@ -58,7 +55,7 @@ export function PageState({ error, onRetry }: { error?: unknown; onRetry?: () =>
   return (
     <View style={{ paddingTop: 48, gap: 12 }}>
       <Txt variant="label" color={error ? 'danger' : 'textMuted'}>
-        {error ? 'SIGNAL LOST' : 'READING…'}
+        {error ? 'Signal lost' : 'Reading…'}
       </Txt>
       {error ? (
         <Txt color="textSecondary" onPress={onRetry} accessibilityRole="button">

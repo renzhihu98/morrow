@@ -1,14 +1,7 @@
 'use client';
 
 import { useChat } from '@ai-sdk/react';
-import {
-  formatLocalTime,
-  formatProphecyNumber,
-  formatShortDate,
-  getLocalParts,
-  type Prophecy,
-  type TodayResponse,
-} from '@morrow/core';
+import { formatLocalTime, formatShortDate, getLocalParts, type Prophecy, type TodayResponse } from '@morrow/core';
 import { DefaultChatTransport, generateId } from 'ai';
 import { useRouter } from 'next/navigation';
 import { useMemo, useRef, useState } from 'react';
@@ -23,8 +16,8 @@ import { Transcript, TurnView, turnFromMessage, type Turn } from './Transcript';
 
 type Props = {
   initial: TodayResponse;
-  /** `CAL · SPT · MAIL` */
-  linkedAbbr: string;
+  /** `Calendar · Spotify · Mail` */
+  linkedSources: string;
   /** e.g. `Reading 214 events across 3 sources` */
   readingCaption: string;
   linkedCount: number;
@@ -48,12 +41,14 @@ function contactLabel(evidenceRef: string | undefined): string {
   const parts = (evidenceRef ?? '').split('.');
   const i = parts.indexOf('people');
   const key = i >= 0 ? parts[i + 1] : parts.at(-1);
-  return (key ?? 'you').replace(/_/g, ' ').toUpperCase();
+  return (key ?? 'you')
+    .replace(/_/g, ' ')
+    .replace(/(^|\s)\S/g, (c) => c.toUpperCase());
 }
 
 const greeting = (hour: number) => (hour < 12 ? 'Good morning' : hour < 18 ? 'Good afternoon' : 'Good evening');
 
-export function Today({ initial, linkedAbbr, readingCaption, linkedCount, record }: Props) {
+export function Today({ initial, linkedSources, readingCaption, linkedCount, record }: Props) {
   const router = useRouter();
   const { user, reading } = initial;
   const tz = user.timezone;
@@ -155,20 +150,20 @@ export function Today({ initial, linkedAbbr, readingCaption, linkedCount, record
   const orbitState = view === 'asking' ? 'reading' : view === 'fulfilled' ? 'fulfilled' : 'idle';
   const hero = view === 'invocation' || view === 'fulfilled';
   const composerMeta =
-    used > 0 ? `${used} OF ${initial.questionLimit} TODAY` : linkedAbbr || `0 OF ${initial.questionLimit} TODAY`;
+    used > 0 ? `${used} of ${initial.questionLimit} today` : linkedSources || `0 of ${initial.questionLimit} today`;
 
   const nothingToRead = openingObservation?.type === 'observation' && openingObservation.evidenceRef === 'dossier.empty';
 
   const nodes: [OrbitNode, OrbitNode, OrbitNode] = [
-    { label: 'CALENDAR' },
-    { label: 'SPOTIFY' },
+    { label: 'Calendar' },
+    { label: 'Spotify' },
     {
       accent: true,
       label: fulfilled
-        ? `FULFILLED / ${contactLabel('contact' in fulfilled.checkCondition ? `people.${fulfilled.checkCondition.contact}` : undefined)}`
+        ? `Fulfilled · ${contactLabel('contact' in fulfilled.checkCondition ? `people.${fulfilled.checkCondition.contact}` : undefined)}`
         : nothingToRead
-          ? 'LISTENING'
-          : `PATTERN / ${contactLabel(openingObservation?.type === 'observation' ? openingObservation.evidenceRef : undefined)}`,
+          ? 'Listening'
+          : `Pattern · ${contactLabel(openingObservation?.type === 'observation' ? openingObservation.evidenceRef : undefined)}`,
     },
   ];
 
@@ -209,10 +204,7 @@ export function Today({ initial, linkedAbbr, readingCaption, linkedCount, record
       >
         {view === 'invocation' && (
           <div className="flex flex-col">
-            <div className="label text-text-muted">
-              Transmission {formatShortDate(reading.localDate)} / {formatLocalTime(reading.openedAt, tz)}
-            </div>
-            <h1 className="pt-6 font-serif text-display-m lg:w-[560px] lg:pt-7 lg:text-display">
+            <h1 className="font-serif text-display-m lg:w-[560px] lg:text-display">
               The day is leaning toward you.
             </h1>
             <p className="max-w-[420px] pt-5 text-body-m text-text-secondary lg:pt-6 lg:text-[16px] lg:leading-[26px]">
@@ -234,11 +226,7 @@ export function Today({ initial, linkedAbbr, readingCaption, linkedCount, record
 
         {view === 'fulfilled' && fulfilled && (
           <div className="flex flex-col">
-            <div className="label text-accent">
-              Prophecy {formatProphecyNumber(fulfilled.number)} / {shortDateOf(fulfilled.resolvedAt ?? initial.now, tz)} /{' '}
-              {formatLocalTime(fulfilled.resolvedAt ?? initial.now, tz)}
-            </div>
-            <h1 className="pt-6 font-serif text-display-m lg:w-[560px] lg:pt-7 lg:text-display">{opening?.headline}</h1>
+            <h1 className="font-serif text-display-m lg:w-[560px] lg:text-display">{opening?.headline}</h1>
             {opening?.body[0] && (
               <p className="max-w-[540px] pt-5 text-body-m text-text-secondary lg:pt-6 lg:text-[16px] lg:leading-[26px]">
                 {opening.body[0]}
@@ -247,7 +235,7 @@ export function Today({ initial, linkedAbbr, readingCaption, linkedCount, record
             <div className="flex gap-10 pt-8 lg:gap-12">
               <Stat label="Foretold" value={formatShortDate(fulfilled.madeOn)} />
               <Stat label="Fulfilled" value={shortDateOf(fulfilled.resolvedAt ?? initial.now, tz)} accent />
-              <Stat label="Record" value={`${String(record.fulfilled).padStart(2, '0')} / ${String(record.total).padStart(2, '0')}`} />
+              <Stat label="Record" value={`${record.fulfilled} / ${record.total}`} />
             </div>
             <IndexList
               className="mt-9"

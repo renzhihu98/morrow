@@ -11,7 +11,7 @@ type Props = {
   onChange?: (value: string) => void;
   onSubmit?: (value: string) => void;
   onStop?: () => void;
-  /** Right-side mono meta: linked sources (`CAL · SPT`) or `n OF 15 TODAY`. */
+  /** Right-side meta: linked sources (`Calendar · Spotify`) or `n of 15 today`. */
   meta?: string;
   /** Compact meta for mobile, e.g. `2/15`. */
   metaCompact?: string;
@@ -105,7 +105,7 @@ export function Composer({
           waiting ? 'placeholder:text-text-faint' : 'placeholder:text-placeholder'
         }`}
       />
-      {meta && <span className="hidden shrink-0 font-mono text-label text-text-muted sm:inline">{meta}</span>}
+      {meta && <span className="label hidden shrink-0 text-text-muted sm:inline">{meta}</span>}
       {metaCompact && <span className="shrink-0 font-mono text-label-sm text-text-muted sm:hidden">{metaCompact}</span>}
       {waiting ? (
         <button

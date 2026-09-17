@@ -1,6 +1,6 @@
 import type { ReactNode } from 'react';
 
-/** `YOU — 06:51` (muted) / `● MORROW — 06:52` (accent). */
+/** `You — 06:51` (muted) / `● Morrow — 06:52` (accent). */
 export function TurnLabel({ who, time, faded = false }: { who: 'you' | 'morrow'; time?: string; faded?: boolean }) {
   const text = `${who === 'you' ? 'You' : 'Morrow'}${time ? ` — ${time}` : ''}`;
   if (who === 'you') return <div className="label text-text-muted">{text}</div>;
@@ -12,16 +12,7 @@ export function TurnLabel({ who, time, faded = false }: { who: 'you' | 'morrow';
   );
 }
 
-/** Mono evidence line: `SOURCE Calendar · 03.04 · 04.22 …`. */
-export function EvidenceLine({ label }: { label: string }) {
-  return (
-    <p className="font-mono text-label tracking-[0.02em] text-text-muted">
-      SOURCE <span>{label}</span>
-    </p>
-  );
-}
-
-/** Mono label over a mono value, used for FORETOLD / FULFILLED / RECORD stats. */
+/** Small label over a mono value, used for Foretold / Fulfilled / Record stats. */
 export function Stat({ label, value, accent = false }: { label: string; value: ReactNode; accent?: boolean }) {
   return (
     <div className="flex flex-col gap-1.5">
@@ -31,12 +22,11 @@ export function Stat({ label, value, accent = false }: { label: string; value: R
   );
 }
 
-/** Left-column page intro: mono eyebrow, serif title, body. */
-export function PageIntro({ eyebrow, title, children }: { eyebrow: ReactNode; title: string; children?: ReactNode }) {
+/** Left-column page intro: serif title, body. The title says what the page is — no eyebrow above it. */
+export function PageIntro({ title, children }: { title: string; children?: ReactNode }) {
   return (
     <div className="flex flex-col">
-      <div className="label text-text-muted">{eyebrow}</div>
-      <h1 className="pt-5 font-serif text-title-m lg:pt-6 lg:text-title">{title}</h1>
+      <h1 className="font-serif text-title-m lg:text-title">{title}</h1>
       {children && <div className="max-w-[330px] pt-5 text-[15px] leading-6 text-text-secondary">{children}</div>}
     </div>
   );

@@ -56,7 +56,7 @@ export function FirstReading({ sources, onCancel }: Props) {
   return (
     <main className="relative mx-auto flex min-h-[calc(100dvh-88px)] w-full max-w-[1440px] flex-col px-6 lg:px-[120px]">
       <div className="pointer-events-none mx-auto mt-2 flex w-[200px] flex-col items-center gap-6 lg:absolute lg:right-[100px] lg:top-[60px] lg:mt-0 lg:w-[520px]">
-        <Orbit state="reading" nodes={[{ label: 'CALENDAR' }, { label: 'SPOTIFY' }, { accent: true }]} />
+        <Orbit state="reading" nodes={[{ label: 'Calendar' }, { label: 'Spotify' }, { accent: true }]} />
         <div className="hidden items-center gap-2.5 lg:flex">
           <span className="size-[5px] rounded-full bg-accent" />
           <span className="label-sm text-text-muted">
@@ -66,8 +66,7 @@ export function FirstReading({ sources, onCancel }: Props) {
       </div>
       <div className="flex flex-col gap-10 pb-16 pt-8 lg:w-[620px] lg:pt-[120px]">
         <div className="flex flex-col">
-          <span className="label text-text-muted">Step 3 of 3</span>
-          <h1 className="pt-6 font-serif text-display-m lg:text-display">Drawing your first reading.</h1>
+          <h1 className="font-serif text-display-m lg:text-display">Drawing your first reading.</h1>
           <p className="max-w-[440px] pt-5 text-body-m text-text-secondary lg:text-[16px] lg:leading-[26px]">
             {linked.length > 0
               ? 'Morrow is reading what you connected. Raw events are distilled, then let go.'

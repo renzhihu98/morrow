@@ -5,14 +5,14 @@ import { family } from '@/theme/fonts';
 import { em } from '@/theme/typography';
 import { Txt } from './Txt';
 
-/** "TYPE FORGET TO CONFIRM" input; border turns danger once the word matches. */
+/** "Type FORGET to confirm" input; border turns danger once the word matches. */
 export function ConfirmInput({ value, onChangeText }: { value: string; onChangeText: (v: string) => void }) {
   const { palette, alpha } = useTheme();
   const ok = isForgetConfirmed(value);
   return (
     <View style={{ gap: 8 }}>
       <Txt variant="label" color="textMuted" style={{ fontSize: 10, lineHeight: 12 }}>
-        TYPE FORGET TO CONFIRM
+        Type FORGET to confirm
       </Txt>
       <TextInput
         value={value}

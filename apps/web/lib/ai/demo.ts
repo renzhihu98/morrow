@@ -1,4 +1,4 @@
-import { formatProphecyNumber, type ProphecyRecord } from '@morrow/core';
+import type { ProphecyRecord } from '@morrow/core';
 import type { UIMessageStreamWriter } from 'ai';
 import type { MorrowUIMessage, ObservationData, StepData } from '../chat-types';
 import { numberWord } from '../ui/format';
@@ -53,7 +53,7 @@ function pickScript({ question, record, name }: DemoContext): Script {
       observation: {
         text: `${cap(numberWord(record.fulfilled))} of ${numberWord(total)} have landed. ${cap(numberWord(record.expired))} closed quietly, and ${numberWord(record.open)} are still open.`,
         evidenceRef: 'prophecies.record',
-        sourceLabel: `Prophecies · ${formatProphecyNumber(41)} → ${formatProphecyNumber(40 + total)}`,
+        sourceLabel: `Prophecies · ${total} since August`,
       },
       text: 'The ones about people land more often than the ones about plans.',
     };

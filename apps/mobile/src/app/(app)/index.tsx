@@ -1,11 +1,4 @@
-import {
-  formatLocalTime,
-  formatProphecyNumber,
-  formatShortDate,
-  type Message,
-  type Prophecy,
-  type TodayResponse,
-} from '@morrow/core';
+import { formatLocalTime, formatShortDate, type Message, type Prophecy, type TodayResponse } from '@morrow/core';
 import { useQueryClient } from '@tanstack/react-query';
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { Keyboard, KeyboardAvoidingView, Platform, ScrollView, StyleSheet, View } from 'react-native';
@@ -14,16 +7,16 @@ import { Composer } from '@/components/Composer';
 import { Header } from '@/components/Header';
 import { MiniOrbit, Orbit } from '@/components/Orbit';
 import { PageState } from '@/components/Page';
-import { EvidenceLine, IndexList, ProphecyPanel, ReadingSteps, TurnLabel } from '@/components/Reading';
+import { IndexList, ProphecyPanel, ReadingSteps, TurnLabel } from '@/components/Reading';
 import { Transcript } from '@/components/Transcript';
 import { Txt } from '@/components/Txt';
 import { useMorrowChat } from '@/data/chat';
 import { queryKeys, useProphecies, useSources, useToday } from '@/data/queries';
 import { useFirstReading } from '@/data/session';
 import { assistantView, userText, type MorrowUIMessage } from '@/lib/chat-protocol';
-import { pad2, shortDateOf } from '@/lib/format';
+import { shortDateOf } from '@/lib/format';
 import { useTheme } from '@/theme/ThemeProvider';
-import { sansStyle, serifStyle } from '@/theme/typography';
+import { monoStyle, sansStyle, serifStyle } from '@/theme/typography';
 
 const INVOCATION_SUGGESTIONS = ["Draw today's reading", 'What am I not seeing?', "Did last week's prophecy land?"];
 const FULFILLED_SUGGESTIONS = ['What comes next?', 'Help me write back', 'Show my track record'];
@@ -58,10 +51,7 @@ function DrawingReading({ first }: { first: boolean }) {
         <Orbit state="reading" size={236} />
       </View>
       <View style={styles.gutter}>
-        <Txt variant="label" color="accent" style={{ paddingTop: 20 }}>
-          {first ? 'STEP 3 OF 3 · FIRST READING' : 'READING…'}
-        </Txt>
-        <Txt variant="display" accessibilityRole="header" style={{ paddingTop: 14 }}>
+        <Txt variant="display" accessibilityRole="header" style={{ paddingTop: 20 }}>
           {first ? 'Morrow is reading.' : 'One moment.'}
         </Txt>
         <Txt color="textSecondary" style={{ paddingTop: 14 }}>
@@ -147,9 +137,9 @@ function TodayView({ data }: { data: TodayResponse }) {
             <View style={[styles.subbar, { borderBottomColor: palette.hairline }]}>
               <MiniOrbit active={chat.isBusy} />
               {chat.isBusy ? (
-                <Txt variant="label" color="accent">{`CONSULTING ${linkedCount} SOURCES`}</Txt>
+                <Txt variant="label" color="accent">{`Consulting ${linkedCount} sources`}</Txt>
               ) : (
-                <Txt variant="label" color="textMuted">{`READING ${eventCount} EVENTS · ${linkedCount} SOURCES`}</Txt>
+                <Txt variant="label" color="textMuted">{`Reading ${eventCount} events · ${linkedCount} sources`}</Txt>
               )}
             </View>
             <ScrollView
@@ -217,7 +207,6 @@ function Hero({
     `Good morning, ${data.user.name}. I read your week while you slept. There is one pattern worth your attention.`;
 
   const suggestions = fulfilled ? FULFILLED_SUGGESTIONS : INVOCATION_SUGGESTIONS;
-  const openedTime = formatLocalTime(opening?.createdAt ?? data.reading.openedAt, tz);
 
   return (
     <View>
@@ -225,19 +214,10 @@ function Hero({
         <Orbit state={fulfilled ? 'fulfilled' : 'idle'} size={fulfilled ? 200 : 236} />
       </View>
       <View style={styles.gutter}>
-        {fulfilled ? (
-          <Txt variant="label" color="accent" style={{ paddingTop: 20 }}>
-            {`PROPHECY ${formatProphecyNumber(fulfilled.number)} / ${fulfilled.resolvedAt ? shortDateOf(fulfilled.resolvedAt, tz) : formatShortDate(data.reading.localDate)} / ${fulfilled.resolvedAt ? formatLocalTime(fulfilled.resolvedAt, tz) : openedTime}`}
-          </Txt>
-        ) : (
-          <Txt variant="label" color="textMuted" style={{ paddingTop: 20 }}>
-            {`TRANSMISSION ${formatShortDate(data.reading.localDate)} / ${openedTime}`}
-          </Txt>
-        )}
         <Txt
           variant="display"
           accessibilityRole="header"
-          style={[{ paddingTop: 14 }, fulfilled ? serifStyle(56, 56, -0.015) : null]}
+          style={[{ paddingTop: 20 }, fulfilled ? serifStyle(56, 56, -0.015) : null]}
         >
           {title}
         </Txt>
@@ -246,9 +226,9 @@ function Hero({
         </Txt>
         {fulfilled ? (
           <View style={styles.stats}>
-            <Stat label="FORETOLD" value={formatShortDate(fulfilled.madeOn)} />
-            <Stat label="FULFILLED" value={fulfilled.resolvedAt ? shortDateOf(fulfilled.resolvedAt, tz) : '—'} accent />
-            <Stat label="RECORD" value={record ? `${pad2(record.fulfilled)} / ${record.marks.length}` : '—'} />
+            <Stat label="Foretold" value={formatShortDate(fulfilled.madeOn)} />
+            <Stat label="Fulfilled" value={fulfilled.resolvedAt ? shortDateOf(fulfilled.resolvedAt, tz) : '—'} accent />
+            <Stat label="Record" value={record ? `${record.fulfilled} / ${record.marks.length}` : '—'} />
           </View>
         ) : null}
       </View>
@@ -270,7 +250,7 @@ function Stat({ label, value, accent }: { label: string; value: string; accent?:
       <Txt variant="label" color="textMuted" style={{ fontSize: 10, lineHeight: 12 }}>
         {label}
       </Txt>
-      <Txt variant="label" color={accent ? 'accent' : 'textPrimary'} style={{ fontSize: 14, lineHeight: 18, letterSpacing: 0 }}>
+      <Txt color={accent ? 'accent' : 'textPrimary'} style={monoStyle(14, 18, 0)}>
         {value}
       </Txt>
     </View>
@@ -333,7 +313,6 @@ function ChatTurn({ message, time, dim, streaming }: { message: MorrowUIMessage;
           {t}
         </Txt>
       ))}
-      {view.observation ? <EvidenceLine label={view.observation.sourceLabel} /> : null}
     </View>
   );
 }

@@ -11,7 +11,7 @@ import { setDemoMode } from '@/data/api';
 import { resetDemoEdits, useDemoMode, useForgetEverything, useProphecies, useReadings, useSources } from '@/data/queries';
 import { formatBytes, isForgetConfirmed } from '@/lib/format';
 import { useTheme } from '@/theme/ThemeProvider';
-import { sansStyle } from '@/theme/typography';
+import { monoStyle, sansStyle } from '@/theme/typography';
 
 /** Screen 12 — forget everything (type FORGET), then a goodbye state. */
 export default function ForgetScreen() {
@@ -60,9 +60,6 @@ export default function ForgetScreen() {
           </View>
           {gone ? (
             <View style={[styles.center, { gap: 14, paddingTop: 24 }]} accessibilityLiveRegion="polite">
-              <Txt variant="label" color="textMuted">
-                FORGOTTEN
-              </Txt>
               <Txt variant="confirm" style={styles.centerText} accessibilityRole="header">
                 Morrow has let you go.
               </Txt>
@@ -80,9 +77,6 @@ export default function ForgetScreen() {
           ) : (
             <>
               <View style={[styles.center, { gap: 14, paddingTop: 18 }]}>
-                <Txt variant="label" color="danger">
-                  FORGET EVERYTHING
-                </Txt>
                 <Txt variant="confirm" style={styles.centerText} accessibilityRole="header">
                   Let Morrow forget you?
                 </Txt>
@@ -95,7 +89,7 @@ export default function ForgetScreen() {
                 {rows.map(([label, value], i) => (
                   <View key={label} style={[styles.listRow, i > 0 && { borderTopWidth: 1, borderTopColor: palette.hairline }]}>
                     <Txt style={sansStyle(14, 20)}>{label}</Txt>
-                    <Txt variant="label" color="textMuted" style={{ letterSpacing: 0 }}>
+                    <Txt color="textMuted" style={monoStyle(11, 14, 0)}>
                       {value}
                     </Txt>
                   </View>
@@ -131,7 +125,7 @@ export default function ForgetScreen() {
               </Pressable>
               {forget.isError ? (
                 <Txt variant="label" color="danger" style={[styles.centerText, { paddingTop: 12 }]}>
-                  MORROW COULDN'T FORGET YET. TRY AGAIN.
+                  Morrow couldn't forget yet. Try again.
                 </Txt>
               ) : null}
               <Pressable accessibilityRole="link" onPress={() => router.push('/sources/dossier')} style={{ paddingTop: 20 }}>

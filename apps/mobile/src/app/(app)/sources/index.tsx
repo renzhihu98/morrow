@@ -20,8 +20,6 @@ export default function SourcesScreen() {
   const [notice, setNotice] = useState<string | null>(null);
   const tz = today.data?.user.timezone ?? 'UTC';
 
-  const linked = q.data?.sources.filter((s) => s.status === 'linked').length;
-
   const onConnect = (kind: SourceKind) => {
     setNotice(null);
     link.mutate(kind, {
@@ -50,7 +48,7 @@ export default function SourcesScreen() {
 
   return (
     <Page active="sources" refreshing={q.isRefetching} onRefresh={() => void q.refetch()}>
-      <PageTitle eyebrow={`SOURCES / ${linked ?? '—'} LINKED`} title="Sources" />
+      <PageTitle title="Sources" />
       {!q.data ? (
         <PageState error={q.error} onRetry={() => void q.refetch()} />
       ) : (
@@ -70,19 +68,19 @@ export default function SourcesScreen() {
             <Hairline />
           </View>
           {notice ? (
-            <Txt variant="label" color="textMuted" upper={false} style={{ paddingTop: 12 }}>
+            <Txt variant="label" color="textMuted" style={{ paddingTop: 12 }}>
               {notice}
             </Txt>
           ) : null}
 
           <View style={styles.facts}>
             <View style={styles.between}>
-              <Txt variant="label" color="textMuted">RAW EVENTS KEPT</Txt>
-              <Txt variant="label">24 HOURS</Txt>
+              <Txt variant="label" color="textMuted">Raw events kept</Txt>
+              <Txt variant="label">24 hours</Txt>
             </View>
             <View style={styles.between}>
-              <Txt variant="label" color="textMuted">NEVER READ</Txt>
-              <Txt variant="label">HEALTH · MONEY</Txt>
+              <Txt variant="label" color="textMuted">Never read</Txt>
+              <Txt variant="label">Health · money</Txt>
             </View>
           </View>
 

@@ -10,7 +10,7 @@ import { setDemoMode } from '@/data/api';
 import { authClient } from '@/data/auth';
 import { API_URL, REQUEST_TIMEOUT_MS } from '@/data/config';
 import { useTheme } from '@/theme/ThemeProvider';
-import { monoStyle, sansStyle, serifStyle } from '@/theme/typography';
+import { sansStyle, serifStyle } from '@/theme/typography';
 
 /** true when nothing answers at EXPO_PUBLIC_API_URL (any HTTP status counts as reachable). */
 async function serverUnreachable(): Promise<boolean> {
@@ -68,16 +68,13 @@ export default function SignInScreen() {
 
   return (
     <SafeAreaView edges={['top', 'bottom']} style={[styles.root, { backgroundColor: palette.bg }]}>
-      <AuthHeader note="PRIVATE BETA" />
+      <AuthHeader note="Private beta" />
       <ScrollView contentContainerStyle={styles.scroll} bounces={false}>
         <View style={styles.orbit}>
           <Orbit state="idle" size={220} />
         </View>
         <View style={styles.copy}>
-          <Txt variant="label" color="textMuted">
-            SIGN IN
-          </Txt>
-          <Txt accessibilityRole="header" style={[serifStyle(52, 54, -0.015), { paddingTop: 14 }]}>
+          <Txt accessibilityRole="header" style={serifStyle(52, 54, -0.015)}>
             Meet Morrow.
           </Txt>
           <Txt color="textSecondary" style={[sansStyle(15, 23), { paddingTop: 14 }]}>
@@ -88,7 +85,7 @@ export default function SignInScreen() {
 
       <View style={styles.footer}>
         {error ? (
-          <Txt variant="label" color="danger" upper={false} style={styles.center}>
+          <Txt variant="label" color="danger" style={styles.center}>
             {error}
           </Txt>
         ) : null}
@@ -101,8 +98,8 @@ export default function SignInScreen() {
         <Txt color="textMuted" style={[sansStyle(12, 18), styles.center, { paddingHorizontal: 8 }]}>
           Signing in only shares your name and email. Sources are connected separately.
         </Txt>
-        <Txt color="textMuted" style={[monoStyle(10, 12), styles.center, { paddingTop: 6 }]}>
-          RAW EVENTS KEPT 24H · NEVER HEALTH OR MONEY
+        <Txt color="textMuted" style={[sansStyle(12, 18), styles.center, { paddingTop: 6 }]}>
+          Raw events kept 24h · never health or money
         </Txt>
         {unreachable ? (
           <Pressable
@@ -111,8 +108,8 @@ export default function SignInScreen() {
             onPress={exploreDemo}
             hitSlop={10}
           >
-            <Txt color="accent" style={[monoStyle(10, 12), styles.center]}>
-              {"CAN'T REACH MORROW · EXPLORE THE DEMO →"}
+            <Txt color="accent" style={[sansStyle(12, 18), styles.center]}>
+              {"Can't reach Morrow · explore the demo →"}
             </Txt>
           </Pressable>
         ) : null}

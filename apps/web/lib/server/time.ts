@@ -17,8 +17,8 @@ export function zonedInstant(localDate: string, hour: number, timeZone: string):
 export const readingDayEnd = (localDate: string, timeZone: string, cutoffHour = 4) =>
   zonedInstant(addDays(localDate, 1), cutoffHour, timeZone);
 
-/** `2026-09-30` → `WED` */
+/** `2026-09-30` → `Wed` */
 export function weekdayShort(localDate: string): string {
   const [y, m, d] = localDate.split('-').map(Number) as [number, number, number];
-  return ['SUN', 'MON', 'TUE', 'WED', 'THU', 'FRI', 'SAT'][new Date(Date.UTC(y, m - 1, d)).getUTCDay()]!;
+  return ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'][new Date(Date.UTC(y, m - 1, d)).getUTCDay()]!;
 }

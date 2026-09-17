@@ -41,8 +41,7 @@ export default async function SignInPage({ searchParams }: PageProps<'/sign-in'>
 
       <main className="relative flex flex-1 flex-col px-6 pb-10 pt-8 lg:px-[120px] lg:pt-[162px]">
         <div className="flex w-full max-w-[440px] flex-col">
-          <span className="label text-text-muted">Sign in</span>
-          <h1 className="pt-5 font-serif text-display-m lg:pt-6 lg:text-display">Meet Morrow.</h1>
+          <h1 className="font-serif text-display-m lg:text-display">Meet Morrow.</h1>
           <p className="max-w-[400px] pt-5 text-body-m text-text-secondary lg:pt-[22px] lg:text-[16px] lg:leading-[26px]">
             One reading a day, drawn only from the accounts you choose — and prophecies that check themselves.
           </p>
@@ -61,7 +60,7 @@ export default async function SignInPage({ searchParams }: PageProps<'/sign-in'>
         </span>
         <span className="flex gap-2.5">
           <span className="label-sm text-text-muted">Never read</span>
-          <span className="label-sm text-text-primary">Health · Money</span>
+          <span className="label-sm text-text-primary">Health · money</span>
         </span>
         <span className="flex gap-2.5">
           <span className="label-sm text-text-muted">Forget everything</span>

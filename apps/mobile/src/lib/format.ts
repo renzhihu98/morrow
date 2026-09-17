@@ -2,7 +2,6 @@
  * Pure presentation helpers (no React Native imports — unit tested with jest-expo).
  */
 import {
-  formatProphecyNumber,
   formatShortDate,
   getReadingDate,
   type Prophecy,
@@ -10,35 +9,35 @@ import {
   type SourceKind,
 } from '@morrow/core';
 
-const WEEKDAYS = ['SUN', 'MON', 'TUE', 'WED', 'THU', 'FRI', 'SAT'] as const;
+const WEEKDAYS = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'] as const;
 const MONTHS = [
-  'JANUARY',
-  'FEBRUARY',
-  'MARCH',
-  'APRIL',
-  'MAY',
-  'JUNE',
-  'JULY',
-  'AUGUST',
-  'SEPTEMBER',
-  'OCTOBER',
-  'NOVEMBER',
-  'DECEMBER',
+  'January',
+  'February',
+  'March',
+  'April',
+  'May',
+  'June',
+  'July',
+  'August',
+  'September',
+  'October',
+  'November',
+  'December',
 ] as const;
 
-/** `2026-09-30` → `TUE` (calendar weekday of a local date, timezone-free). */
+/** `2026-09-30` → `Tue` (calendar weekday of a local date, timezone-free). */
 export function weekdayLabel(localDate: string): string {
   const [y, m, d] = localDate.split('-').map(Number) as [number, number, number];
   return WEEKDAYS[new Date(Date.UTC(y, m - 1, d)).getUTCDay()] ?? '';
 }
 
-/** `2026-08-24` → `AUGUST`. */
+/** `2026-08-24` → `August`. */
 export function monthLabel(localDate: string): string {
   const m = Number(localDate.split('-')[1]);
   return MONTHS[m - 1] ?? '';
 }
 
-/** Month before the given local date's month, e.g. `2026-09-16` → `AUGUST`. */
+/** Month before the given local date's month, e.g. `2026-09-16` → `August`. */
 export function previousMonthLabel(localDate: string): string {
   const m = Number(localDate.split('-')[1]);
   return MONTHS[(m + 10) % 12] ?? '';
@@ -56,14 +55,16 @@ export function formatCount(n: number): string {
   return String(n).replace(/\B(?=(\d{3})+(?!\d))/g, ',');
 }
 
-/** Two-digit padded count: 7 → `07`. */
-export const pad2 = (n: number) => String(n).padStart(2, '0');
-
 const SOURCE_GLYPH: Record<SourceKind, string> = { calendar: 'CA', spotify: 'SP', mail: 'MA', instagram: 'IG' };
-const SOURCE_SHORT: Record<SourceKind, string> = { calendar: 'CAL', spotify: 'SPT', mail: 'MAIL', instagram: 'IG' };
+const SOURCE_SHORT: Record<SourceKind, string> = {
+  calendar: 'Calendar',
+  spotify: 'Spotify',
+  mail: 'Mail',
+  instagram: 'Instagram',
+};
 
 export const sourceGlyph = (kind: SourceKind) => SOURCE_GLYPH[kind];
-/** Dossier source column: `CAL · SPT`. */
+/** Dossier source column: `Calendar · Spotify`. */
 export const sourceShortList = (kinds: SourceKind[]) => kinds.map((k) => SOURCE_SHORT[k]).join(' · ');
 
 /** Calendar date (`YYYY-MM-DD`) of an instant in `timeZone` (midnight boundary). */
@@ -77,24 +78,24 @@ export function daysUntil(iso: string, now: Date): number {
   return Math.max(0, Math.ceil((Date.parse(iso) - now.getTime()) / 86_400_000));
 }
 
-/** Right-hand label on an open prophecy card: `CLOSES IN 3 DAYS` (≤ 3 days, accent) or `UNTIL 10.19`. */
+/** Right-hand label on an open prophecy card: `Closes in 3 days` (≤ 3 days, accent) or `Until 10.19`. */
 export function windowLabel(
   p: Pick<Prophecy, 'windowEnd' | 'status' | 'resolvedAt'>,
   now: Date,
   timeZone: string,
 ): { text: string; urgent: boolean } {
   const timeZoneDate = (iso: string) => localDateOf(iso, timeZone);
-  if (p.status === 'fulfilled' && p.resolvedAt) return { text: `FULFILLED ${formatShortDate(timeZoneDate(p.resolvedAt))}`, urgent: true };
-  if (p.status === 'expired') return { text: 'EXPIRED', urgent: false };
+  if (p.status === 'fulfilled' && p.resolvedAt) return { text: `Fulfilled ${formatShortDate(timeZoneDate(p.resolvedAt))}`, urgent: true };
+  if (p.status === 'expired') return { text: 'Expired', urgent: false };
   const days = daysUntil(p.windowEnd, now);
-  if (days <= 3) return { text: days <= 1 ? 'CLOSES TODAY' : `CLOSES IN ${days} DAYS`, urgent: true };
-  return { text: `UNTIL ${formatShortDate(timeZoneDate(p.windowEnd))}`, urgent: false };
+  if (days <= 3) return { text: days <= 1 ? 'Closes today' : `Closes in ${days} days`, urgent: true };
+  return { text: `Until ${formatShortDate(timeZoneDate(p.windowEnd))}`, urgent: false };
 }
 
-/** Readings archive: right-hand prophecy status, e.g. `0051 OPEN`. */
-export function prophecyStatusLabel(p: Pick<Prophecy, 'number' | 'status'>): string {
-  const labels: Record<ProphecyStatus, string> = { open: 'OPEN', fulfilled: 'FULFILLED', expired: 'EXPIRED' };
-  return `${formatProphecyNumber(p.number)} ${labels[p.status]}`;
+/** Readings archive: right-hand prophecy status, e.g. `Open`. */
+export function prophecyStatusLabel(p: Pick<Prophecy, 'status'>): string {
+  const labels: Record<ProphecyStatus, string> = { open: 'Open', fulfilled: 'Fulfilled', expired: 'Expired' };
+  return labels[p.status];
 }
 
 /** First sentence of a headline, for single-line list rows. */

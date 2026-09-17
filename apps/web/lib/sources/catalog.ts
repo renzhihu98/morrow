@@ -8,11 +8,3 @@ export const SOURCE_CATALOG: Record<SourceKind, SourceCopy> = Object.fromEntries
 ) as Record<SourceKind, SourceCopy>;
 
 export const SOURCE_ORDER: SourceKind[] = ['calendar', 'spotify', 'mail', 'instagram'];
-
-/** Short mono abbreviations used in the composer and dossier rows. */
-export const SOURCE_ABBR: Record<SourceKind, string> = {
-  calendar: 'CAL',
-  spotify: 'SPT',
-  mail: 'MAIL',
-  instagram: 'IG',
-};

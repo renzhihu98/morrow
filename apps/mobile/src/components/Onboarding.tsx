@@ -1,11 +1,11 @@
 import type { ReactNode } from 'react';
 import { ActivityIndicator, Pressable, StyleSheet, View } from 'react-native';
 import { useTheme } from '@/theme/ThemeProvider';
-import { monoStyle, sansStyle } from '@/theme/typography';
+import { sansStyle } from '@/theme/typography';
 import { Dot } from './Dot';
 import { Txt } from './Txt';
 
-/** Wordmark + right-aligned mono note ("PRIVATE BETA", "STEP 2 OF 3"). No menu before sign-in. */
+/** Wordmark + right-aligned note ("Private beta", "Step 2 of 3"). No menu before sign-in. */
 export function AuthHeader({ note }: { note: string }) {
   const { palette } = useTheme();
   return (
@@ -14,7 +14,7 @@ export function AuthHeader({ note }: { note: string }) {
         <Dot color={palette.accent} size={6} />
         <Txt style={styles.wordmark}>Morrow</Txt>
       </View>
-      <Txt variant="label" color="textMuted" style={monoStyle(10, 12)}>
+      <Txt variant="label" color="textMuted">
         {note}
       </Txt>
     </View>

@@ -16,12 +16,11 @@ export default async function SourcesPage() {
   const repo = getRepository();
   const user = toCoreUser(await requirePageUser());
   const { sources, dossier } = await getSourcesView(repo, user);
-  const linked = sources.filter((s) => s.status === 'linked').length;
 
   return (
     <main className="mx-auto w-full max-w-[1440px] px-6 pb-20 pt-10 lg:grid lg:grid-cols-[340px_minmax(0,760px)] lg:gap-[100px] lg:px-[120px] lg:pt-[142px]">
       <div>
-        <PageIntro eyebrow={`Sources / ${linked} linked`} title="Sources">
+        <PageIntro title="Sources">
           Morrow only sees what you connect. Raw events are read, distilled into your dossier, then let go.
         </PageIntro>
         <div className="pt-10 lg:w-[330px]">
@@ -29,7 +28,7 @@ export default async function SourcesPage() {
             rows={[
               { label: 'Raw events kept', value: `${RAW_EVENT_TTL_HOURS} hours` },
               { label: 'Your dossier', value: formatKb(dossier.sizeBytes) },
-              { label: 'Never read', value: 'Health · Money' },
+              { label: 'Never read', value: 'Health · money' },
             ]}
           />
         </div>

@@ -114,20 +114,18 @@
   }
 }
 
-/* Mono labels: Geist Mono, uppercase, 0.04em. */
+/* Small labels: Geist, sentence case, no tracking. Mono is reserved for numerals (font-mono). */
 @utility label {
-  font-family: var(--font-mono);
+  font-family: var(--font-sans);
   font-size: 12px;
   line-height: 16px;
-  letter-spacing: 0.04em;
-  text-transform: uppercase;
+  letter-spacing: 0;
 }
 @utility label-sm {
-  font-family: var(--font-mono);
-  font-size: 11px;
+  font-family: var(--font-sans);
+  font-size: 12px;
   line-height: 14px;
-  letter-spacing: 0.04em;
-  text-transform: uppercase;
+  letter-spacing: 0;
 }
 
 @layer base {

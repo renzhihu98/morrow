@@ -1,6 +1,6 @@
 import { formatLocalTime, type Message, type Prophecy } from '@morrow/core';
 import type { StepData } from '@/lib/chat-types';
-import { EvidenceLine, TurnLabel } from './Labels';
+import { TurnLabel } from './Labels';
 import { ProphecyPanel } from './Prophecy';
 import { ReadingSteps } from './ReadingSteps';
 
@@ -50,7 +50,7 @@ type TurnViewProps = {
   showProphecies?: boolean;
 };
 
-/** One turn: YOU line or Morrow's serif answer + body + SOURCE + prophecy panels. */
+/** One turn: the You line, or Morrow's serif answer + body + prophecy panels. */
 export function TurnView({ turn, prophecies, timeZone, showProphecies = true }: TurnViewProps) {
   if (turn.role === 'user') {
     return (
@@ -76,11 +76,6 @@ export function TurnView({ turn, prophecies, timeZone, showProphecies = true }: 
               {t}
             </p>
           ))}
-          {turn.sourceLabel && (
-            <div className="pt-1">
-              <EvidenceLine label={turn.sourceLabel} />
-            </div>
-          )}
         </div>
       )}
       {panels.map((p) => (

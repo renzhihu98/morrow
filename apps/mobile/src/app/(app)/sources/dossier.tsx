@@ -12,6 +12,9 @@ import { monoStyle, sansStyle } from '@/theme/typography';
 
 const CATEGORIES: DossierCategory[] = ['rhythms', 'pursuits', 'people', 'places', 'tastes'];
 
+/** `rhythms` → `Rhythms`. */
+const categoryLabel = (c: DossierCategory) => c.charAt(0).toUpperCase() + c.slice(1);
+
 /** Screen 11 — the distilled dossier (readable ↔ raw JSON), forget a single fact. */
 export default function DossierScreen() {
   const q = useDossier();
@@ -23,9 +26,9 @@ export default function DossierScreen() {
   const tz = today.data?.user.timezone ?? 'UTC';
   const dossier = q.data?.dossier;
 
-  const eyebrow = dossier
-    ? `← SOURCES · ${formatBytes(dossier.sizeBytes)} · REBUILT ${formatLocalTime(dossier.rebuiltAt, tz)}`
-    : '← SOURCES';
+  const backLine = dossier
+    ? `← Sources · ${formatBytes(dossier.sizeBytes)} · rebuilt ${formatLocalTime(dossier.rebuiltAt, tz)}`
+    : '← Sources';
 
   const groups = dossier
     ? CATEGORIES.map((c) => [c, dossier.facts.filter((f) => f.category === c)] as const).filter(([, facts]) => facts.length > 0)
@@ -54,7 +57,7 @@ export default function DossierScreen() {
       <View style={{ paddingTop: 20 }}>
         <Pressable accessibilityRole="link" onPress={() => (router.canGoBack() ? router.back() : router.replace('/sources'))} hitSlop={8}>
           <Txt variant="label" color="textMuted">
-            {eyebrow}
+            {backLine}
           </Txt>
         </Pressable>
         <Txt variant="title" accessibilityRole="header" style={{ marginTop: 10 }}>
@@ -78,7 +81,7 @@ export default function DossierScreen() {
           {groups.map(([category, facts]) => (
             <View key={category} style={{ marginBottom: 18 }}>
               <Txt variant="label" color="textMuted" style={styles.groupLabel}>
-                {category}
+                {categoryLabel(category)}
               </Txt>
               {facts.map((f) => (
                 <DossierRow
@@ -95,7 +98,7 @@ export default function DossierScreen() {
           {dossier.patterns.length > 0 ? (
             <View>
               <Txt variant="label" color="textMuted" style={styles.groupLabel}>
-                PATTERNS · INFERRED
+                Patterns · inferred
               </Txt>
               {dossier.patterns.map((p) => (
                 <PatternRow key={p.id} pattern={p} />
@@ -104,7 +107,7 @@ export default function DossierScreen() {
           ) : null}
           {forget.isError ? (
             <Txt variant="label" color="danger" style={{ paddingTop: 12 }}>
-              COULDN'T FORGET THAT. TRY AGAIN.
+              Couldn't forget that. Try again.
             </Txt>
           ) : null}
         </View>

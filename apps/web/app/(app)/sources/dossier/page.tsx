@@ -18,5 +18,5 @@ export default async function DossierPage() {
     facts: [],
     patterns: [],
   };
-  return <DossierView initial={dossier} timeZone={user.timezone} />;
+  return <DossierView initial={dossier} />;
 }

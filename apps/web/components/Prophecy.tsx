@@ -1,5 +1,8 @@
-import { formatProphecyNumber, formatShortDate, windowProgress, type Prophecy, type SourceKind } from '@morrow/core';
+import { formatShortDate, windowProgress, type Prophecy, type SourceKind } from '@morrow/core';
 import { prophecyFootnote, shortDateOf, sourceName } from '@/lib/ui/format';
+
+/** `fulfilled` → `Fulfilled`: the stored status is a code, the screen wants a word. */
+const statusWord = (status: Prophecy['status']) => status.charAt(0).toUpperCase() + status.slice(1);
 
 /** Likelihood track: 120px, accent fill. */
 function Likelihood({ value }: { value: number }) {
@@ -20,7 +23,7 @@ export function ProphecyPanel({ prophecy, timeZone }: { prophecy: Prophecy; time
   const right =
     prophecy.status === 'open'
       ? `Window ${shortDateOf(prophecy.windowStart, timeZone)} → ${shortDateOf(prophecy.windowEnd, timeZone)}`
-      : `${prophecy.status} ${shortDateOf(prophecy.resolvedAt ?? prophecy.windowEnd, timeZone)}`;
+      : `${statusWord(prophecy.status)} ${shortDateOf(prophecy.resolvedAt ?? prophecy.windowEnd, timeZone)}`;
   return (
     <section
       className={`flex w-full flex-col gap-[18px] rounded-panel border bg-panel px-5 py-5 lg:max-w-[680px] lg:px-[26px] lg:py-[22px] ${
@@ -28,7 +31,7 @@ export function ProphecyPanel({ prophecy, timeZone }: { prophecy: Prophecy; time
       }`}
     >
       <div className="flex items-center justify-between gap-4">
-        <span className="label text-accent">Prophecy {formatProphecyNumber(prophecy.number)}</span>
+        <span className="label text-accent">Prophecy</span>
         <span className={`label text-right ${fulfilled ? 'text-accent' : 'text-text-muted'}`}>{right}</span>
       </div>
       <p className="font-serif text-prophecy-m lg:text-prophecy">{prophecy.statement}</p>
@@ -64,9 +67,7 @@ export function ProphecyCard({ prophecy, now, timeZone }: { prophecy: Prophecy; 
   return (
     <article className="flex flex-col gap-3 rounded-card border border-hairline bg-panel px-5 py-[18px] lg:px-[22px]">
       <div className="flex items-center justify-between gap-4">
-        <span className="label-sm text-text-secondary">
-          {formatProphecyNumber(prophecy.number)} · From {formatShortDate(prophecy.madeOn)}
-        </span>
+        <span className="label-sm text-text-secondary">From {formatShortDate(prophecy.madeOn)}</span>
         <span className={`label-sm text-right ${closingSoon ? 'text-accent' : 'text-text-muted'}`}>
           {closingSoon ? (daysLeft <= 1 ? 'Closes today' : `Closes in ${daysLeft} days`) : watchingLabel(prophecy.watching)}
         </span>
@@ -77,20 +78,18 @@ export function ProphecyCard({ prophecy, now, timeZone }: { prophecy: Prophecy; 
   );
 }
 
-/** Resolved row: number, serif title, status. */
+/** Resolved row: serif title, status and the date it settled. */
 export function ResolvedRow({ prophecy, timeZone }: { prophecy: Prophecy; timeZone: string }) {
   const fulfilled = prophecy.status === 'fulfilled';
   return (
     <li className="flex items-center gap-3 border-t border-hairline py-3.5">
-      <span className="w-12 shrink-0 font-mono text-label-sm text-text-muted lg:w-[60px]">
-        {formatProphecyNumber(prophecy.number)}
-      </span>
       <span className={`min-w-0 flex-1 font-serif text-row-m lg:text-[20px] lg:leading-[26px] ${fulfilled ? 'text-text-primary' : 'text-text-secondary'}`}>
         {prophecy.title}
       </span>
       <span className={`label-sm flex shrink-0 items-center justify-end gap-2 text-right lg:w-[190px] ${fulfilled ? 'text-accent' : 'text-text-muted'}`}>
         {fulfilled ? <span className="size-2 rounded-full bg-accent" /> : <span aria-hidden>–</span>}
-        <span className="hidden sm:inline">{prophecy.status}</span> {shortDateOf(prophecy.resolvedAt ?? prophecy.windowEnd, timeZone)}
+        <span className="hidden sm:inline">{statusWord(prophecy.status)}</span>{' '}
+        {shortDateOf(prophecy.resolvedAt ?? prophecy.windowEnd, timeZone)}
       </span>
     </li>
   );

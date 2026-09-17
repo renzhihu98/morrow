@@ -1,7 +1,7 @@
 import { formatLocalTime, type Message, type Prophecy } from '@morrow/core';
 import { StyleSheet, View } from 'react-native';
 import { sansStyle } from '@/theme/typography';
-import { EvidenceLine, ProphecyPanel, ReadingSteps, stepsFromCore, TurnLabel } from './Reading';
+import { ProphecyPanel, ReadingSteps, stepsFromCore, TurnLabel } from './Reading';
 import { Txt } from './Txt';
 
 type Props = {
@@ -41,10 +41,9 @@ export function Transcript({ messages, prophecies, timeZone, now, dimBefore }: P
                 case 'observation':
                   serifUsed = true;
                   return (
-                    <View key={i} style={{ gap: 10 }}>
-                      <Txt variant="answer">{part.text}</Txt>
-                      <EvidenceLine label={part.sourceLabel} />
-                    </View>
+                    <Txt key={i} variant="answer">
+                      {part.text}
+                    </Txt>
                   );
                 case 'text': {
                   const asSerif = !serifUsed;

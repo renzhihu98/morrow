@@ -6,9 +6,9 @@ import { Page, PageState, PageTitle } from '@/components/Page';
 import { ProphecyCard, RecordMarks, StatusMark } from '@/components/Reading';
 import { Txt } from '@/components/Txt';
 import { useProphecies, useToday } from '@/data/queries';
-import { pad2, shortDateOf } from '@/lib/format';
+import { shortDateOf } from '@/lib/format';
 import { useTheme } from '@/theme/ThemeProvider';
-import { serifStyle } from '@/theme/typography';
+import { monoStyle, serifStyle } from '@/theme/typography';
 
 const VISIBLE_OPEN = 2;
 
@@ -29,11 +29,10 @@ export default function PropheciesScreen() {
   const resolved = data
     ? [...data.resolved].sort((a, b) => Date.parse(b.resolvedAt ?? b.windowEnd) - Date.parse(a.resolvedAt ?? a.windowEnd))
     : [];
-  const made = data ? data.open.length + data.resolved.length : null;
 
   return (
     <Page active="prophecies" refreshing={q.isRefetching} onRefresh={() => void q.refetch()}>
-      <PageTitle eyebrow={`PROPHECIES / ${made ?? '—'} MADE`} title="Prophecies">
+      <PageTitle title="Prophecies">
         {data ? <RecordMarks record={data.record} /> : null}
       </PageTitle>
       {!data ? (
@@ -42,7 +41,7 @@ export default function PropheciesScreen() {
         <>
           <View style={[styles.row, { marginTop: 6, marginBottom: 12 }]}>
             <Dot color={palette.accent} size={7} />
-            <Txt variant="label" color="accent">{`WATCHING / ${pad2(open.length)} OPEN`}</Txt>
+            <Txt variant="label" color="accent">{`Watching · ${open.length} open`}</Txt>
           </View>
           <View style={{ gap: 12 }}>
             {shown.map((p) => (
@@ -52,13 +51,13 @@ export default function PropheciesScreen() {
           {hidden > 0 || expanded ? (
             <Pressable accessibilityRole="button" onPress={() => setExpanded((e) => !e)} hitSlop={8} style={{ paddingTop: 16 }}>
               <Txt variant="label" color="textMuted">
-                {expanded ? '− SHOW FEWER' : `+ ${hidden} MORE OPEN`}
+                {expanded ? '− Show fewer' : `+ ${hidden} more open`}
               </Txt>
             </Pressable>
           ) : null}
 
           <Txt variant="label" color="textMuted" style={{ marginTop: 28, marginBottom: 12 }}>
-            {`RESOLVED / ${pad2(data.resolved.length)}`}
+            {`Resolved · ${data.resolved.length}`}
           </Txt>
           <View style={{ borderBottomWidth: 1, borderBottomColor: palette.hairline }}>
             {resolved.map((p) => (
@@ -86,7 +85,7 @@ function ResolvedRow({ prophecy, timeZone }: { prophecy: Prophecy; timeZone: str
       </Txt>
       <View style={styles.row}>
         <StatusMark status={prophecy.status} />
-        <Txt variant="label" color={fulfilled ? 'accent' : 'textMuted'} style={{ letterSpacing: 0 }}>
+        <Txt color={fulfilled ? 'accent' : 'textMuted'} style={monoStyle(11, 14, 0)}>
           {date}
         </Txt>
       </View>

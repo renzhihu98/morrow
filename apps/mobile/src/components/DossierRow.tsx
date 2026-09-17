@@ -5,7 +5,7 @@ import { useTheme } from '@/theme/ThemeProvider';
 import { monoStyle } from '@/theme/typography';
 import { Txt } from './Txt';
 
-/** Dossier fact (11): mono label + sources, serif value. Tap to reveal "FORGET THIS ×". */
+/** Dossier fact (11): label + sources, serif value. Tap to reveal "Forget this ×". */
 export function DossierRow({
   fact,
   selected,
@@ -34,7 +34,7 @@ export function DossierRow({
         {selected ? (
           <Pressable accessibilityRole="button" accessibilityLabel={`Forget ${fact.label}`} hitSlop={10} onPress={onForget}>
             <Txt variant="label" color="accent" style={{ fontSize: 10, lineHeight: 12 }}>
-              FORGET THIS ×
+              Forget this ×
             </Txt>
           </Pressable>
         ) : (

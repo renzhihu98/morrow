@@ -1,16 +1,16 @@
-import { formatProphecyNumber, windowProgress, type Prophecy } from '@morrow/core';
+import { windowProgress, type Prophecy } from '@morrow/core';
 import { Fragment } from 'react';
 import { Pressable, StyleSheet, View } from 'react-native';
 import { clamp01, splitStepLabel, stepGlyph, windowLabel, type StepStatus } from '@/lib/format';
 import { useTheme } from '@/theme/ThemeProvider';
-import { em, sansStyle, serifStyle } from '@/theme/typography';
+import { monoStyle, sansStyle, serifStyle } from '@/theme/typography';
 import { Dot } from './Dot';
 import { Txt } from './Txt';
 
-/** `YOU — 06:51` (muted) / `● MORROW — 06:52` (accent). */
+/** `You — 06:51` (muted) / `● Morrow — 06:52` (accent). */
 export function TurnLabel({ who, time, dotless }: { who: 'you' | 'morrow'; time?: string; dotless?: boolean }) {
   const { palette } = useTheme();
-  const text = `${who === 'you' ? 'YOU' : 'MORROW'}${time ? ` — ${time}` : ''}`;
+  const text = `${who === 'you' ? 'You' : 'Morrow'}${time ? ` — ${time}` : ''}`;
   if (who === 'you') return <Txt variant="label" color="textMuted">{text}</Txt>;
   return (
     <View style={styles.turnRow}>
@@ -19,15 +19,6 @@ export function TurnLabel({ who, time, dotless }: { who: 'you' | 'morrow'; time?
         {text}
       </Txt>
     </View>
-  );
-}
-
-/** `SOURCE Calendar · 03.04 · 04.22 …` */
-export function EvidenceLine({ label }: { label: string }) {
-  return (
-    <Txt variant="label" color="textMuted" upper={false} style={{ lineHeight: 16, letterSpacing: em(0.02, 11) }}>
-      {`SOURCE ${label}`}
-    </Txt>
   );
 }
 
@@ -47,7 +38,7 @@ export const WindowBar = ({ progress }: { progress: number }) => <ProgressTrack 
 
 type PanelProps = { prophecy: Prophecy; now: Date; timeZone: string; dim?: boolean };
 
-/** Prophecy panel inside a reading: number + window, serif statement, likelihood. */
+/** Prophecy panel inside a reading: window label, serif statement, likelihood. */
 export function ProphecyPanel({ prophecy, now, timeZone, dim }: PanelProps) {
   const { palette } = useTheme();
   const right = windowLabel(prophecy, now, timeZone);
@@ -55,10 +46,10 @@ export function ProphecyPanel({ prophecy, now, timeZone, dim }: PanelProps) {
     <View
       style={[styles.panel, { backgroundColor: palette.panel, borderColor: palette.hairline }, dim && { opacity: 0.35 }]}
       accessible
-      accessibilityLabel={`Prophecy ${formatProphecyNumber(prophecy.number)}. ${prophecy.statement}. Likelihood ${prophecy.likelihood.toFixed(2)}`}
+      accessibilityLabel={`Prophecy. ${prophecy.statement}. Likelihood ${prophecy.likelihood.toFixed(2)}`}
     >
       <View style={styles.between}>
-        <Txt variant="label" color="accent">{`PROPHECY ${formatProphecyNumber(prophecy.number)}`}</Txt>
+        <Txt variant="label" color="accent">Prophecy</Txt>
         <Txt variant="label" color={prophecy.status === 'fulfilled' ? 'accent' : right.urgent ? 'accent' : 'textMuted'}>
           {right.text}
         </Txt>
@@ -68,18 +59,16 @@ export function ProphecyPanel({ prophecy, now, timeZone, dim }: PanelProps) {
       </Txt>
       <View style={[styles.between, styles.panelFooter, { borderTopColor: palette.hairline }]}>
         <View style={styles.likelihood}>
-          <Txt variant="label" color="textMuted">LIKELIHOOD</Txt>
+          <Txt variant="label" color="textMuted">Likelihood</Txt>
           <ProgressTrack value={prophecy.likelihood} width={72} />
         </View>
-        <Txt variant="label" upper={false} style={{ fontSize: 12, lineHeight: 16, letterSpacing: 0 }}>
-          {prophecy.likelihood.toFixed(2)}
-        </Txt>
+        <Txt style={monoStyle(12, 16, 0)}>{prophecy.likelihood.toFixed(2)}</Txt>
       </View>
     </View>
   );
 }
 
-/** Prophecies list card (09): `0050 · 09.26`, closes label, statement, window bar + likelihood. */
+/** Prophecies list card (09): `From 09.26`, closes label, statement, window bar + likelihood. */
 export function ProphecyCard({ prophecy, now, timeZone }: PanelProps) {
   const { palette } = useTheme();
   const right = windowLabel(prophecy, now, timeZone);
@@ -88,10 +77,10 @@ export function ProphecyCard({ prophecy, now, timeZone }: PanelProps) {
     <View
       style={[styles.card, { backgroundColor: palette.panel, borderColor: palette.hairline }]}
       accessible
-      accessibilityLabel={`Prophecy ${formatProphecyNumber(prophecy.number)}, ${right.text.toLowerCase()}. ${prophecy.statement}`}
+      accessibilityLabel={`Prophecy, ${right.text.toLowerCase()}. ${prophecy.statement}`}
     >
       <View style={styles.between}>
-        <Txt variant="label" color="textMuted">{`${formatProphecyNumber(prophecy.number)} · ${made}`}</Txt>
+        <Txt variant="label" color="textMuted">{`From ${made}`}</Txt>
         <Txt variant="label" color={right.urgent ? 'accent' : 'textMuted'}>
           {right.text}
         </Txt>
@@ -99,7 +88,7 @@ export function ProphecyCard({ prophecy, now, timeZone }: PanelProps) {
       <Txt style={serifStyle(20, 26, -0.01)}>{prophecy.statement}</Txt>
       <View style={[styles.likelihood, { gap: 16 }]}>
         <WindowBar progress={windowProgress(prophecy, now)} />
-        <Txt variant="label" color="textMuted" style={{ letterSpacing: 0 }}>
+        <Txt color="textMuted" style={monoStyle(11, 14, 0)}>
           {prophecy.likelihood.toFixed(2)}
         </Txt>
       </View>
@@ -120,7 +109,7 @@ export function ReadingSteps({ steps, heading = true }: { steps: StepItem[]; hea
       {heading && (
         <View style={styles.turnRow}>
           <Dot color={palette.accent} />
-          <Txt variant="label" color="accent">MORROW IS READING</Txt>
+          <Txt variant="label" color="accent">Morrow is reading</Txt>
           <View style={[styles.turnRow, { gap: 4 }]}>
             <Dot color={palette.accent} size={4} />
             <Dot color={palette.accent} size={4} style={{ opacity: 0.55 }} />
@@ -147,7 +136,7 @@ export function ReadingSteps({ steps, heading = true }: { steps: StepItem[]; hea
   );
 }
 
-/** Mono number column + label, hairline dividers (suggestions, menu). */
+/** Suggestion list: one label per row, hairline dividers. */
 export function IndexList<T>({
   items,
   renderLabel,
@@ -169,9 +158,6 @@ export function IndexList<T>({
             onPress={() => onPress?.(item, i)}
             style={({ pressed }) => [styles.indexRow, { borderTopColor: palette.hairline, opacity: pressed ? 0.6 : 1 }]}
           >
-            <Txt variant="label" color="textMuted" style={styles.indexNum}>
-              {String(i + 1).padStart(2, '0')}
-            </Txt>
             <Txt style={sansStyle(15, 22)}>{label}</Txt>
           </Pressable>
         );
@@ -180,7 +166,7 @@ export function IndexList<T>({
   );
 }
 
-/** `07 FULFILLED   03 OPEN   02 EXPIRED` + optional 12 record marks. */
+/** `7 fulfilled   3 open   2 expired` + optional 12 record marks. */
 export function RecordMarks({
   record,
   showMarks = false,
@@ -189,13 +175,12 @@ export function RecordMarks({
   showMarks?: boolean;
 }) {
   const { palette } = useTheme();
-  const p = (n: number) => String(n).padStart(2, '0');
   return (
     <View style={{ gap: 12 }}>
       <View style={[styles.turnRow, { gap: 28 }]}>
-        <Txt variant="label" color="accent">{`${p(record.fulfilled)} FULFILLED`}</Txt>
-        <Txt variant="label" color="textSecondary">{`${p(record.open)} OPEN`}</Txt>
-        <Txt variant="label" color="textMuted">{`${p(record.expired)} EXPIRED`}</Txt>
+        <Txt variant="label" color="accent">{`${record.fulfilled} fulfilled`}</Txt>
+        <Txt variant="label" color="textSecondary">{`${record.open} open`}</Txt>
+        <Txt variant="label" color="textMuted">{`${record.expired} expired`}</Txt>
       </View>
       {showMarks && (
         <View style={[styles.turnRow, { gap: 8 }]} accessibilityLabel="Last 12 prophecies">
@@ -233,6 +218,5 @@ const styles = StyleSheet.create({
   likelihood: { flexDirection: 'row', alignItems: 'center', gap: 10 },
   card: { borderRadius: 14, borderWidth: 1, padding: 16, gap: 10 },
   steps: { borderLeftWidth: 1, paddingLeft: 16, gap: 12 },
-  indexRow: { flexDirection: 'row', alignItems: 'center', gap: 18, paddingVertical: 12, borderTopWidth: 1 },
-  indexNum: { width: 18, letterSpacing: 0 },
+  indexRow: { flexDirection: 'row', alignItems: 'center', paddingVertical: 12, borderTopWidth: 1 },
 });

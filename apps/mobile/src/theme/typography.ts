@@ -7,20 +7,21 @@ const SERIF: TypeToken[] = ['display', 'title', 'confirm', 'answer', 'prophecy',
 /** px letter-spacing for React Native from an em value. */
 export const em = (value: number, size: number) => Math.round(value * size * 100) / 100;
 
-/** Family for a scale token: serif for voice/titles, mono for labels, Geist for body. */
+/** Family for a scale token: serif for voice/titles, Geist for everything else. */
 export function familyFor(token: TypeToken): string {
-  if (token === 'label') return family.mono;
   return SERIF.includes(token) ? family.serif : family.sans;
 }
 
 /** Mobile type scale → RN TextStyle (tokens' `letterSpacing` is em → multiplied by size). */
 export function typeStyle(token: TypeToken): TextStyle {
   const t: { size: number; lineHeight: number; letterSpacing?: number } = typeScale.mobile[token];
+  // `label` is a plain sentence-case sans line — the token's mono tracking does not apply.
+  const tracking = token === 'label' ? 0 : t.letterSpacing;
   return {
     fontFamily: familyFor(token),
     fontSize: t.size,
     lineHeight: t.lineHeight,
-    ...(t.letterSpacing !== undefined ? { letterSpacing: em(t.letterSpacing, t.size) } : {}),
+    ...(tracking !== undefined ? { letterSpacing: em(tracking, t.size) } : {}),
   };
 }
 

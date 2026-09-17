@@ -11,9 +11,8 @@ import { signOut } from '@/data/auth';
 import { useQuestionsUsed } from '@/data/chat';
 import { useDemoMode, useProphecies, useReadings, useSources, useToday } from '@/data/queries';
 import { exitDemo, useMe } from '@/data/session';
-import { pad2 } from '@/lib/format';
 import { useTheme } from '@/theme/ThemeProvider';
-import { em, sansStyle, serifStyle } from '@/theme/typography';
+import { monoStyle, sansStyle, serifStyle } from '@/theme/typography';
 
 type Item = { key: NavSection; label: string; href: Href; status: string; live?: boolean };
 
@@ -36,10 +35,10 @@ export default function MenuScreen() {
   const linked = sources.data?.sources.filter((s) => s.status === 'linked').length ?? null;
 
   const items: Item[] = [
-    { key: 'today', label: 'Today', href: '/', status: reading ? (reading.status === 'open' ? 'OPEN' : 'SEALED') : '—', live: reading?.status === 'open' },
-    { key: 'readings', label: 'Readings', href: '/readings', status: pastCount !== null ? `${pastCount} PAST` : '—' },
-    { key: 'prophecies', label: 'Prophecies', href: '/prophecies', status: openCount !== null ? `${pad2(openCount)} OPEN` : '—' },
-    { key: 'sources', label: 'Sources', href: '/sources', status: linked !== null ? `${linked} LINKED` : '—' },
+    { key: 'today', label: 'Today', href: '/', status: reading ? (reading.status === 'open' ? 'Open' : 'Sealed') : '—', live: reading?.status === 'open' },
+    { key: 'readings', label: 'Readings', href: '/readings', status: pastCount !== null ? `${pastCount} past` : '—' },
+    { key: 'prophecies', label: 'Prophecies', href: '/prophecies', status: openCount !== null ? `${openCount} open` : '—' },
+    { key: 'sources', label: 'Sources', href: '/sources', status: linked !== null ? `${linked} linked` : '—' },
   ];
 
   const go = (href: Href) => {
@@ -68,7 +67,7 @@ export default function MenuScreen() {
       <Header mode="close" onClose={() => router.back()} />
       <ScrollView contentContainerStyle={styles.body} bounces={false}>
         <View style={[styles.nav, { borderBottomColor: palette.hairline }]} accessibilityRole="menu">
-          {items.map((item, i) => {
+          {items.map((item) => {
             const isActive = item.key === active;
             return (
               <Pressable
@@ -78,9 +77,6 @@ export default function MenuScreen() {
                 onPress={() => go(item.href)}
                 style={({ pressed }) => [styles.navRow, { borderTopColor: palette.hairline, opacity: pressed ? 0.6 : 1 }]}
               >
-                <Txt variant="label" color={isActive ? 'accent' : 'textMuted'} style={styles.navNum}>
-                  {pad2(i + 1)}
-                </Txt>
                 <Txt color={isActive ? 'textPrimary' : 'textSecondary'} style={[serifStyle(40, 44, -0.01), { flex: 1 }]}>
                   {item.label}
                 </Txt>
@@ -99,11 +95,11 @@ export default function MenuScreen() {
       <View style={styles.footer}>
         <View style={[styles.card, { backgroundColor: palette.panel, borderColor: palette.hairline }]}>
           <View style={styles.between}>
-            <Txt variant="label" color="textMuted">QUESTIONS TODAY</Txt>
-            <Txt variant="label" style={{ letterSpacing: 0 }}>{`${used} / ${limit}`}</Txt>
+            <Txt variant="label" color="textMuted">Questions today</Txt>
+            <Txt style={monoStyle(11, 14, 0)}>{`${used} / ${limit}`}</Txt>
           </View>
           <ProgressTrack value={used / limit} />
-          <Txt variant="label" color="textMuted">SEALS AT DAWN · 04:00</Txt>
+          <Txt variant="label" color="textMuted">Seals at dawn · 04:00</Txt>
         </View>
         <View style={styles.account}>
           <View style={[styles.avatar, { borderColor: palette.hairlineStrong }]}>
@@ -119,8 +115,8 @@ export default function MenuScreen() {
               onPress={onAccount}
               hitSlop={10}
             >
-              <Txt variant="label" color="textMuted" style={{ fontSize: 10, lineHeight: 12, letterSpacing: em(0.04, 10) }}>
-                {demo ? 'SIGN IN' : 'SIGN OUT'}
+              <Txt variant="label" color="textMuted" style={{ fontSize: 10, lineHeight: 12 }}>
+                {demo ? 'Sign in' : 'Sign out'}
               </Txt>
             </Pressable>
           </View>
@@ -138,7 +134,6 @@ const styles = StyleSheet.create({
   body: { paddingHorizontal: 24, paddingTop: 56 },
   nav: { borderBottomWidth: 1 },
   navRow: { flexDirection: 'row', alignItems: 'center', paddingVertical: 18, borderTopWidth: 1 },
-  navNum: { width: 36, letterSpacing: 0 },
   status: { flexDirection: 'row', alignItems: 'center', gap: 6 },
   footer: { paddingHorizontal: 24, paddingBottom: 10, gap: 20 },
   card: { borderRadius: 14, borderWidth: 1, padding: 16, gap: 10 },

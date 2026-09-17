@@ -1,6 +1,5 @@
 import {
   DailyReadingOutput,
-  formatProphecyNumber,
   type Dossier,
   type DossierFact,
   type DossierPattern,
@@ -445,7 +444,7 @@ function transcript(messages: Message[]): string {
 /** Memory summary written when a reading is sealed (Haiku 4.5, deterministic fallback). */
 export async function summarizeReading(user: User, reading: Reading, messages: Message[]): Promise<string> {
   const fallback = () => {
-    const made = reading.prophecyId ? ` Prophecy ${formatProphecyNumber(Number(reading.prophecyId.slice(2)))} made.` : '';
+    const made = reading.prophecyId ? ' A prophecy was made.' : '';
     const asked = reading.questionCount === 1 ? '1 question' : `${reading.questionCount} questions`;
     return `Morrow saw: ${reading.headline} ${user.name} asked ${asked}.${made}`;
   };

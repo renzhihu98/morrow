@@ -42,8 +42,7 @@ export function ConfirmForget({ counts }: Props) {
         <div className="opacity-50">
           <FadingOrbit />
         </div>
-        <span className="label pt-10 text-text-muted">Forgotten</span>
-        <h1 className="pt-5 font-serif text-confirm-m lg:text-confirm">Morrow has let you go.</h1>
+        <h1 className="pt-10 font-serif text-confirm-m lg:text-confirm">Morrow has let you go.</h1>
         <p className="max-w-[440px] pt-5 text-[15px] leading-6 text-text-secondary">
           Your readings, prophecies and dossier are gone, and every source is disconnected. If you come back, Morrow will
           start from nothing.
@@ -72,8 +71,7 @@ export function ConfirmForget({ counts }: Props) {
   return (
     <div className="flex flex-col items-center">
       <FadingOrbit />
-      <span className="label pt-10 text-danger">Forget everything</span>
-      <h1 className="pt-4 text-center font-serif text-confirm-m lg:text-confirm">Let Morrow forget you?</h1>
+      <h1 className="pt-10 text-center font-serif text-confirm-m lg:text-confirm">Let Morrow forget you?</h1>
       <p className="max-w-[440px] pt-5 text-center text-[15px] leading-6 text-text-secondary">
         This can&apos;t be undone. Every source will be disconnected, and Morrow will permanently delete:
       </p>

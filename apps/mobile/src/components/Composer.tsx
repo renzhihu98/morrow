@@ -87,7 +87,7 @@ export const Composer = forwardRef<TextInput, Props>(function Composer(
           </Pressable>
         ) : (
           <Txt variant="label" color="textMuted" style={{ marginRight: 8 }}>
-            {`SEALS AT DAWN · 04:00`}
+            Seals at dawn · 04:00
           </Txt>
         )}
       </View>
@@ -126,7 +126,7 @@ export const Composer = forwardRef<TextInput, Props>(function Composer(
         />
       )}
       {showCounter && (
-        <Txt variant="label" color="textMuted" style={{ letterSpacing: 0 }} accessibilityLabel={`${used} of ${limit} questions today`}>
+        <Txt color="textMuted" style={monoStyle(11, 14, 0)} accessibilityLabel={`${used} of ${limit} questions today`}>
           {quotaLabel(used, limit)}
         </Txt>
       )}

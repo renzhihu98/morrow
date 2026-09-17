@@ -1,4 +1,4 @@
-import { addDays, formatProphecyNumber, formatShortDate, prophecyRecord, type Prophecy, type Reading } from '@morrow/core';
+import { addDays, formatShortDate, prophecyRecord, type Prophecy, type Reading } from '@morrow/core';
 import type { Metadata } from 'next';
 import Link from 'next/link';
 import { connection } from 'next/server';
@@ -8,7 +8,7 @@ import { getRepository } from '@/lib/data';
 import { now } from '@/lib/server/env';
 import { getReadingsView } from '@/lib/server/readings';
 import { weekdayShort } from '@/lib/server/time';
-import { firstSentence, pad2 } from '@/lib/ui/format';
+import { firstSentence } from '@/lib/ui/format';
 
 export const metadata: Metadata = { title: 'Past readings' };
 
@@ -21,22 +21,21 @@ function ProphecyStatus({ reading, prophecy }: { reading: Reading; prophecy: Pro
     );
   }
   if (!prophecy) return <span className="label-sm text-text-faint">—</span>;
-  const n = formatProphecyNumber(prophecy.number);
   if (prophecy.status === 'fulfilled')
     return (
       <span className="label-sm flex items-center gap-2 text-accent">
-        <span className="size-1.5 rounded-full bg-accent" /> {n} fulfilled
+        <span className="size-1.5 rounded-full bg-accent" /> Fulfilled
       </span>
     );
   if (prophecy.status === 'expired')
     return (
       <span className="label-sm flex items-center gap-2 text-text-muted">
-        <span className="h-px w-1.5 bg-text-muted" /> {n} expired
+        <span className="h-px w-1.5 bg-text-muted" /> Expired
       </span>
     );
   return (
     <span className="label-sm flex items-center gap-2 text-text-secondary">
-      <span className="size-1.5 rounded-full border border-text-secondary" /> {n} open
+      <span className="size-1.5 rounded-full border border-text-secondary" /> Open
     </span>
   );
 }
@@ -56,13 +55,13 @@ export default async function ReadingsPage() {
   return (
     <main className="mx-auto w-full max-w-[1440px] px-6 pb-20 pt-10 lg:grid lg:grid-cols-[340px_minmax(0,760px)] lg:gap-[100px] lg:px-[120px] lg:pt-[124px]">
       <div>
-        <PageIntro eyebrow={`Archive / ${total} ${total === 1 ? 'reading' : 'readings'}`} title="Past readings">
+        <PageIntro title="Past readings">
           One reading a day, sealed at dawn. Everything Morrow told you stays here.
         </PageIntro>
         <div className="flex gap-8 pt-10">
-          <Stat label="Fulfilled" value={pad2(record.fulfilled)} accent />
-          <Stat label="Open" value={pad2(record.open)} />
-          <Stat label="Expired" value={pad2(record.expired)} />
+          <Stat label="Fulfilled" value={record.fulfilled} accent />
+          <Stat label="Open" value={record.open} />
+          <Stat label="Expired" value={record.expired} />
         </div>
       </div>
 
@@ -87,10 +86,12 @@ export default async function ReadingsPage() {
                       className="group flex flex-wrap items-center gap-y-2 py-[17px] sm:flex-nowrap"
                     >
                       <span className="flex w-[96px] shrink-0 flex-col gap-[3px] sm:w-[120px]">
-                        <span className={`font-mono text-[13px] leading-4 ${isOpen ? 'text-accent' : 'text-text-primary'}`}>
-                          {isOpen ? 'TODAY' : formatShortDate(r.localDate)}
+                        <span
+                          className={`text-[13px] leading-4 ${isOpen ? 'text-accent' : 'font-mono text-text-primary'}`}
+                        >
+                          {isOpen ? 'Today' : formatShortDate(r.localDate)}
                         </span>
-                        <span className="font-mono text-label-sm text-text-muted">
+                        <span className="label-sm text-text-muted">
                           {isOpen ? `${formatShortDate(r.localDate)} ${weekdayShort(r.localDate)}` : weekdayShort(r.localDate)}
                         </span>
                       </span>

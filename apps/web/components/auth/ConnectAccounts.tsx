@@ -63,12 +63,12 @@ function SourceCard({ card, source, onConnect, pending }: { card: (typeof CARDS)
       }`}
     >
       <div className="flex items-center gap-4">
-        <span className="flex size-10 shrink-0 items-center justify-center rounded-glyph border border-hairline-strong font-mono text-label text-text-primary">
+        <span className="flex size-10 shrink-0 items-center justify-center rounded-glyph border border-hairline-strong font-mono text-[11px] leading-[14px] tracking-[0.04em] text-text-primary">
           {card.glyph}
         </span>
         <span className="flex min-w-0 grow flex-col gap-1">
           <span className="font-serif text-[26px] leading-7 text-text-primary">{card.name}</span>
-          <span className={`font-mono text-label-sm uppercase tracking-[0.02em] ${syncing ? 'text-accent' : 'text-text-muted'}`}>{meta}</span>
+          <span className={`label-sm ${syncing ? 'text-accent' : 'text-text-muted'}`}>{meta}</span>
         </span>
         {linked && !reauth ? (
           <span className="label-sm flex shrink-0 items-center gap-2 text-accent">
@@ -87,11 +87,11 @@ function SourceCard({ card, source, onConnect, pending }: { card: (typeof CARDS)
       </div>
       <div className="flex flex-col gap-3 border-t border-hairline pt-3.5 sm:flex-row sm:gap-6">
         <div className="flex flex-col gap-1 sm:w-[340px] sm:shrink-0">
-          <span className="font-mono text-[10px] uppercase leading-3 tracking-[0.04em] text-text-muted">Reads</span>
+          <span className="label-sm text-text-muted">Reads</span>
           <span className="text-sm text-text-secondary">{card.reads}</span>
         </div>
         <div className="flex flex-col gap-1">
-          <span className="font-mono text-[10px] uppercase leading-3 tracking-[0.04em] text-text-muted">Never</span>
+          <span className="label-sm text-text-muted">Never</span>
           <span className="text-sm text-text-secondary">{card.never}</span>
         </div>
       </div>
@@ -153,8 +153,7 @@ export function ConnectAccounts({ initialSources, connectError }: Props) {
   return (
     <main className="mx-auto w-full max-w-[1440px] px-6 pb-16 pt-8 lg:grid lg:grid-cols-[360px_minmax(0,760px)] lg:gap-[80px] lg:px-[120px] lg:pt-[82px]">
       <div className="flex flex-col">
-        <span className="label text-text-muted">Step 2 of 3</span>
-        <h1 className="pt-5 font-serif text-title-m lg:pt-[22px] lg:text-[68px] lg:leading-[66px] lg:tracking-[-0.015em]">
+        <h1 className="font-serif text-title-m lg:text-[68px] lg:leading-[66px] lg:tracking-[-0.015em]">
           What may Morrow read?
         </h1>
         <p className="max-w-[330px] pt-5 text-[15px] leading-6 text-text-secondary">
@@ -166,9 +165,9 @@ export function ConnectAccounts({ initialSources, connectError }: Props) {
             { glyph: '●', label: 'Connect sources', tone: 'text-accent' },
             { glyph: '○', label: 'First reading', tone: 'text-text-faint' },
           ].map((s) => (
-            <li key={s.label} className={`flex items-center gap-3 font-mono text-label-sm ${s.tone}`}>
-              <span className="w-3.5 shrink-0">{s.glyph}</span>
-              <span className="uppercase tracking-[0.04em]">{s.label}</span>
+            <li key={s.label} className={`label-sm flex items-center gap-3 ${s.tone}`}>
+              <span className="w-3.5 shrink-0 font-mono">{s.glyph}</span>
+              <span>{s.label}</span>
             </li>
           ))}
         </ol>
@@ -183,11 +182,11 @@ export function ConnectAccounts({ initialSources, connectError }: Props) {
         {error && <p className="pt-4 text-sm text-danger">{error}</p>}
 
         <div className="flex flex-col pt-12">
-          <span className="label-sm pb-2.5 text-text-muted">Later · Morrow asks when a prophecy needs it</span>
+          <span className="label-sm pb-2.5 text-text-muted">Later — Morrow asks when a prophecy needs it</span>
           <ul className="border-b border-dashed border-hairline-strong">
             {LATER.map((l) => (
               <li key={l.name} className="flex items-center gap-4 border-t border-dashed border-hairline-strong py-3.5">
-                <span className="flex size-8 shrink-0 items-center justify-center rounded-[8px] border border-dashed border-hairline-strong font-mono text-label-sm text-text-muted">
+                <span className="flex size-8 shrink-0 items-center justify-center rounded-[8px] border border-dashed border-hairline-strong font-mono text-[11px] leading-[14px] tracking-[0.04em] text-text-muted">
                   {l.glyph}
                 </span>
                 <span className="w-[120px] shrink-0 font-serif text-[21px] leading-[26px] text-text-secondary sm:w-[180px]">{l.name}</span>

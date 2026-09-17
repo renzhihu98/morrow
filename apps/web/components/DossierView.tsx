@@ -1,11 +1,10 @@
 'use client';
 
-import { formatLocalTime, type Dossier, type DossierCategory } from '@morrow/core';
+import type { Dossier, DossierCategory } from '@morrow/core';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { useEffect, useState } from 'react';
-import { SOURCE_ABBR } from '@/lib/sources/catalog';
-import { formatKb } from '@/lib/ui/format';
+import { sourceName } from '@/lib/ui/format';
 import { KeyValueList } from './Labels';
 
 const CATEGORIES: DossierCategory[] = ['rhythms', 'pursuits', 'people', 'places', 'tastes'];
@@ -51,7 +50,7 @@ function DossierRow({
 }
 
 /** Dossier (screen 11): Readable / Raw JSON toggle, forget a single fact. */
-export function DossierView({ initial, timeZone }: { initial: Dossier; timeZone: string }) {
+export function DossierView({ initial }: { initial: Dossier }) {
   const router = useRouter();
   const [dossier, setDossier] = useState(initial);
   const [mode, setMode] = useState<'readable' | 'raw'>('readable');
@@ -70,7 +69,7 @@ export function DossierView({ initial, timeZone }: { initial: Dossier; timeZone:
     router.refresh();
   };
 
-  const abbr = (sources: Dossier['facts'][number]['sources']) => sources.map((s) => SOURCE_ABBR[s]).join(' · ');
+  const namesOf = (sources: Dossier['facts'][number]['sources']) => sources.map(sourceName).join(' · ');
 
   return (
     <main className="mx-auto w-full max-w-[1440px] px-6 pb-20 pt-10 lg:grid lg:grid-cols-[340px_minmax(0,760px)] lg:gap-[100px] lg:px-[120px] lg:pt-[72px]">
@@ -78,10 +77,7 @@ export function DossierView({ initial, timeZone }: { initial: Dossier; timeZone:
         <Link href="/sources" className="label text-text-secondary transition-colors hover:text-text-primary">
           ← Sources
         </Link>
-        <div className="label pt-11 text-text-muted">
-          Dossier / {formatKb(dossier.sizeBytes)} · Rebuilt {formatLocalTime(dossier.rebuiltAt, timeZone)}
-        </div>
-        <h1 className="pt-5 font-serif text-title-m lg:pt-6 lg:text-title">Your dossier</h1>
+        <h1 className="pt-10 font-serif text-title-m lg:text-title">Your dossier</h1>
         <p className="max-w-[340px] pt-5 text-[15px] leading-6 text-text-secondary">
           Everything Morrow knows about you. Not your emails or events — only what was distilled from them. Readings come
           from this page alone.
@@ -137,14 +133,14 @@ export function DossierView({ initial, timeZone }: { initial: Dossier; timeZone:
               if (facts.length === 0) return null;
               return (
                 <div key={category}>
-                  <h2 className="label-sm pb-3 text-text-muted">{category}</h2>
+                  <h2 className="label-sm pb-3 capitalize text-text-muted">{category}</h2>
                   <ul>
                     {facts.map((f) => (
                       <DossierRow
                         key={f.id}
                         label={f.label}
                         value={f.value}
-                        sources={abbr(f.sources)}
+                        sources={namesOf(f.sources)}
                         forgetting={forgetting === f.id}
                         onForget={() => forget(f.id)}
                       />
@@ -156,7 +152,7 @@ export function DossierView({ initial, timeZone }: { initial: Dossier; timeZone:
             {dossier.patterns.length > 0 && (
               <div>
                 <div className="flex justify-between pb-3">
-                  <h2 className="label-sm text-text-muted">Patterns · Inferred</h2>
+                  <h2 className="label-sm text-text-muted">Patterns · inferred</h2>
                   <span className="label-sm text-text-muted">Confidence</span>
                 </div>
                 <ul className="border-b border-dashed border-hairline-strong">

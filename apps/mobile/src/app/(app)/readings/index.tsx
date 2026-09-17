@@ -28,7 +28,7 @@ export default function ReadingsScreen() {
         void prophecies.refetch();
       }}
     >
-      <PageTitle eyebrow={`ARCHIVE / ${readings.data?.total ?? '—'} READINGS`} title="Past readings">
+      <PageTitle title="Past readings">
         {prophecies.data ? <RecordMarks record={prophecies.data.record} /> : null}
       </PageTitle>
       {!readings.data ? (
@@ -41,7 +41,7 @@ export default function ReadingsScreen() {
           <Hairline />
           {oldest ? (
             <Txt variant="label" color="textMuted" style={{ paddingTop: 20 }}>
-              {`↓ EARLIER READINGS — ${previousMonthLabel(oldest.localDate)}`}
+              {`↓ Earlier readings — ${previousMonthLabel(oldest.localDate)}`}
             </Txt>
           ) : null}
         </View>
@@ -63,10 +63,10 @@ function ReadingRow({ reading, prophecy }: { reading: Reading; prophecy?: Prophe
     >
       <View style={styles.meta}>
         <Txt variant="label" color={isToday ? 'accent' : 'textMuted'}>
-          {isToday ? `TODAY · ${date}` : date}
+          {isToday ? `Today · ${date}` : date}
         </Txt>
         {isToday ? (
-          <Txt variant="label" color="accent">OPEN NOW →</Txt>
+          <Txt variant="label" color="accent">Open now →</Txt>
         ) : prophecy ? (
           <View style={styles.status}>
             <StatusMark status={prophecy.status} />

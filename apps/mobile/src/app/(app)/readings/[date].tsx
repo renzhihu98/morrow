@@ -27,9 +27,9 @@ export default function SealedReadingScreen() {
   const bar = (
     <View style={[styles.bar, { borderBottomColor: palette.hairline }]}>
       <Pressable accessibilityRole="link" hitSlop={10} onPress={() => (router.canGoBack() ? router.back() : router.replace('/readings'))}>
-        <Txt variant="label" color="textSecondary">← PAST</Txt>
+        <Txt variant="label" color="textSecondary">← Past</Txt>
       </Pressable>
-      <Txt variant="label" color="textMuted">{`READING ${/^\d{4}-\d{2}-\d{2}$/.test(date) ? formatShortDate(date) : '—'} · SEALED`}</Txt>
+      <Txt variant="label" color="textMuted">{`Reading ${/^\d{4}-\d{2}-\d{2}$/.test(date) ? formatShortDate(date) : '—'} · sealed`}</Txt>
     </View>
   );
 

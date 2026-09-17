@@ -45,7 +45,7 @@ export function SourceRow({ source, timeZone }: { source: Source; timeZone: stri
   return (
     <li className="grid grid-cols-[40px_1fr_auto] items-center gap-x-4 gap-y-2 border-t border-hairline py-[22px] lg:grid-cols-[40px_244px_1fr_auto]">
       <span
-        className={`flex size-10 items-center justify-center rounded-glyph border font-mono text-label-sm ${
+        className={`flex size-10 items-center justify-center rounded-glyph border font-mono text-[11px] leading-[14px] tracking-[0.04em] ${
           linked ? 'border-hairline-strong text-text-primary' : 'border-dashed border-hairline-strong text-text-faint'
         }`}
         aria-hidden
@@ -69,7 +69,7 @@ export function SourceRow({ source, timeZone }: { source: Source; timeZone: stri
             </span>
             <span className="group relative">
               <span className="label-sm text-text-muted group-hover:invisible group-focus-within:invisible">
-                {source.lastSyncedAt ? `Sync ${formatLocalTime(source.lastSyncedAt, timeZone)}` : 'Syncing'}
+                {source.lastSyncedAt ? `Synced ${formatLocalTime(source.lastSyncedAt, timeZone)}` : 'Syncing'}
               </span>
               <button
                 type="button"

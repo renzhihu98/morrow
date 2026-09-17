@@ -7,11 +7,11 @@ import { Dot } from './Dot';
 import { Txt } from './Txt';
 
 function metaLine(source: Source, timeZone: string): string {
-  if (source.status !== 'linked') return source.status === 'error' ? 'NEEDS ATTENTION' : 'NOT LINKED';
-  const sync = source.lastSyncedAt ? `SYNC ${formatLocalTime(source.lastSyncedAt, timeZone)}` : null;
-  if (source.stat) return [`${formatCount(source.stat.value)} ${source.stat.label.toUpperCase()}`, sync].filter(Boolean).join(' · ');
-  if (source.watchingCount > 0) return `WATCHING ${source.watchingCount} ${source.watchingCount === 1 ? 'PROPHECY' : 'PROPHECIES'}`;
-  return sync ?? 'LINKED';
+  if (source.status !== 'linked') return source.status === 'error' ? 'Needs attention' : 'Not linked';
+  const sync = source.lastSyncedAt ? `synced ${formatLocalTime(source.lastSyncedAt, timeZone)}` : null;
+  if (source.stat) return [`${formatCount(source.stat.value)} ${source.stat.label}`, sync].filter(Boolean).join(' · ');
+  if (source.watchingCount > 0) return `Watching ${source.watchingCount} ${source.watchingCount === 1 ? 'prophecy' : 'prophecies'}`;
+  return sync ? `Linked · ${sync}` : 'Linked';
 }
 
 /** Sources list row (10): glyph box, serif name, mono meta, what it reads, status / Connect. */
@@ -59,7 +59,7 @@ export function SourceRow({
           {linked ? (
             <View style={styles.status}>
               <Dot color={palette.accent} size={7} />
-              <Txt variant="label" color="accent">LINKED</Txt>
+              <Txt variant="label" color="accent">Linked</Txt>
             </View>
           ) : (
             <Pressable

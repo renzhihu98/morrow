@@ -1,7 +1,5 @@
 import { formatLocalTime, formatShortDate, type Prophecy, type SourceKind } from '@morrow/core';
 
-export const pad2 = (n: number) => String(n).padStart(2, '0');
-
 /** 3200 → "3.2 KB" */
 export const formatKb = (bytes: number) => `${(bytes / 1000).toFixed(1)} KB`;
 

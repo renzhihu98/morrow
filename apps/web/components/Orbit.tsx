@@ -1,7 +1,7 @@
 export type OrbitState = 'idle' | 'reading' | 'fulfilled' | 'sealed';
 
 export type OrbitNode = {
-  /** Mono label, e.g. "CALENDAR". */
+  /** Node label, e.g. "Calendar". */
   label?: string;
   /** Accent node (the pattern / fulfilled contact). */
   accent?: boolean;
@@ -31,7 +31,7 @@ export function Orbit({ state = 'idle', size, nodes, showLabels = false, classNa
   const fulfilled = state === 'fulfilled';
   const reading = state === 'reading';
   const sealed = state === 'sealed';
-  const resolvedNodes = nodes ?? [{ label: 'CALENDAR' }, { label: 'SPOTIFY' }, { accent: true }];
+  const resolvedNodes = nodes ?? [{ label: 'Calendar' }, { label: 'Spotify' }, { accent: true }];
   const width = typeof size === 'number' ? `${size}px` : (size ?? '100%');
 
   return (
@@ -99,7 +99,7 @@ export function Orbit({ state = 'idle', size, nodes, showLabels = false, classNa
           return (
             <span
               key={i}
-              className={`absolute whitespace-nowrap font-mono text-label-sm tracking-[0.04em] ${node.accent && !sealed ? 'text-accent' : 'text-text-muted'}`}
+              className={`label absolute whitespace-nowrap ${node.accent && !sealed ? 'text-accent' : 'text-text-muted'}`}
               style={{ left: `${(pos.lx / 660) * 100}%`, top: `${(pos.ly / 660) * 100}%` }}
             >
               {node.label}

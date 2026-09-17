@@ -38,10 +38,10 @@ const CARDS: Card[] = [
 ];
 
 function metaLine(source: Source | undefined): string {
-  if (!source || source.status === 'not_linked') return 'RECOMMENDED';
-  if (source.status === 'error') return 'NEEDS ATTENTION';
-  if (source.stat) return `${formatCount(source.stat.value)} ${source.stat.label.toUpperCase()} FOUND`;
-  return 'READING…';
+  if (!source || source.status === 'not_linked') return 'Recommended';
+  if (source.status === 'error') return 'Needs attention';
+  if (source.stat) return `${formatCount(source.stat.value)} ${source.stat.label} found`;
+  return 'Reading…';
 }
 
 /** Screen 14 — Connect accounts (onboarding step 2 of 3). */
@@ -70,7 +70,7 @@ export default function ConnectAccountsScreen() {
 
   return (
     <SafeAreaView edges={['top', 'bottom']} style={[styles.root, { backgroundColor: palette.bg }]}>
-      <AuthHeader note="STEP 2 OF 3" />
+      <AuthHeader note="Step 2 of 3" />
       <ScrollView contentContainerStyle={{ paddingBottom: 24 }}>
         <View style={styles.titleBlock}>
           <Txt accessibilityRole="header" style={serifStyle(42, 44, -0.015)}>
@@ -94,22 +94,22 @@ export default function ConnectAccountsScreen() {
           ))}
         </View>
         {notice ? (
-          <Txt variant="label" color="textMuted" upper={false} style={{ paddingHorizontal: 24, paddingTop: 12 }}>
+          <Txt variant="label" color="textMuted" style={{ paddingHorizontal: 24, paddingTop: 12 }}>
             {notice}
           </Txt>
         ) : null}
 
         <View style={styles.later}>
-          <Txt color="textMuted" style={[monoStyle(10, 12), { paddingBottom: 8 }]}>
-            LATER · WHEN A PROPHECY NEEDS IT
+          <Txt variant="label" color="textMuted" style={{ paddingBottom: 8 }}>
+            Later — when a prophecy needs it
           </Txt>
           <Hairline dashed />
           <View style={styles.laterRow} accessible accessibilityLabel="Instagram. Locked until a prophecy needs it.">
             <Txt color="textSecondary" style={serifStyle(19, 24)}>
               Instagram
             </Txt>
-            <Txt color="textFaint" style={monoStyle(10, 12)}>
-              LOCKED
+            <Txt variant="label" color="textFaint">
+              Locked
             </Txt>
           </View>
           <Hairline dashed />
@@ -118,7 +118,7 @@ export default function ConnectAccountsScreen() {
 
       <View style={styles.footer}>
         {first.state === 'error' && first.message ? (
-          <Txt variant="label" color="danger" upper={false} style={{ textAlign: 'center' }}>
+          <Txt variant="label" color="danger" style={{ textAlign: 'center' }}>
             {first.message}
           </Txt>
         ) : null}
@@ -169,7 +169,7 @@ function SourceCard({
         </View>
         <View style={{ flex: 1, gap: 2 }}>
           <Txt style={serifStyle(22, 24)}>{card.name}</Txt>
-          <Txt color="textMuted" style={monoStyle(10, 12, 0)}>
+          <Txt variant="label" color="textMuted" style={{ fontSize: 10, lineHeight: 13 }}>
             {metaLine(source)}
           </Txt>
         </View>
@@ -177,7 +177,7 @@ function SourceCard({
           <View style={styles.linked}>
             <Dot color={palette.accent} size={7} />
             <Txt variant="label" color="accent">
-              LINKED
+              Linked
             </Txt>
           </View>
         ) : (

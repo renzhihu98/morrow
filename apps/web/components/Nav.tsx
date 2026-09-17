@@ -63,16 +63,15 @@ export function MobileMenu({ status }: { status: string }) {
       {open && (
         <div className="absolute inset-x-0 top-full border-b border-hairline bg-bg px-6 pb-8">
           <nav className="flex flex-col" aria-label="Main">
-            {ITEMS.map((item, i) => {
+            {ITEMS.map((item) => {
               const active = isActive(pathname, item.href);
               return (
                 <Link
                   key={item.href}
                   href={item.href}
                   aria-current={active ? 'page' : undefined}
-                  className="flex items-center gap-5 border-t border-hairline py-4"
+                  className="flex items-center border-t border-hairline py-4"
                 >
-                  <span className="w-5 font-mono text-label text-text-muted">{String(i + 1).padStart(2, '0')}</span>
                   <span className={`font-serif text-list-item-m ${active ? 'text-text-primary' : 'text-text-secondary'}`}>
                     {item.label}
                   </span>

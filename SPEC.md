@@ -85,11 +85,13 @@ Transparent variants used in designs: accent border `rgba(47,138,108,0.45)`; dan
 
 Three families, each with one job. **No italics anywhere.**
 
+**Labels are sentence case, set in Geist.** Mono is reserved for numerals — times, `09.30` dates, counts, likelihood values. There is no uppercase text in the UI, and no zero-padded display numbers (`7`, never `07`); the one exception is the literal word `FORGET` the user types to confirm deletion. Headlines carry no eyebrow/kicker label above them.
+
 | Role | Family | Weight | Notes |
 |---|---|---|---|
 | Morrow's voice, titles, list items | **Instrument Serif** | 400 | letter-spacing −0.01 to −0.015em on large sizes |
-| UI, body, user messages | **Geist** | 400 / 500 | |
-| Data: timestamps, labels, counts, sources | **Geist Mono** | 400 | labels UPPERCASE, letter-spacing 0.04em |
+| UI, body, user messages, small labels | **Geist** | 400 / 500 | labels are sentence case, letter-spacing 0 |
+| Data: timestamps, `09.30` dates, counts, likelihoods | **Geist Mono** | 400 | numerals only, letter-spacing 0 |
 
 | Scale token | Desktop | Mobile |
 |---|---|---|
@@ -102,7 +104,7 @@ Three families, each with one job. **No italics anywhere.**
 | `row` (dossier/resolved rows) | 21 / 26 | 19 / 24 |
 | `bodyLg` (user message) | 18 / 28 | 16 / 24 |
 | `body` | 15–16 / 24 | 14–15 / 21–23 |
-| `label` (mono) | 11–12 / 14–16 | 10–11 / 12–14 |
+| `label` (sans, sentence case) | 12 / 16 | 12 / 14 |
 
 ### 4.3 Shape & spacing
 
@@ -120,12 +122,11 @@ Three families, each with one job. **No italics anywhere.**
 ### 4.4 Signature components
 
 - **Orbit** — SVG, `viewBox 0 0 660 660`: outer ring r=260, dashed ring r=170, two tilted ellipses (rx310/ry92 rot −18°, rx250/ry64 rot 34°), crosshair ticks, core r=58 with accent glow and centre dot, source nodes on the ellipses. States: `idle`, `reading` (dashed ring accent), `fulfilled` (matching ellipse + core stroke accent, larger glow), `sealed` (55–60% opacity, no accent). Small variants: header mini-orbit (26px), forget screen (dashed, fading).
-- **Composer** — states `idle` (placeholder), `typing` (accent border + caret, send enabled), `waiting` ("Morrow is reading…", stop button), `sealed` (dashed border, lock icon, "Today's reading →" button). Shows `n OF 15 TODAY` (desktop) / `n/15` (mobile).
-- **Turn labels** — mono `YOU — 06:51` (muted) and `● MORROW — 06:52` (accent).
-- **Evidence line** — mono `SOURCE Calendar · 03.04 · 04.22 …`.
-- **Prophecy panel/card** — number + window, serif statement, window bar (start → end with elapsed fill), `LIKELIHOOD 0.71`.
+- **Composer** — states `idle` (placeholder), `typing` (accent border + caret, send enabled), `waiting` ("Morrow is reading…", stop button), `sealed` (dashed border, lock icon, "Today's reading →" button). Shows `n of 15 today` (desktop) / `n/15` (mobile).
+- **Turn labels** — sans `You — 06:51` (muted) and `● Morrow — 06:52` (accent).
+- **Prophecy panel/card** — `Prophecy` + window (no serial number), serif statement, window bar (start → end with elapsed fill), `Likelihood 0.71`.
 - **Reading steps** — left-bordered list: `✓ done`, `◌ active` (accent), `· pending` (faint).
-- **Index list** — mono number column (`01`) + label with hairline dividers.
+- **Index list** — label rows with hairline dividers (no number column).
 - **Record marks** — 12 marks: filled dot (fulfilled), dash (expired), hollow (open).
 
 ## 5. Architecture
@@ -236,7 +237,7 @@ Single entry `@morrow/core` (source TS, no build). zod 4. Schemas and their infe
   - `MessageRole` = `user | assistant` (assistant = Morrow); `Message { id, readingId, role, parts, createdAt }`
   - `CheckCondition` (discriminated on `type`): `email_from_contact {contact, firstInThread}` | `calendar_event_with {contact, titleIncludes | null}` | `listening_pattern {pattern}` | `generic {description}`
   - `ProphecyStatus` = `open | fulfilled | expired`; `Prophecy { id ("p_0047"), number, statement, title (short, for lists), checkCondition, windowStart, windowEnd, likelihood, watching: SourceKind[], status, madeOn (LocalDate), madeInReadingId, fulfilledInReadingId | null, resolvedAt | null }`
-  - `DossierCategory` = `rhythms | pursuits | people | places | tastes`; `DossierFact { id, category, label (natural case; UI uppercases mono labels), value, sources }`; `DossierPattern { id, statement, confidence, sources }`; `Dossier { userId, sizeBytes, rebuiltAt, facts, patterns }`
+  - `DossierCategory` = `rhythms | pursuits | people | places | tastes`; `DossierFact { id, category, label (natural case, rendered as-is), value, sources }`; `DossierPattern { id, statement, confidence, sources }`; `Dossier { userId, sizeBytes, rebuiltAt, facts, patterns }`
 - **LLM output schemas:** `DailyReadingOutput` `{ observation: {text, evidenceRef, sourceLabel}, prophecy: {statement, checkCondition, windowDays (1–60), likelihood, watching (≥1)} }`.
 - **API types (zod schemas + types):**
   - `TodayResponse { user, now, reading, messages, prophecies (all referenced by messages), questionLimit, questionsLeft }`
@@ -301,6 +302,7 @@ Single entry `@morrow/core` (source TS, no build). zod 4. Schemas and their infe
 
 ### 2026-09-17
 - **Light only:** the dark theme is gone from the designs and the code. `@morrow/tokens` exports a single `colors: Palette` / `alphaColors` (no `ThemeName`) and `tokens.css` emits one `:root` block with `color-scheme: light`; web dropped `ThemeToggle`, the no-flash `<head>` script and `data-theme` (`themeColor` is now `#F3F4F6`); mobile's `ThemeProvider` serves the light palette with no OS follow or stored preference, and the menu's Settings row lost its theme cycle.
+- **Plainer surface:** the mono-uppercase label system is retired across design and code. `label`/`label-sm` are sentence-case Geist (web `globals.css`); mobile's `Txt` no longer uppercases and the `label` type token maps to sans. Mono is now reserved for numerals. Every eyebrow/kicker above a headline is deleted (the `eyebrow` prop is gone from web's `PageIntro` and mobile's `PageTitle`); zero-padded display numbers are gone (`pad2` deleted from both apps, index-list number columns removed); prophecy serial numbers no longer render (`formatProphecyNumber` remains — it still builds `p_0047` record ids and model prompt text); the `SOURCE …` evidence line under readings is removed (`EvidenceLine` deleted in both apps, `sourceLabel` retained as provenance); source abbreviations are spelled out (`CAL · SPT` → `Calendar · Spotify`).
 
 ## 10. Chat protocol (web ⇄ mobile contract)
 
@@ -313,7 +315,7 @@ Single entry `@morrow/core` (source TS, no build). zod 4. Schemas and their infe
 
 - Response: **AI SDK UI message stream** (`result.toUIMessageStreamResponse()`), assistant message streamed as `text` parts plus custom data parts:
   - `data-step` `{ id, source: SourceKind | 'memory', label, detail, status: 'done' | 'active' | 'pending' }` — drives the "Morrow is reading" list (screen 06). Re-emitted with the same `id` to update status.
-  - `data-observation` `{ text, evidenceRef, sourceLabel }` — serif answer + SOURCE line (screen 07).
+  - `data-observation` `{ text, evidenceRef, sourceLabel }` — serif answer (screen 07); `sourceLabel` is retained as provenance but no longer rendered under the answer.
   - `data-quota` `{ used, limit }` — sent at stream start; drives `n OF 15 TODAY`.
 - Errors before streaming: `409 { error: { code: "reading_sealed" } }`, `429 { error: { code: "question_limit" } }`.
 - Clients: web uses `useChat` from `@ai-sdk/react` with `DefaultChatTransport({ api: '/api/chat', prepareSendMessagesRequest })` sending only the last message; mobile uses the same with `fetch` from `expo/fetch` and an absolute `EXPO_PUBLIC_API_URL`.

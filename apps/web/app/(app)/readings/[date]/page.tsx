@@ -29,7 +29,7 @@ export default async function SealedReadingPage({ params }: PageProps<'/readings
   if (reading.status === 'open') redirect('/');
 
   const tz = reading.timezone;
-  const sealed = reading.sealedAt ? `${shortDateOf(reading.sealedAt, tz)} ${formatLocalTime(reading.sealedAt, tz)}` : '';
+  const sealed = reading.sealedAt ? `${shortDateOf(reading.sealedAt, tz)} at ${formatLocalTime(reading.sealedAt, tz)}` : '';
   const turns = messages.map((m) => turnFromMessage(m, tz));
 
   return (
@@ -53,7 +53,7 @@ export default async function SealedReadingPage({ params }: PageProps<'/readings
           </Link>
           <span className="label text-text-muted">
             Reading {formatShortDate(reading.localDate)}
-            {sealed && ` · Sealed ${sealed}`}
+            {sealed && ` · sealed ${sealed}`}
           </span>
         </div>
         {turns.length > 0 ? (
