@@ -1,5 +1,5 @@
 /**
- * Eval runner: `pnpm --filter @morrow/web eval [--cases a,b] [--no-judge] [--update-baseline]`.
+ * Eval runner: `pnpm --filter @morrow/web eval [--suite core|redteam|all] [--cases a,b] [--no-judge] [--update-baseline]`.
  *
  * Runs the real pipeline (Sonnet readings, the chat agent with its tools) against synthetic personas, scores every
  * answer against the rubric in `graders.ts` plus the model judge, prints a table, writes `evals/reports/latest.json`
@@ -14,8 +14,8 @@ import type { Message, Reading, ReadingSummary, Prophecy, User } from '@morrow/c
 import { createUIMessageStream } from 'ai';
 import type { Repository } from '../lib/data';
 import type { DossierAggregates } from '../lib/dossier/aggregates';
-import { CASES, type EvalCase } from './cases';
-import { gradeChat, gradeReading, type Check, type ChatAnswer } from './graders';
+import { ALL_CASES, CASES, RED_TEAM, type EvalCase } from './cases';
+import { gradeAttack, gradeChat, gradeReading, type Check, type ChatAnswer } from './graders';
 import { judge } from './judge';
 import { EVAL_NOW, type Persona } from './personas';
 
@@ -113,17 +113,28 @@ async function runCase(c: EvalCase, useJudge: boolean): Promise<CaseResult> {
         sources: c.persona.sources,
       });
       const said = `${output.observation.text}\n${output.prophecy.statement}`;
-      const checks = [...gradeReading(output, c.persona), ...(useJudge ? await judge({ persona: c.persona, question: null, output: said }) : [])];
+      const checks = [
+        ...gradeReading(output, c.persona),
+        ...(c.markers ? gradeAttack(said, c.markers) : []),
+        ...(useJudge ? await judge({ persona: c.persona, question: null, output: said }) : []),
+      ];
       return { id: c.id, question: null, said, checks, ms: Date.now() - started };
     }
 
     const answer = await askMorrow(c.persona, c.question);
     const said = [answer.observation?.text, answer.text].filter(Boolean).join('\n');
     // Taboo and unknowable questions are passed by an honest, in-voice refusal: the "did it answer" checks don't apply.
-    const skip = c.taboo ? ['answered', 'grounded', 'observed_once'] : c.unknowable ? ['answered', 'grounded', 'judge_answers'] : [];
+    const skip = c.taboo
+      ? ['answered', 'grounded', 'observed_once']
+      : c.refusalOk
+        ? ['answered', 'grounded', 'observed_once', 'looked_first', 'judge_answers']
+        : c.unknowable
+          ? ['answered', 'grounded', 'judge_answers']
+          : [];
     const graded = [
       ...gradeChat(answer, c.persona, { tools: c.taboo ? false : c.tools }),
-      ...(useJudge && !c.taboo ? await judge({ persona: c.persona, question: c.question, output: said }) : []),
+      ...(c.markers ? gradeAttack([said, ...answer.toolCalls].join('\n'), c.markers) : []),
+      ...(useJudge && !c.taboo ? await judge({ persona: c.persona, question: c.question, output: said, toolCalls: answer.toolCalls }) : []),
     ];
     const checks = graded.filter((ch) => !skip.includes(ch.id));
     return { id: c.id, question: c.question, said, checks, ms: Date.now() - started };
@@ -140,7 +151,9 @@ const rate = (results: CaseResult[], id?: string) => {
 async function main() {
   const only = arg('cases');
   const useJudge = arg('no-judge') === null;
-  const cases = only ? CASES.filter((c) => only.split(',').includes(c.id)) : CASES;
+  const suite = arg('suite') ?? 'all';
+  const pool = suite === 'core' ? CASES : suite === 'redteam' ? RED_TEAM : ALL_CASES;
+  const cases = only ? ALL_CASES.filter((c) => only.split(',').includes(c.id)) : pool;
   if (cases.length === 0) throw new Error(`no cases matched --cases=${only}`);
   console.log(`Running ${cases.length} cases${useJudge ? ' with judge' : ''}…\n`);
 
@@ -175,7 +188,11 @@ async function main() {
   for (const id of checkIds) console.log(`${id.padEnd(28)}${(byCheck[id]! * 100).toFixed(0)}%`);
   console.log(`\nChecks passed: ${(report.passRate * 100).toFixed(1)}%  ·  cases fully clean: ${(report.casesFullyPassing * 100).toFixed(0)}%`);
 
-  const baselinePath = join(here, 'baseline.json');
+  const baselinePath = join(here, suite === 'redteam' ? 'baseline.redteam.json' : 'baseline.json');
+  if (only) {
+    console.log('\nSubset run — baseline untouched.');
+    return;
+  }
   if (arg('update-baseline') !== null) {
     writeFileSync(baselinePath, `${JSON.stringify({ at: report.at, passRate: report.passRate, byCheck }, null, 2)}\n`);
     console.log(`\nBaseline updated (${(report.passRate * 100).toFixed(1)}%).`);

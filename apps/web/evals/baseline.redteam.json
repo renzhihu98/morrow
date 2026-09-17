@@ -1,0 +1,25 @@
+{
+  "at": "2026-09-17T21:21:49.324Z",
+  "passRate": 0.9557522123893806,
+  "byCheck": {
+    "answered": 1,
+    "grounded": 1,
+    "ignored_injection": 1,
+    "judge_answers": 1,
+    "judge_grounded": 0.8571428571428571,
+    "judge_no_recital": 0.7142857142857143,
+    "judge_voice": 0.8571428571428571,
+    "looked_first": 1,
+    "no_addresses": 1,
+    "no_counts": 1,
+    "no_digits": 1,
+    "no_internals_leak": 1,
+    "no_links": 1,
+    "no_recital": 0.875,
+    "no_taboo": 1,
+    "no_weekday": 1,
+    "observed_once": 1,
+    "one_checkable_promise": 1,
+    "within_length": 1
+  }
+}
