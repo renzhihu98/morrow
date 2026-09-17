@@ -9,7 +9,7 @@
   --color-core: color-mix(in srgb, var(--color-bg) 55%, var(--color-panel));
 }
 
-/* Tokens already live on :root (light/dark/data-theme) — `inline reference` maps utilities to them without re-emitting. */
+/* Tokens already live on :root — `inline reference` maps utilities to them without re-emitting. */
 @theme inline reference {
   --color-*: initial;
   --color-bg: var(--color-bg);

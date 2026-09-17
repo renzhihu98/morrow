@@ -4,7 +4,6 @@ import { isAuthEnabled, toCoreUser, type SessionUser } from '@/lib/auth/session'
 import { getRepository } from '@/lib/data';
 import { now } from '@/lib/server/env';
 import { MobileMenu, Nav } from './Nav';
-import { ThemeToggle } from './ThemeToggle';
 import { UserMenu } from './UserMenu';
 
 export function Wordmark() {
@@ -29,7 +28,6 @@ export async function TopBar({ user }: { user: SessionUser }) {
         <Nav />
         <span className="h-4 w-px shrink-0 bg-hairline" />
         <span className="font-mono text-label text-text-muted">{status}</span>
-        <ThemeToggle />
         {account}
       </div>
       <div className="flex items-center gap-2 md:hidden">

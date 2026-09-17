@@ -3,8 +3,6 @@
  * Plain TS objects, consumed directly (no build step) by Next.js and Expo/Metro.
  */
 
-export type ThemeName = 'dark' | 'light';
-
 export type Palette = {
   bg: string;
   panel: string;
@@ -27,53 +25,31 @@ export type Palette = {
 };
 
 export const colors = {
-  dark: {
-    bg: '#0C0D10',
-    panel: '#15171B',
-    subtle: '#25282E',
-    hairline: '#25282E',
-    hairlineStrong: '#30333A',
-    orbitFaint: '#1E2126',
-    orbitLine: '#30333A',
-    tick: '#3A3D44',
-    textFaint: '#4A4E56',
-    textMuted: '#6C707A',
-    placeholder: '#6C707A',
-    textSecondary: '#A9ADB6',
-    textPrimary: '#E4E5E9',
-    accent: '#A8E6CF',
-    accentFill: '#A8E6CF',
-    onAccent: '#0C0D10',
-    danger: '#E8958A',
-    onDanger: '#0C0D10',
-  },
-  light: {
-    bg: '#F3F4F6',
-    panel: '#FFFFFF',
-    subtle: '#E6E8EC',
-    hairline: '#DDE0E5',
-    hairlineStrong: '#C9CDD4',
-    orbitFaint: '#E1E3E7',
-    orbitLine: '#C9CDD4',
-    tick: '#BFC3CA',
-    textFaint: '#B5B9C0',
-    textMuted: '#6E737D',
-    placeholder: '#8A8F98',
-    textSecondary: '#4E535B',
-    textPrimary: '#16181C',
-    accent: '#2F8A6C',
-    accentFill: '#BFE8D8',
-    onAccent: '#16181C',
-    danger: '#B8574A',
-    onDanger: '#FFFFFF',
-  },
-} as const satisfies Record<ThemeName, Palette>;
+  bg: '#F3F4F6',
+  panel: '#FFFFFF',
+  subtle: '#E6E8EC',
+  hairline: '#DDE0E5',
+  hairlineStrong: '#C9CDD4',
+  orbitFaint: '#E1E3E7',
+  orbitLine: '#C9CDD4',
+  tick: '#BFC3CA',
+  textFaint: '#B5B9C0',
+  textMuted: '#6E737D',
+  placeholder: '#8A8F98',
+  textSecondary: '#4E535B',
+  textPrimary: '#16181C',
+  accent: '#2F8A6C',
+  accentFill: '#BFE8D8',
+  onAccent: '#16181C',
+  danger: '#B8574A',
+  onDanger: '#FFFFFF',
+} as const satisfies Palette;
 
 /** Transparent variants used in the designs (SPEC §4.1). */
 export const alphaColors = {
-  dark: { accentBorder: 'rgba(168,230,207,0.4)', dangerBorder: 'rgba(232,149,138,0.5)' },
-  light: { accentBorder: 'rgba(47,138,108,0.45)', dangerBorder: 'rgba(184,87,74,0.5)' },
-} as const satisfies Record<ThemeName, { accentBorder: string; dangerBorder: string }>;
+  accentBorder: 'rgba(47,138,108,0.45)',
+  dangerBorder: 'rgba(184,87,74,0.5)',
+} as const satisfies { accentBorder: string; dangerBorder: string };
 
 /** Font family names. Load them via next/font/google (web) or @expo-google-fonts/* (mobile). No italics. */
 export const fonts = {

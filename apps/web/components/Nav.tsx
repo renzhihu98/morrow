@@ -3,7 +3,6 @@
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { useEffect, useState } from 'react';
-import { ThemeToggle } from './ThemeToggle';
 
 const ITEMS = [
   { href: '/', label: 'Today' },
@@ -82,9 +81,8 @@ export function MobileMenu({ status }: { status: string }) {
               );
             })}
           </nav>
-          <div className="mt-2 flex items-center justify-between rounded-card border border-hairline bg-panel px-4 py-3">
+          <div className="mt-2 rounded-card border border-hairline bg-panel px-4 py-3">
             <span className="font-mono text-label-sm text-text-muted">{status}</span>
-            <ThemeToggle withLabel />
           </div>
         </div>
       )}

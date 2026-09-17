@@ -17,11 +17,9 @@ import { em, sansStyle, serifStyle } from '@/theme/typography';
 
 type Item = { key: NavSection; label: string; href: Href; status: string; live?: boolean };
 
-const THEME_LABEL = { system: 'SYSTEM', dark: 'DARK', light: 'LIGHT' } as const;
-
 /** Screen 08 — full-screen menu sheet. */
 export default function MenuScreen() {
-  const { palette, preference, cyclePreference } = useTheme();
+  const { palette } = useTheme();
   const params = useLocalSearchParams<{ active?: string }>();
   const active = (params.active ?? 'today') as NavSection;
 
@@ -126,20 +124,9 @@ export default function MenuScreen() {
               </Txt>
             </Pressable>
           </View>
-          <Pressable
-            accessibilityRole="button"
-            accessibilityLabel={`Settings. Theme: ${THEME_LABEL[preference].toLowerCase()}. Tap to change.`}
-            onPress={cyclePreference}
-            hitSlop={10}
-            style={styles.settings}
-          >
-            <Txt color="textMuted" style={sansStyle(14, 20)}>
-              Settings
-            </Txt>
-            <Txt variant="label" color="textFaint" style={{ fontSize: 10, lineHeight: 12, letterSpacing: em(0.04, 10) }}>
-              {`THEME ${THEME_LABEL[preference]}`}
-            </Txt>
-          </Pressable>
+          <Txt color="textMuted" style={sansStyle(14, 20)}>
+            Settings
+          </Txt>
         </View>
       </View>
     </View>
@@ -158,5 +145,4 @@ const styles = StyleSheet.create({
   between: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
   account: { flexDirection: 'row', alignItems: 'center', gap: 12 },
   avatar: { width: 34, height: 34, borderRadius: 17, borderWidth: 1, alignItems: 'center', justifyContent: 'center' },
-  settings: { alignItems: 'flex-end', gap: 2 },
 });

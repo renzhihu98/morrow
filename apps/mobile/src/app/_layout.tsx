@@ -27,7 +27,7 @@ function makeQueryClient() {
 }
 
 function ThemedStack({ fontsReady }: { fontsReady: boolean }) {
-  const { name, palette } = useTheme();
+  const { palette } = useTheme();
   const { status } = useGate();
   const inApp = status === 'ready' || status === 'demo';
   const ready = fontsReady && status !== 'loading';
@@ -45,7 +45,7 @@ function ThemedStack({ fontsReady }: { fontsReady: boolean }) {
   // Protected groups: signed out → (auth)/sign-in, not onboarded → (auth)/sources, else (app).
   return (
     <>
-      <StatusBar style={name === 'dark' ? 'light' : 'dark'} />
+      <StatusBar style="dark" />
       <Stack screenOptions={{ headerShown: false, contentStyle: { backgroundColor: palette.bg } }}>
         <Stack.Protected guard={inApp}>
           <Stack.Screen name="(app)" />
