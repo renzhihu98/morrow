@@ -29,6 +29,14 @@ const MAX_PER_SECOND = 10;
 const SPEED_UP_AFTER = 100;
 
 export const MAIL_QUERY_BASE = '-in:spam -in:trash -in:chats -category:promotions -category:social -category:forums';
+/**
+ * A first sync can only afford a few hundred messages, so it takes the ones that carry signal before the ones that
+ * are merely recent: mail the person answered (the strongest evidence of who matters to them), and what Gmail itself
+ * marks important or starred. The rest of the budget is filled with recent mail so the picture stays representative.
+ */
+export const MAIL_QUERY_PRIORITY = '(in:sent OR is:important OR is:starred)';
+/** Share of a first sync reserved for priority mail; the remainder is filled by recency. */
+const PRIORITY_SHARE = 0.6;
 
 const HEADERS = new Set(['from', 'to', 'cc', 'subject', 'list-unsubscribe', 'list-id', 'precedence', 'auto-submitted']);
 
@@ -191,8 +199,17 @@ export async function fetchMail(
 ): Promise<{ messages: EmailPayload[]; listed: number; complete: boolean }> {
   const { emailAddress } = await fetchMailProfile(accessToken, fetchImpl);
   const since = afterMs ? `after:${Math.floor(afterMs / 1000) - 60}` : `newer_than:${MAIL_PAST_DAYS}d`;
-  const ids = (await listMessageIds(accessToken, `${since} ${MAIL_QUERY_BASE}`, afterMs ? MAIL_INCREMENTAL_MAX : MAIL_FIRST_SYNC_MAX, fetchImpl))
+  const max = afterMs ? MAIL_INCREMENTAL_MAX : MAIL_FIRST_SYNC_MAX;
+  // Incremental syncs take everything new. A first sync ranks: priority mail first, then recent mail to fill.
+  const listed = afterMs
+    ? await listMessageIds(accessToken, `${since} ${MAIL_QUERY_BASE}`, max, fetchImpl)
+    : [
+        ...(await listMessageIds(accessToken, `${since} ${MAIL_QUERY_PRIORITY} ${MAIL_QUERY_BASE}`, Math.round(max * PRIORITY_SHARE), fetchImpl)),
+        ...(await listMessageIds(accessToken, `${since} ${MAIL_QUERY_BASE}`, max, fetchImpl)),
+      ];
+  const ids = [...new Set(listed)]
     .filter((id) => !known(id))
+    .slice(0, max)
     .reverse();
 
   const messages: EmailPayload[] = [];

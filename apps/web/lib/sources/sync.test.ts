@@ -58,7 +58,12 @@ function fakeFetch(overrides: { calendarStatus?: number; calendars?: 'primary' |
     }
     if (url.host === 'gmail.googleapis.com') {
       if (url.pathname.endsWith('/profile')) return json({ emailAddress: 'iris@example.com' });
-      if (url.pathname.endsWith('/messages')) return json(url.searchParams.get('q')?.startsWith('after:') ? {} : { messages: [{ id: 'm3' }, { id: 'm2' }, { id: 'm1' }] });
+      if (url.pathname.endsWith('/messages')) {
+        const q = url.searchParams.get('q') ?? '';
+        if (q.startsWith('after:')) return json({});
+        // The priority pass finds the sent message; the fill pass returns everything recent.
+        return json(q.includes('in:sent') ? { messages: [{ id: 'm2' }] } : { messages: [{ id: 'm3' }, { id: 'm2' }, { id: 'm1' }] });
+      }
       const id = url.pathname.split('/').pop()!;
       return GMAIL[id] ? json(GMAIL[id]) : json({ error: { code: 404 } }, 404);
     }
@@ -231,9 +236,12 @@ describe('mail sync', () => {
     const { fetch, calls } = fakeFetch();
     const results = await syncUser(repo, user, NOW, { kinds: ['mail'], deps: { getAccessToken: async () => 'token', fetch } });
     expect(results).toMatchObject([{ kind: 'mail', ok: true, fetched: 3, eventCount: 3 }]);
-    const list = new URL(calls.find((c) => c.includes('/messages?'))!);
-    expect(list.searchParams.get('q')).toContain('newer_than:14d');
-    expect(list.searchParams.get('q')).toContain('-category:promotions');
+    const lists = calls.filter((c) => c.includes('/messages?')).map((c) => new URL(c).searchParams.get('q') ?? '');
+    expect(lists[0]).toContain('newer_than:14d');
+    expect(lists[0]).toContain('-category:promotions');
+    // A first sync ranks: answered / important / starred mail is listed before the recency fill.
+    expect(lists[0]).toContain('in:sent');
+    expect(lists[1]).not.toContain('in:sent');
 
     const raw = (await repo.listRawEvents(user.id)).filter((e) => e.sourceKind === 'mail').map((e) => e.payload);
     const first = raw.find((p) => p.type === 'email' && p.messageId === 'm1');
