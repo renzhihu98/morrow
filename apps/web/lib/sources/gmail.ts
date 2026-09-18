@@ -10,9 +10,9 @@ import type { EmailPayload, MailPerson } from './types';
 export const MAIL_PAST_DAYS = 14;
 /**
  * Messages read per sync. Measured throughput is ~1.5 messages/s, and a Vercel function stops at 300 s, so the first
- * sync is sized to finish in about two minutes; later syncs only pick up what is new.
+ * sync is sized to finish in a couple of minutes; later syncs only pick up what is new.
  */
-export const MAIL_FIRST_SYNC_MAX = 180;
+export const MAIL_FIRST_SYNC_MAX = 200;
 export const MAIL_INCREMENTAL_MAX = 300;
 export const BODY_MAX = 2000;
 const LIST_PAGE = 500;
@@ -30,13 +30,11 @@ const SPEED_UP_AFTER = 100;
 
 export const MAIL_QUERY_BASE = '-in:spam -in:trash -in:chats -category:promotions -category:social -category:forums';
 /**
- * A first sync can only afford a few hundred messages, so it takes the ones that carry signal before the ones that
- * are merely recent: mail the person answered (the strongest evidence of who matters to them), and what Gmail itself
- * marks important or starred. The rest of the budget is filled with recent mail so the picture stays representative.
+ * A first sync can only afford a couple of hundred messages, so it takes the newest of the ones that carry signal —
+ * mail the person answered (the strongest evidence of who matters to them), and what Gmail itself marks important or
+ * starred — and then tops the budget up with the newest of everything else.
  */
 export const MAIL_QUERY_PRIORITY = '(in:sent OR is:important OR is:starred)';
-/** Share of a first sync reserved for priority mail; the remainder is filled by recency. */
-const PRIORITY_SHARE = 0.6;
 
 const HEADERS = new Set(['from', 'to', 'cc', 'subject', 'list-unsubscribe', 'list-id', 'precedence', 'auto-submitted']);
 
@@ -200,11 +198,12 @@ export async function fetchMail(
   const { emailAddress } = await fetchMailProfile(accessToken, fetchImpl);
   const since = afterMs ? `after:${Math.floor(afterMs / 1000) - 60}` : `newer_than:${MAIL_PAST_DAYS}d`;
   const max = afterMs ? MAIL_INCREMENTAL_MAX : MAIL_FIRST_SYNC_MAX;
-  // Incremental syncs take everything new. A first sync ranks: priority mail first, then recent mail to fill.
+  // Incremental syncs take everything new. A first sync takes the newest priority mail, then tops up with the
+  // newest of everything else — both lists come back newest-first, so the budget holds the latest, best-ranked mail.
   const listed = afterMs
     ? await listMessageIds(accessToken, `${since} ${MAIL_QUERY_BASE}`, max, fetchImpl)
     : [
-        ...(await listMessageIds(accessToken, `${since} ${MAIL_QUERY_PRIORITY} ${MAIL_QUERY_BASE}`, Math.round(max * PRIORITY_SHARE), fetchImpl)),
+        ...(await listMessageIds(accessToken, `${since} ${MAIL_QUERY_PRIORITY} ${MAIL_QUERY_BASE}`, max, fetchImpl)),
         ...(await listMessageIds(accessToken, `${since} ${MAIL_QUERY_BASE}`, max, fetchImpl)),
       ];
   const ids = [...new Set(listed)]
