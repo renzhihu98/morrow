@@ -16,7 +16,8 @@
     "reading:redraw": "tsx scripts/reading-redraw.ts",
     "sources:sync": "tsx scripts/sources-sync-one.ts",
     "chat:reset": "tsx scripts/chat-reset.ts",
-    "eval": "tsx evals/run.ts"
+    "eval": "tsx evals/run.ts",
+    "gmail:probe": "tsx scripts/gmail-probe.mts"
   },
   "dependencies": {
     "@ai-sdk/react": "^4.0.106",

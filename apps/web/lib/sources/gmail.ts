@@ -8,18 +8,25 @@ import { getJson, SourceSyncError, type FetchLike } from './errors';
 import type { EmailPayload, MailPerson } from './types';
 
 export const MAIL_PAST_DAYS = 14;
-/** Messages read per sync: the first sync reaches back 14 days, later ones only pick up what's new. */
-export const MAIL_FIRST_SYNC_MAX = 400;
+/**
+ * Messages read per sync. Measured throughput is ~1.5 messages/s, and a Vercel function stops at 300 s, so the first
+ * sync is sized to finish in about two minutes; later syncs only pick up what is new.
+ */
+export const MAIL_FIRST_SYNC_MAX = 180;
 export const MAIL_INCREMENTAL_MAX = 300;
 export const BODY_MAX = 2000;
 const LIST_PAGE = 500;
 /**
- * Gmail allows 15,000 quota units per user per minute and messages.get costs 5, but bursts trip the limit long
- * before that budget is spent. Stay near 8 gets a second (2 at a time, at most every 250 ms): 600 messages in
- * about a minute and a quarter.
+ * Gmail's quota refills slower than its per-minute number suggests: bursts of ~100 messages run clean (`pnpm
+ * gmail:probe`), then the bucket empties and refills at a rate this project can't read anywhere. So the pace is not
+ * a constant but found at run time — start optimistic, halve on every refusal, creep back up while it holds.
  */
-const GET_CONCURRENCY = 2;
-const GET_BATCH_MIN_MS = 250;
+const GET_CONCURRENCY = 5;
+const START_PER_SECOND = 10;
+const MIN_PER_SECOND = 0.5;
+const MAX_PER_SECOND = 10;
+/** Messages fetched cleanly before trying a little faster again. */
+const SPEED_UP_AFTER = 100;
 
 export const MAIL_QUERY_BASE = '-in:spam -in:trash -in:chats -category:promotions -category:social -category:forums';
 
@@ -157,10 +164,12 @@ export async function listMessageIds(accessToken: string, query: string, max: nu
   return ids;
 }
 
-/** How long to back off after Gmail's per-minute quota trips, and how often before settling for a partial sync. */
-const RATE_LIMIT_PAUSE_MS = 45_000;
-/** Keeps a sync (with its retries) inside a 300 s function; the rest is picked up next time. */
-const MAX_RATE_LIMIT_PAUSES = 3;
+/**
+ * Backing off after the quota trips. Measured recovery is seconds, not minutes, and the pace drops each time, so the
+ * pauses stay short and there can be plenty of them; whatever they don't reach the next sync picks up.
+ */
+const RATE_LIMIT_PAUSE_MS = 15_000;
+const MAX_RATE_LIMIT_PAUSES = 12;
 
 const isRateLimited = (e: unknown) => e instanceof SourceSyncError && /rate limited/.test(e.message);
 
@@ -192,6 +201,8 @@ export async function fetchMail(
     return messages;
   };
   let pauses = 0;
+  let perSecond = START_PER_SECOND;
+  let cleanSince = 0;
   for (let i = 0; i < ids.length; ) {
     if (i % 100 === 0) onProgress?.(i, ids.length);
     const started = Date.now();
@@ -218,12 +229,15 @@ export async function fetchMail(
         return { messages: done(), listed: ids.length, complete: false };
       }
       pauses += 1;
-      onProgress?.(i, ids.length, `rate limited — pausing a minute (${pauses}/${MAX_RATE_LIMIT_PAUSES})`);
+      cleanSince = 0;
+      perSecond = Math.max(MIN_PER_SECOND, perSecond / 2);
+      onProgress?.(i, ids.length, `rate limited — waiting ${Math.round(pauseMs / 1000)}s, then ${perSecond.toFixed(1)}/s (${pauses}/${MAX_RATE_LIMIT_PAUSES})`);
       await new Promise((r) => setTimeout(r, pauseMs));
       continue;
     }
+    const gap = (GET_CONCURRENCY / perSecond) * 1000;
     const elapsed = Date.now() - started;
-    if (elapsed < GET_BATCH_MIN_MS && i + GET_CONCURRENCY < ids.length) await new Promise((r) => setTimeout(r, GET_BATCH_MIN_MS - elapsed));
+    if (elapsed < gap && i + GET_CONCURRENCY < ids.length) await new Promise((r) => setTimeout(r, gap - elapsed));
     for (const m of batch) {
       if (!m) continue;
       if (m.payload?.headers) m.payload.headers = m.payload.headers.filter((h) => HEADERS.has(h.name.toLowerCase()));
@@ -231,6 +245,12 @@ export async function fetchMail(
       if (payload) messages.push(payload);
     }
     i += GET_CONCURRENCY;
+    cleanSince += GET_CONCURRENCY;
+    if (cleanSince >= SPEED_UP_AFTER && perSecond < MAX_PER_SECOND) {
+      cleanSince = 0;
+      perSecond = Math.min(MAX_PER_SECOND, perSecond * 1.5);
+      onProgress?.(i, ids.length, `steady — trying ${perSecond.toFixed(1)}/s`);
+    }
   }
   onProgress?.(ids.length, ids.length);
   return { messages: done(), listed: ids.length, complete: true };

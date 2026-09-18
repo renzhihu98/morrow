@@ -24,6 +24,8 @@ export type FetchLike = (input: string, init?: RequestInit) => Promise<Response>
 
 const RATE_LIMIT_REASONS = /rateLimitExceeded|userRateLimitExceeded|quotaExceeded|RESOURCE_EXHAUSTED/;
 const MAX_ATTEMPTS = 5;
+/** Rate limits recover in seconds; two patient waits beat five quick ones that spend quota on failures. */
+const RATE_LIMIT_ATTEMPTS = 2;
 
 /**
  * GET JSON with bearer auth, mapping provider errors onto SourceAuthError / SourceSyncError. 429, 5xx and Google's
@@ -45,10 +47,11 @@ export async function getJson<T>(url: string, accessToken: string, fetchImpl: Fe
     if (res.status === 401 || (res.status === 403 && !rateLimited)) {
       throw new SourceAuthError(`${new URL(url).host} rejected the grant (${res.status})`, res.status);
     }
-    if ((rateLimited || res.status >= 500) && attempt < MAX_ATTEMPTS - 1) {
-      if (rateLimited) console.warn(`[morrow] ${new URL(url).host} rate limited, retry ${attempt + 1}`);
+    // A refused request still costs quota, so retrying a rate limit quickly digs the hole deeper: wait it out.
+    if ((rateLimited || res.status >= 500) && attempt < (rateLimited ? RATE_LIMIT_ATTEMPTS : MAX_ATTEMPTS) - 1) {
+      if (rateLimited) console.warn(`[morrow] ${new URL(url).host} rate limited, waiting ${attempt + 1}`);
       const retryAfter = Number(res.headers.get('retry-after'));
-      const backoff = rateLimited ? 2000 * 2 ** attempt : 1000;
+      const backoff = rateLimited ? 8000 * 2 ** attempt : 1000;
       await new Promise((r) => setTimeout(r, Math.min(Number.isFinite(retryAfter) && retryAfter > 0 ? retryAfter * 1000 : backoff, 20_000)));
       continue;
     }
