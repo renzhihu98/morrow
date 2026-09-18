@@ -109,6 +109,7 @@ export function Today({ initial, linkedSources, readingCaption, linkedCount, rec
         sourceLabel: observation?.sourceLabel ?? null,
         prophecyRefs: [],
         steps,
+        streaming: busy,
       } satisfies Turn;
     });
 

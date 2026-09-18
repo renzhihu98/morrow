@@ -15,6 +15,8 @@ export type Turn = {
   sourceLabel: string | null;
   prophecyRefs: { prophecyId: string; event: 'made' | 'fulfilled' }[];
   steps: StepData[];
+  /** Live turn still being written: the headline lands a model round trip before the sentences under it. */
+  streaming?: boolean;
 };
 
 export function turnFromMessage(m: Message, timeZone: string): Turn {
@@ -76,12 +78,28 @@ export function TurnView({ turn, prophecies, timeZone, showProphecies = true }: 
               {t}
             </p>
           ))}
+          {turn.streaming && turn.body.join('').length === 0 && <StillSpeaking />}
         </div>
       )}
       {panels.map((p) => (
         <ProphecyPanel key={p.id} prophecy={p} timeZone={timeZone} />
       ))}
     </div>
+  );
+}
+
+/** The pause between Morrow's headline and the sentences under it, so the wait reads as breath, not a stall. */
+function StillSpeaking() {
+  return (
+    <p className="flex items-center gap-1.5 pt-0.5" aria-label="Morrow is still speaking">
+      {[0, 1, 2].map((i) => (
+        <span
+          key={i}
+          className="size-1 animate-pulse rounded-full bg-text-muted"
+          style={{ animationDelay: `${i * 220}ms`, animationDuration: '1.4s' }}
+        />
+      ))}
+    </p>
   );
 }
 
