@@ -237,10 +237,11 @@ describe('mail sync', () => {
     const results = await syncUser(repo, user, NOW, { kinds: ['mail'], deps: { getAccessToken: async () => 'token', fetch } });
     expect(results).toMatchObject([{ kind: 'mail', ok: true, fetched: 3, eventCount: 3 }]);
     const lists = calls.filter((c) => c.includes('/messages?')).map((c) => new URL(c).searchParams.get('q') ?? '');
-    expect(lists[0]).toContain('newer_than:14d');
+    expect(lists[0]).toContain('newer_than:30d');
     expect(lists[0]).toContain('-category:promotions');
     // A first sync ranks: answered / important / starred mail is listed before the recency fill.
     expect(lists[0]).toContain('in:sent');
+    expect(lists[1]).toContain('newer_than:14d');
     expect(lists[1]).not.toContain('in:sent');
 
     const raw = (await repo.listRawEvents(user.id)).filter((e) => e.sourceKind === 'mail').map((e) => e.payload);

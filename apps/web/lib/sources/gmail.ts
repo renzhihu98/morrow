@@ -8,6 +8,8 @@ import { getJson, SourceSyncError, type FetchLike } from './errors';
 import type { EmailPayload, MailPerson } from './types';
 
 export const MAIL_PAST_DAYS = 14;
+/** Priority mail is sparse, so it is worth reaching further back than the fill. */
+export const MAIL_PRIORITY_DAYS = 30;
 /**
  * Messages read per sync. Measured throughput is ~1.5 messages/s, and a Vercel function stops at 300 s, so the first
  * sync is sized to finish in a couple of minutes; later syncs only pick up what is new.
@@ -32,7 +34,8 @@ export const MAIL_QUERY_BASE = '-in:spam -in:trash -in:chats -category:promotion
 /**
  * A first sync can only afford a couple of hundred messages, so it takes the newest of the ones that carry signal —
  * mail the person answered (the strongest evidence of who matters to them), and what Gmail itself marks important or
- * starred — and then tops the budget up with the newest of everything else.
+ * starred — over MAIL_PRIORITY_DAYS, then tops the budget up with the newest of everything else over the shorter
+ * MAIL_PAST_DAYS. Priority mail is sparse, so the longer reach costs little and buys a month of what mattered.
  */
 export const MAIL_QUERY_PRIORITY = '(in:sent OR is:important OR is:starred)';
 
@@ -197,13 +200,14 @@ export async function fetchMail(
 ): Promise<{ messages: EmailPayload[]; listed: number; complete: boolean }> {
   const { emailAddress } = await fetchMailProfile(accessToken, fetchImpl);
   const since = afterMs ? `after:${Math.floor(afterMs / 1000) - 60}` : `newer_than:${MAIL_PAST_DAYS}d`;
+  const sincePriority = afterMs ? since : `newer_than:${MAIL_PRIORITY_DAYS}d`;
   const max = afterMs ? MAIL_INCREMENTAL_MAX : MAIL_FIRST_SYNC_MAX;
   // Incremental syncs take everything new. A first sync takes the newest priority mail, then tops up with the
   // newest of everything else — both lists come back newest-first, so the budget holds the latest, best-ranked mail.
   const listed = afterMs
     ? await listMessageIds(accessToken, `${since} ${MAIL_QUERY_BASE}`, max, fetchImpl)
     : [
-        ...(await listMessageIds(accessToken, `${since} ${MAIL_QUERY_PRIORITY} ${MAIL_QUERY_BASE}`, max, fetchImpl)),
+        ...(await listMessageIds(accessToken, `${sincePriority} ${MAIL_QUERY_PRIORITY} ${MAIL_QUERY_BASE}`, max, fetchImpl)),
         ...(await listMessageIds(accessToken, `${since} ${MAIL_QUERY_BASE}`, max, fetchImpl)),
       ];
   const ids = [...new Set(listed)]
