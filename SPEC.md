@@ -352,7 +352,7 @@ Goal: replace the demo user and fixtures with real accounts, a real database, an
 | 14 | Connect accounts (onboarding step 2 of 3) | `/welcome/sources` | `/(auth)/sources` | `3DH-0` | `3GZ-0` |
 
 - **Sign in:** Google only. "Signing in only shares your name and email. Sources are connected separately." Promises footer (raw events 24h · never health/money · forget anytime).
-- **Connect accounts:** Google Calendar and Spotify cards with READS / NEVER copy, linked state (accent border, `● LINKED`, event count), outline `Connect` button; Gmail and Instagram listed under "LATER · MORROW ASKS WHEN A PROPHECY NEEDS IT" (not connectable during onboarding). Primary CTA **Draw my first reading →** (enabled with ≥1 source); "Skip for now".
+- **Connect accounts:** Google Calendar, Spotify and Gmail cards with reads / never copy, linked state (accent border, `● Linked`, event count), outline `Connect` button; Instagram alone sits under "Later — Morrow asks when a prophecy needs it" (not connectable during onboarding). Primary CTA **Draw my first reading →** (enabled with ≥1 source); "Skip for now".
 - Step 3 "First reading" = Today screen in orbit `reading` state while the first reading is generated.
 
 ### 12.2 Auth
