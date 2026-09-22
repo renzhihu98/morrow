@@ -1,16 +1,26 @@
 import type { ProphecyStatus } from '@morrow/core';
 
-/** Record marks: filled dot (fulfilled), dash (expired), hollow (open). */
-export function RecordMarks({ marks }: { marks: ProphecyStatus[] }) {
+const WORD: Record<ProphecyStatus, string> = { fulfilled: 'fulfilled', expired: 'expired', open: 'open' };
+
+/**
+ * Record strip (Prophecies, Paper B4U-0): up to 12 marks — filled Oxblood dot (fulfilled),
+ * Capers dash (expired), hollow Oxblood ring (open). 9px, gap 8.
+ */
+export function RecordMarks({ marks, className = '' }: { marks: ProphecyStatus[]; className?: string }) {
+  const shown = marks.slice(-12);
   return (
-    <div className="flex items-center gap-2" role="img" aria-label={marks.join(', ')}>
-      {marks.map((m, i) =>
+    <div
+      className={`flex items-center gap-2 ${className}`}
+      role="img"
+      aria-label={`Record: ${shown.map((m) => WORD[m]).join(', ')}`}
+    >
+      {shown.map((m, i) =>
         m === 'fulfilled' ? (
-          <span key={i} className="size-2.5 shrink-0 rounded-full bg-accent" />
+          <span key={i} className="size-[9px] shrink-0 rounded-full bg-accent" />
         ) : m === 'expired' ? (
-          <span key={i} className="h-0.5 w-2.5 shrink-0 bg-text-faint" />
+          <span key={i} className="h-px w-2.5 shrink-0 bg-text-muted" />
         ) : (
-          <span key={i} className="size-2.5 shrink-0 rounded-full border border-text-secondary" />
+          <span key={i} className="size-[9px] shrink-0 rounded-full border border-accent" />
         ),
       )}
     </div>

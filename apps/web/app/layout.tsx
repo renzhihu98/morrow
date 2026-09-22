@@ -1,5 +1,7 @@
 import type { Metadata, Viewport } from 'next';
 import { Geist, Geist_Mono, Instrument_Serif } from 'next/font/google';
+import { colors } from '@morrow/tokens';
+import { Grain } from '@/components/Grain';
 import './globals.css';
 
 const serif = Instrument_Serif({ weight: '400', style: 'normal', subsets: ['latin'], variable: '--font-instrument-serif' });
@@ -12,15 +14,15 @@ export const metadata: Metadata = {
 };
 
 export const viewport: Viewport = {
-  themeColor: '#F3F4F6',
+  themeColor: colors.bg,
 };
-
 
 export default function RootLayout({ children }: LayoutProps<'/'>) {
   return (
     <html lang="en" className={`${serif.variable} ${sans.variable} ${mono.variable}`}>
-      <body className="min-h-dvh bg-bg text-text-primary">
+      <body className="min-h-dvh bg-bg text-text">
         {children}
+        <Grain />
       </body>
     </html>
   );

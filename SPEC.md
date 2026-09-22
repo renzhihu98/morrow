@@ -2,9 +2,9 @@
 
 > An AI fortune teller that reads your connected accounts the way a psychic "hot reads" a room. Observations are grounded in real data; prophecies are generated, time-boxed, and automatically verified against your sources.
 
-- **Design source of truth:** [Paper — Morrow — Web App](https://app.paper.design/file/01M2NRFN984ZCAHJT65TCM7QXR) (use the **v2** artboards; v1 and the Co-Star-style row are superseded explorations)
-- **Status:** scaffold (v0.1)
-- **Last updated:** 2026-09-16
+- **Design source of truth:** [Paper — Morrow — Web App](https://app.paper.design/file/01M2NRFN984ZCAHJT65TCM7QXR), page **"v4 — Parcel (full set)"** (§4, §11). The v2 "Deep field" artboards on Page 1 are what the code implements today and are superseded by v4; the "v3 B — Velvet Séance" page holds the v4 study board and early explorations.
+- **Status:** v0.3 shipped on the v2 design; the v4 design is implemented on branch `redesign/v4-parcel` (§4.H)
+- **Last updated:** 2026-09-21
 
 ---
 
@@ -52,7 +52,275 @@ Nav (desktop top bar, mobile menu sheet): **Today · Readings · Prophecies · S
 
 Active nav item: **Today** on 01/02/03/06/07 · **Readings** on 04/05 · **Prophecies** on 09 · **Sources** on 10/11/12.
 
-## 4. Design system — "Deep field"
+Screen numbers above are the v2 numbers used in code and routes. The v4 Paper page renumbers screens in user-journey order (Sign in 01 … Forget everything 14); §11 maps the two.
+
+## 4. Design system — v4 "Parcel"
+
+Quiet, printed, a little mystical: a psychic's parlour rendered as paper and ink. Flat Parcel paper with a fine grain, dark Black Fig ink, one Oxblood accent, Chambray for Morrow's light. Minimal and type-led — graphics are rare and small, and nothing glows. Light only.
+
+**Paper page:** "v4 — Parcel (full set)" (27 artboards, §11). **Graphic masters:** study board `7IA-0` ("v3B web / 06 — Soft light study", page "v3 B — Velvet Séance"), section "Scale".
+
+### 4.A Principles
+
+1. **Ink, not light.** No glow, halo, bloom, text-shadow, drop-shadow, gradient "light", clouds or vignettes anywhere. Softness comes from paper grain and the ball's own shading.
+2. **Type leads.** Instrument Serif headlines, left-aligned, upright. Screens are mostly type, hairlines and space.
+3. **Chat, not proclamations.** Wherever Morrow speaks, the screen is a chat: user bubbles right, Morrow bubbles left with the ball avatar. Morrow's replies are body-size text in bubbles, never large editorial serif.
+4. **Graphics are scarce and have a role.** The crystal ball is Morrow's mark, the body figure is the one illustration, and the moon-phase glyph carries data. There are no decorative icons.
+5. **Don't display sources.** Experience screens never show data-source names, counts or chips (no "Reading from…", no "2 sources linked", no source rail, no "Watching Calendar · Mail", no source list in the thinking state). Sources appear only on the account screens: Sources, Dossier, Connect accounts, Forget everything.
+6. **No roman numerals, no serial numbers, no numbered lists.**
+
+### 4.B Color tokens (v4)
+
+| Token | Value | Use |
+|---|---|---|
+| `bg` (Parcel) | `#E5E3DA` | page ground, always flat |
+| `surface` | `#DAD7CB` | Morrow bubbles, cards, composer, menu card |
+| `hairline` | `rgba(41,16,12,0.14)` (`#29100C24`) | borders, dividers, nav underline |
+| `text` (Black Fig) | `#29100C` | headlines, body, values |
+| `textMuted` (Capers) | `#53461C` | secondary copy, meta, placeholders, inactive nav |
+| `accent` (Oxblood) | `#5A1D22` | primary buttons, send/stop, active nav, links, likelihood bars, moon glyphs, body-figure silhouette |
+| `onAccent` | `#E5E3DA` | text/icon on Oxblood |
+| `chambray` | `#A9C0CB` | user chat bubbles, figure aura, ball shading |
+| `onChambray` | `#29100C` | text on user bubbles |
+| `highlight` (Chartreuse) | `#BFB065` | tiny status dots only: fulfilled/landed, live/typing, chakra points |
+| `danger` (Brick) | `#A3372A` | destructive actions only: "Forget everything" button/links, "Forget this ×", the `FORGET` confirm field border and caret |
+| `onDanger` | `#F4EFE6` | text on `danger` |
+| `dangerBorder` | `rgba(163,55,42,0.55)` | confirm field border |
+
+- The ball ramp adds `#EEF1F2 → #E1E6E6 → #A9C0CB → #7F97A3 → #62798A` with a rim of `#5E7482` at 45% (§4.E).
+- Brick is deliberately brighter and warmer than Oxblood so a destructive action never reads as a primary one. `onDanger` on `danger` ≈ 5.8:1; Brick text on `bg` ≈ 4.6:1 (use it at ≥15px for links).
+- Contrast: `text` on `bg` ≈ 15:1, on `surface` ≈ 13.6:1, on `chambray` ≈ 9.8:1; `textMuted` on `bg` ≈ 7.0:1, on `surface` ≈ 6.3:1. Chartreuse never carries text.
+
+### 4.C Paper grain
+
+One full-bleed overlay as the **top** layer of every screen, pointer-events none:
+
+```html
+<svg class="grain" width="100%" height="100%" style="position:fixed;inset:0;mix-blend-mode:multiply;opacity:.08;pointer-events:none">
+  <filter id="grain"><feTurbulence type="fractalNoise" baseFrequency="0.85" numOctaves="2" stitchTiles="stitch"/><feColorMatrix type="saturate" values="0"/></filter>
+  <rect width="100%" height="100%" filter="url(#grain)" fill="#000"/>
+</svg>
+```
+
+Mobile (React Native) uses a pre-rendered tiling noise PNG at the same strength (multiply, 8%).
+
+### 4.D Typography (v4)
+
+Families are unchanged: Instrument Serif, Geist, Geist Mono. Upright only, no italics, and no coloured or italic accent words in headlines.
+
+| Role | Desktop | Mobile | Family |
+|---|---|---|---|
+| Sign-in hero ("Meet Morrow.") | 128 / 120, −0.02em | 56 / 56 | Serif |
+| Page hero (Today headline, Forget question) | 88–104 / 1.0, −0.02em | 46 / 48 | Serif |
+| Page title (Prophecies, Past readings, Sources…) | 80 / 80 | 52 / 52 | Serif |
+| Prophecy statement | 24–28 / 32–34 | 20–22 / 27–28 | Serif |
+| List rows (resolved, archive) | 22–24 / 30 | 20–22 / 27 | Serif |
+| Wordmark "Morrow" | 30 / 36, −0.01em | 24 / 30 | Serif |
+| Chat bubble text, body | 16 / 24 | 15–16 / 22–24 | Geist 400 |
+| Nav items | 15 / 18 (active 500 Oxblood, inactive 400 Capers) | — | Geist |
+| Meta (times, dates, likelihood, `n of 15 today`) | 12 / 16 | 12 / 16 | Geist Mono |
+| Labels (`Prophecy`, `Watching · 3 open`, `Resolved · 9`, day dividers, status labels) | 12–13 / 16, sentence case, 0 tracking | same | Geist 400 Capers (`Prophecy` 500 Oxblood) |
+
+**No uppercase anywhere** (2026-09-17 rule stands): labels are sentence-case Geist; Geist Mono is only for numerals (times, `09.30` dates, counts, likelihood, `n of 15 today`). The one exception is the literal word `FORGET` the user types to confirm deletion.
+
+### 4.E Signature graphics
+
+All masters live in the study board `7IA-0`, section "Scale". Export them from Paper as SVG and ship them as components; don't redraw.
+
+**Crystal ball — Morrow's mark.**
+- **Form:** a complete globe, with an edge that is always darker than the ground (never fades out).
+- **Paint** (`viewBox 0 0 200 200`):
+  - clip to a circle of r=84;
+  - radial fill centred at (66,63), r=134: stops `#EEF1F2` 0, `#E1E6E6` .14, `#A9C0CB` .42, `#7F97A3` .72, `#62798A` 1;
+  - a second radial at the centre, r=84, darkening the outer 28% to `#62798A` at 50%;
+  - both fills pass through a grain displacement (`feTurbulence` baseFrequency .9, numOctaves 2 + `feDisplacementMap` scale 7);
+  - a soft highlight ellipse (72,66, 22×15) in white at 35%, blurred σ7, inside the clip;
+  - a closing rim of `#5E7482` at 45%, stroke width scaled so it renders about 1px (0.75px at ≤32px).
+- **Sizes:**
+  - wordmark 16–19px (fill and rim only);
+  - chat avatar 28–32px;
+  - greeting/rail 56–72px, which may carry 1–3 tiny crisp glints.
+- **Limits:** no stand, reflection, halo or glow. At most one ball larger than an avatar per screen.
+- **Motion states** (web board `3R8-0`):
+  - `idle`: slightly lower contrast.
+  - `listening`: lighter, wider core.
+  - `reading`: glints drift and orbit.
+  - `speaking`: scale 1.1 with the deepest edge.
+  - All loops respect `prefers-reduced-motion`.
+- **Masters:**
+
+| Size | Node |
+|---|---|
+| wordmark 19px | `BQY-0` |
+| avatar 38px | `BR3-0` |
+| large 76px | `BOJ-0` |
+| idle | `BTT-0` |
+| listening | `BUB-0` |
+| reading | `BV3-0` (+ star overlay) |
+| speaking | `BVO-0` |
+
+**Body figure — the only illustration.**
+- **Form:** a realistic front-facing standing woman (arms slightly away from the body, open palms, feet together).
+  - silhouette: flat Oxblood;
+  - aura: five continuous Chambray tone-step bands that follow the body shape, strongest nearest it, with grain-roughened edges;
+  - chakra points: seven small Chartreuse dots on the centre line (crown → root).
+- **Treatment:** no frame, arch or card around it; it sits directly on the paper.
+- **Where it appears:**
+
+| Screen | Desktop | Mobile |
+|---|---|---|
+| Sign in | right half, ~440px tall | above the headline, ~180–200px |
+| Chat screens (Reading, Asking, Answer) | right column in the former rail slot, ~300px, same position on all three; Reading adds a caption `Today's reading · 06:43` | — (not shown on mobile chat) |
+| Prophecies | top of the left column, ~280px | beside the title, ~120–150px |
+
+- **Nowhere else.** It is not used on Today, Prophecy fulfilled, the archive, account screens or Forget.
+- **Masters:** web `AZQ-0` (on `AXP-0`), mobile figure in `7IA-0` Scale.
+
+**Moon-phase glyph — likelihood as a moon.**
+- **Form:** 20px (18px mobile), Oxblood line 1.25–1.5px with light grain.
+- **Phase mapping:** the lit fraction tracks likelihood (≈.25 crescent, ≈.5 half, ≈.75 gibbous, 1 full). Phases are exaggerated so neighbouring values stay distinguishable at 20px, but the order is always correct.
+- **Resolved states:** fulfilled = filled full moon; expired/missed = outline new moon.
+- **Used on:**
+  - the inline prophecy card, before the `PROPHECY` label;
+  - open prophecy cards (top-left);
+  - resolved-list status, replacing plain dots.
+
+**Removed from the system:**
+- the orbit diagram;
+- palm, eye, moon and sun decorative icons;
+- source glyph tiles (`CA`, `SP`, …);
+- section icons (Dossier);
+- roman numerals;
+- the arch frame;
+- light rays, halftone bursts and clouds.
+
+Functional UI icons stay: send, stop, back, close, menu, lock, check, the Google "G".
+
+### 4.F Layout & components (v4)
+
+- **Desktop frame:** 1440 wide; nav bar 88px high, padding-inline 48, `hairline` bottom border.
+  - Left: the wordmark (ball + "Morrow").
+  - Right: Today · Readings · Prophecies · Sources.
+  - No status text: time and source counts are gone.
+  - Content column 1088 wide (x 176–1264) on non-chat screens.
+- **Mobile frame:** 390 wide, 24px side margin, dark-on-light status bar.
+  - Header: wordmark on the left, menu (or back/close) on the right; chat header adds the 32px ball and "Morrow".
+  - Screens may grow past 844 tall; content is never squeezed.
+- **Chat layout:**
+  - **Thread column:** 760 wide (desktop, x 216–976), with the figure column to the right; on mobile, full width inside the margins.
+  - **Day divider:** sentence-case Geist label (`Monday · September 21`) between two hairlines.
+  - **User bubble:** Chambray, radius 20/20/6/20, padding 12×18, max-width 520 desktop / 280 mobile.
+  - **Morrow message:** 28–32px ball avatar + name (Geist 500) + mono time.
+    - Bubble: `surface` + hairline border, radius 6/20/20/20, padding 12×18, max-width 600.
+    - Consecutive Morrow bubbles group under one avatar.
+  - **Thinking state (Asking):** a small Morrow bubble with three typing dots (one Chartreuse, two Capers) and "Morrow is reading…". No source steps.
+  - **Composer:**
+    - Container: `surface` + hairline, radius 32, height 64 desktop.
+    - Inner: text + caret, mono `n of 15 today` (`n/15` mobile), 44px round Oxblood send.
+    - Waiting state: Oxblood outline stop button.
+    - Sealed state: dashed bar with lock + "Today's reading →".
+    - No source chips.
+- **Prophecy card:**
+  - Container: `surface` + hairline, radius 14, padding 18/24/20.
+  - Header row: moon glyph + `Prophecy` (Geist 500, Oxblood) + mono window `09.16 → 10.07`.
+  - Body: serif statement.
+  - Footer: `Likelihood` bar (Oxblood fill on hairline track) + mono value, plus the optional footer line "I'll tell you when it lands."
+- **Lists:** hairline-divided rows, with no leading numbers or icons.
+  - Status on the right: sentence-case Geist label + moon glyph.
+  - Expired rows use `textMuted` for the statement.
+- **Buttons:**
+  - Primary: Oxblood fill, Parcel text, pill (radius 28), height 56.
+  - Secondary: Oxblood 1px outline.
+  - Links: Oxblood text.
+- **Record strip (Prophecies):** 12 marks — filled Oxblood dot (fulfilled), dash (expired), hollow (open). It stays because it is data.
+
+### 4.G Per-screen notes (v4)
+
+| # | Screen | Notes |
+|---|---|---|
+| 01 | Sign in | Hero + sub copy + Google button (Oxblood) + privacy note; figure right; footer facts row (Raw events kept 24 hours · Never read Health · money · Forget everything Anytime · Terms · Privacy). |
+| 02 | Connect accounts | Title "What may Morrow read?"; three steps as hairline rows (current in Oxblood); each source as a section with name, Reads / Never columns, `Linked` pill (Chartreuse dot) or outline `Connect`; Instagram under "Later". No letter tiles. |
+| 03 | Today (Invocation) | Mono date, hero headline, 64–72px ball beside the greeting, three plain suggestion rows (no icons, no numerals), composer. No figure. |
+| 04 | Reading | Chat: day divider → user "Draw today's reading." → Morrow message + inline prophecy card; desktop figure column with caption (no figure on mobile). |
+| 05 | Asking | Chat with thinking bubble; composer in waiting state; desktop figure column. |
+| 06 | Answer | Chat with the answer bubbles; composer typing; desktop figure column. |
+| 07 | Prophecy fulfilled | Chat announcing the landed prophecy (card shows a Chartreuse `Landed 09.30` row); follow-up prompts as plain pills; the data rail (Foretold / Fulfilled / Record) may stay. |
+| 08 | Menu (mobile) | Serif menu items with hairlines; Today in Oxblood with a Chartreuse "Open" dot; counts in mono (no source count); questions card (`3 / 15`, "Seals at dawn · 04:00"); profile row. |
+| 09 | Past readings | Title + counts left; hairline archive table right with status labels. |
+| 10 | Sealed reading | Chat, read-only; sealed composer bar. |
+| 11 | Prophecies | Figure + title + description + counts + record strip left; open cards with moon glyphs right; resolved list below. |
+| 12 | Sources | Account screen — source rows with status (Chartreuse dot for linked), retention rows, View dossier / Forget everything links. |
+| 13 | Dossier | Account screen — Readable / Raw JSON switch, Rhythms / People / Patterns groups (no section icons); facts may cite their source. |
+| 14 | Forget everything | Hero question, list of what gets deleted, `FORGET` confirm field (danger border), Brick "Forget everything", outline "Keep everything", "Download a copy first". |
+
+### 4.H Implementation map (branch `redesign/v4-parcel`)
+
+**Shared:** `@morrow/tokens` exports the v4 `colors`, `ball`, `grain`, `typeScale` (incl. `hero`, `wordmark`), `radii` (`bubble`, `bubbleTail`, `card`, `composer`, `button`, `dot`) and `space`; `tokens.css` emits the matching `--color-*` / `--radius-*` variables.
+
+**Web (`apps/web`):**
+- **Tailwind:** `app/globals.css` maps the tokens to utilities.
+  - Colours: `bg-surface`, `text-text-muted`, `border-hairline`, `bg-accent text-on-accent`, `bg-danger text-on-danger`, …
+  - Radii: `rounded-bubble|bubble-tail|card|composer|button|dot`.
+  - Type: `text-hero|display|title|confirm|prophecy|list-item|row|wordmark|body-lg|body|label`, each with a `-m` mobile variant used as `text-X-m lg:text-X`.
+  - Mono and label helpers: `text-meta` is 12/16 for mono numerals; `label` / `label-sm` are Geist 13/16 and 12/16.
+- **Components:**
+
+| Component | Role |
+|---|---|
+| `Grain` | mounted once in `app/layout.tsx` |
+| `CrystalBall` | `{ size, variant?, state?, label? }`; unique SVG ids via `useId`; motion states in CSS, off under reduced motion |
+| `BodyFigure` | `{ height }` |
+| `MoonGlyph` | `{ likelihood? \| status?, size? }` |
+| `chat/MessageRow` | `UserMessage`, `MorrowMessage`, `MorrowBubble` |
+| `chat/DayDivider` | |
+| `chat/TypingBubble` | |
+| `Composer` | `count` → `n of 15 today`; idle / typing / waiting / sealed states |
+| `Prophecy` | `ProphecyPanel` (inline), `ProphecyCard` (list), `ResolvedRow`, `Likelihood`, `WindowBar` |
+| `Labels` | |
+| `RecordMarks` | |
+| `IndexList` | |
+| `ui/Button` | variants `primary`, `secondary`, `danger`, `danger-outline`, `link`, `danger-link` |
+| `TopBar` / `Nav` / `Wordmark` / `UserMenu` | 88px nav, no status text |
+
+- **Retired:** `Orbit`, `ReadingSteps`.
+- **Hidden `data-step` parts:** the chat client ignores them for rendering; the stream is unchanged.
+- **Demo preview:** `.claude/launch.json` → `web-demo` (port 3001, DB and AI keys cleared).
+
+**Mobile (`apps/mobile`):**
+- **Theme:** `useTheme()` returns `{ palette, ball, grain }`; `@/theme/ink` holds extra Black Fig alphas (`dashed` .28, `outline` .24, `track` .12).
+- **Text:** `Txt` variants follow the type tokens, plus `meta` (Geist Mono 12/16, numerals only).
+- **Components:**
+
+| Component | Role |
+|---|---|
+| `Grain` | a tiled `assets/grain.png` built by `scripts/make-grain.mjs`, rendered at ≈5% to equal the web's 8% multiply |
+| `CrystalBall` | react-native-svg; no grain displacement or blur, so the highlight is a fading radial |
+| `BodyFigure` | |
+| `MoonGlyph` | |
+| `Header`, `ChatHeader` | |
+| `chat/MessageRow`, `chat/DayDivider`, `chat/TypingBubble` | |
+| `Composer` | `dock: 'chat' \| 'page'` |
+| `ProphecyCard`, `ProphecyRow`, `LikelihoodBar` | |
+| `Button` | |
+| `Page` | |
+| `ConfirmInput` | Brick border and caret |
+| `RecordMarks` | |
+
+- **Menu:** presented as `containedModal` so the root grain covers it.
+- **Mobile metrics from Paper:**
+
+| Element | Value |
+|---|---|
+| chat gutter | 16 |
+| bubble padding | 11×16 |
+| bubble max width | 296 user / 282 Morrow |
+| composer buttons | 40 |
+| card radius | 16 |
+| button radius | 14 |
+| day divider | centred label, no hairlines |
+| chat status line | Geist |
+
+<details><summary>v2 "Deep field" (superseded, still in code)</summary>
 
 Minimal sci-fi. Cool lab grey space, one aurora-green accent, coral reserved for destructive actions only. Light only — there is no dark theme. Off-centre layouts on desktop; a line-drawn **orbit diagram** represents Morrow.
 
@@ -128,6 +396,8 @@ Three families, each with one job. **No italics anywhere.**
 - **Reading steps** — left-bordered list: `✓ done`, `◌ active` (accent), `· pending` (faint).
 - **Index list** — label rows with hairline dividers (no number column).
 - **Record marks** — 12 marks: filled dot (fulfilled), dash (expired), hollow (open).
+
+</details>
 
 ## 5. Architecture
 
@@ -212,6 +482,24 @@ export const radii: { panel: 16; card: 14; button: 10; glyph: 10; dot: 999 };
 export const space: { gutterDesktop: 120; gutterMobile: 24; composerInsetMobile: 16 };
 ```
 - `size`/`lineHeight` are px (upper value where §4.2 gives a range). **`letterSpacing` is in em** — multiply by `size` for React Native px.
+
+**v4 palette (implemented on `redesign/v4-parcel`; replaces `Palette` above):**
+
+```ts
+export type Palette = {
+  bg: '#E5E3DA'; surface: '#DAD7CB'; hairline: 'rgba(41,16,12,0.14)';
+  text: '#29100C'; textMuted: '#53461C';
+  accent: '#5A1D22'; onAccent: '#E5E3DA';
+  chambray: '#A9C0CB'; onChambray: '#29100C';
+  highlight: '#BFB065';
+  danger: '#A3372A'; onDanger: '#F4EFE6'; dangerBorder: 'rgba(163,55,42,0.55)';
+};
+export const ball: { stops: ['#EEF1F2', '#E1E6E6', '#A9C0CB', '#7F97A3', '#62798A']; rim: 'rgba(94,116,130,0.45)' };
+export const grain: { baseFrequency: 0.85; numOctaves: 2; opacity: 0.08; blend: 'multiply' };
+export const radii: { bubble: 20; bubbleTail: 6; card: 14; composer: 32; button: 28; dot: 999 };
+```
+- Removed in v4: `panel`, `subtle`, `hairlineStrong`, `orbitFaint`, `orbitLine`, `tick`, `textFaint`, `placeholder`, `textSecondary`, `accentFill`, `alphaColors` (`danger`/`onDanger` stay with new values, plus `dangerBorder`). `tokens.css` keeps the `--color-<token>` naming (e.g. `--color-text-muted`, `--color-chambray`).
+- `typeScale` gains `hero` (sign-in 128/56); `label` stays sentence-case Geist 12–13; `answer` (42/46 serif) is retired because Morrow's replies render as bubble body text.
 - Package points `main`/`types`/`exports` at `src/index.ts` (no build step).
 
 Also ships `@morrow/tokens/tokens.css` (generated by `pnpm --filter @morrow/tokens build:css`, committed): `--color-<token>` in kebab-case (e.g. `--color-text-primary`, plus `--color-accent-border`, `--color-danger-border`), `--font-serif|sans|mono`, `--radius-panel|card|button|glyph|dot`. All values sit on `:root` (`color-scheme: light`); there is no theme switching.
@@ -278,7 +566,13 @@ Single entry `@morrow/core` (source TS, no build). zod 4. Schemas and their infe
 4. Google Calendar + Spotify OAuth and extractors → real dossier
 5. ✅ Dawn + verify cron jobs; ✅ evals + red team in CI (§13)
 6. Gmail (CASA review), push notifications for fulfilled prophecies (Expo)
-7. Not yet designed: onboarding/first source connect, goodbye screen after Forget, raw JSON dossier view, settings
+7. Not yet designed: goodbye screen after Forget, raw JSON dossier view, settings
+8. ⏳ Implement design v4 "Parcel" (§4) on web and mobile — done on `redesign/v4-parcel`; remaining: device QA on mobile, touch access to hover-only actions (Dossier "Forget this ×", Sources disconnect on web), merge:
+   - swap tokens (§6.1 v4 palette);
+   - add the grain overlay;
+   - ship the ball, figure and moon-glyph components exported from Paper;
+   - convert Morrow's turns to chat bubbles;
+   - stop rendering sources, numerals and decorative icons.
 
 ## 9. Changelog
 
@@ -306,6 +600,39 @@ Single entry `@morrow/core` (source TS, no build). zod 4. Schemas and their infe
 - **Light only:** the dark theme is gone from the designs and the code. `@morrow/tokens` exports a single `colors: Palette` / `alphaColors` (no `ThemeName`) and `tokens.css` emits one `:root` block with `color-scheme: light`; web dropped `ThemeToggle`, the no-flash `<head>` script and `data-theme` (`themeColor` is now `#F3F4F6`); mobile's `ThemeProvider` serves the light palette with no OS follow or stored preference, and the menu's Settings row lost its theme cycle.
 - **Plainer surface:** the mono-uppercase label system is retired across design and code. `label`/`label-sm` are sentence-case Geist (web `globals.css`); mobile's `Txt` no longer uppercases and the `label` type token maps to sans. Mono is now reserved for numerals. Every eyebrow/kicker above a headline is deleted (the `eyebrow` prop is gone from web's `PageIntro` and mobile's `PageTitle`); zero-padded display numbers are gone (`pad2` deleted from both apps, index-list number columns removed); prophecy serial numbers no longer render (`formatProphecyNumber` remains — it still builds `p_0047` record ids and model prompt text); the `SOURCE …` evidence line under readings is removed (`EvidenceLine` deleted in both apps, `sourceLabel` retained as provenance); source abbreviations are spelled out (`CAL · SPT` → `Calendar · Spotify`).
 
+### 2026-09-21
+- **Design v4 "Parcel" (not yet implemented):** full redesign of all screens (§4, §11). Paper-and-ink palette (Parcel, Black Fig, Oxblood, Chambray, Chartreuse) with a fine paper grain overlay; no glow anywhere; Instrument Serif type kept, large and left-aligned. The orbit diagram is replaced by a **crystal ball** mark (full shaded globe, used as wordmark and chat avatar). A realistic **body figure** with a tone-step aura is the only illustration (Sign in, web chat screens, Prophecies). The **moon-phase glyph** encodes likelihood and resolution.
+- **Chat everywhere Morrow speaks:** screens 02/03/05/06/07 (v2 numbering) become chat layouts. User bubbles are Chambray on the right; Morrow's are surface-coloured bubbles on the left with the ball avatar. Morrow's answers are bubble text, no longer large serif.
+- **Removed from the UI:**
+  - all display of data sources on experience screens: nav "N sources linked", "Reading from…", source rails and chips, "Watching …", source steps in the thinking state (`data-step` may still stream but is not rendered);
+  - roman numerals and numbered lists;
+  - decorative icons (palm, eye, moon, sun), source letter tiles, Dossier section icons;
+  - uppercase labels (all labels are sentence-case Geist; the 2026-09-17 rule stands).
+- **Danger colour:** Brick `#A3372A` replaces coral for destructive actions only (Oxblood is the accent).
+- **Implementation (branch `redesign/v4-parcel`):**
+  - `@morrow/tokens` moved to the v4 palette, radii and type scale (§6.1).
+  - **Web and mobile rebuilt on shared primitives (§4.H):**
+    - paper grain and the crystal ball;
+    - the body figure and the moon glyph;
+    - chat bubbles, the composer and the prophecy card;
+    - buttons, with Brick for destructive actions.
+  - **Web:** the orbit and the source-steps list are retired (`Orbit`, `ReadingSteps`, `IndexList` and `TurnLabel` deleted).
+  - **Mobile:** `Orbit`, `Reading` and `sourceGlyph` are deleted.
+  - **Chat:** Today, Reading, Asking, Answer, Prophecy fulfilled and Sealed now render as chats. Morrow's turns are bubble text, `data-step` parts are ignored, and source labels are never rendered.
+  - **Body figure:** on Sign in, the web chat screens (right column) and Prophecies; mobile chat has no figure.
+  - **Checks:**
+    - typecheck clean in all packages;
+    - web tests 74/74 and web `build` pass;
+    - mobile tests 17/17, and `expo export --platform ios` bundles;
+    - `tokens.css` is up to date;
+    - web demo checked in the browser at 1440 (fulfilled opening → asking → answer; all routes 200 with no uppercase, numerals or sources);
+    - mobile not yet checked on a device or simulator.
+- **Explored and rejected on the way:**
+  - neon-parlour, velvet-séance and aura-ring dark styles;
+  - glow, halftone and cloud effects;
+  - large illustration heroes;
+  - soft-edged typefaces (the current fonts were kept).
+
 ## 10. Chat protocol (web ⇄ mobile contract)
 
 `POST /api/chat` — one thread per day, so the server owns history; clients send only the new message.
@@ -324,6 +651,31 @@ Single entry `@morrow/core` (source TS, no build). zod 4. Schemas and their infe
 - **Demo mode** (no `AI_GATEWAY_API_KEY`/OIDC): server streams a scripted response with the same parts (steps: Calendar done → Spotify active → Past readings pending, then the fixture answer) with small delays, so both clients look identical with or without a model.
 
 ## 11. Paper artboard IDs (file `01M2NRFN984ZCAHJT65TCM7QXR`)
+
+### v4 — page "v4 — Parcel (full set)" (current design)
+
+Ordered by user journey; each mobile artboard sits under its web counterpart.
+
+| v4 # | Screen | v2 # | Desktop | Mobile |
+|---|---|---|---|---|
+| 01 | Sign in | 13 | `AXP-0` | `BVE-0` |
+| 02 | Connect accounts | 14 | `BW0-0` | `CAQ-0` |
+| 03 | Today (Invocation) | 01 | `ASB-0` | `B7D-0` |
+| 04 | Reading | 02 | `B8E-0` | `BQQ-0` |
+| 05 | Asking | 06 | `BE5-0` | `BH0-0` |
+| 06 | Answer | 07 | `AST-0` | `C7K-0` |
+| 07 | Prophecy fulfilled | 03 | `C1G-0` | `BYB-0` |
+| 08 | Menu | 08 | — | `CR6-0` |
+| 09 | Past readings | 04 | `C1N-0` | `CDI-0` |
+| 10 | Sealed reading | 05 | `C4I-0` | `B2K-0` |
+| 11 | Prophecies | 09 | `AXO-0` | `AZD-0` |
+| 12 | Sources | 10 | `C11-0` | `BKL-0` |
+| 13 | Dossier | 11 | `D3U-0` | `C9R-0` |
+| 14 | Forget everything | 12 | `BE4-0` | `B4T-0` |
+
+Graphic masters: study board `7IA-0` (page "v3 B — Velvet Séance"), section "Scale". Crystal-ball motion states: `3R8-0`.
+
+### v2 — Page 1 (superseded, implemented in code)
 
 | Screen | Desktop | Mobile |
 |---|---|---|

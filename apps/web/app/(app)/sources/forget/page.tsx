@@ -7,6 +7,7 @@ import { formatKb } from '@/lib/ui/format';
 
 export const metadata: Metadata = { title: 'Forget everything' };
 
+/** 14 Forget everything (Paper v4 BE4-0 / B4T-0). */
 export default async function ForgetPage() {
   await connection();
   const repo = getRepository();
@@ -19,7 +20,7 @@ export default async function ForgetPage() {
   ]);
 
   return (
-    <main className="mx-auto w-full max-w-[560px] px-6 pb-20 pt-8 lg:pt-10">
+    <main className="mx-auto w-full max-w-[1088px] px-6 pb-20 pt-8 lg:box-content lg:px-12 lg:pt-[144px]">
       <ConfirmForget
         counts={{
           readings: total,

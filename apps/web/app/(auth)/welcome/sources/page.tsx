@@ -10,7 +10,7 @@ import { getRepository } from '@/lib/data';
 
 export const metadata: Metadata = { title: 'What may Morrow read?' };
 
-/** Screen 14 — Connect accounts, onboarding step 2 of 3 (Paper 370-0 / 3DH-0). */
+/** 02 Connect accounts, onboarding step 2 of 3 (Paper v4 BW0-0 / CAQ-0). */
 export default async function WelcomeSourcesPage({ searchParams }: PageProps<'/welcome/sources'>) {
   await connection();
   const user = await requirePageUser({ onboarding: true });
@@ -21,12 +21,9 @@ export default async function WelcomeSourcesPage({ searchParams }: PageProps<'/w
   return (
     <div className="flex min-h-dvh flex-col">
       <TimezoneSync timezone={user.timezone} />
-      <header className="relative z-20 flex items-center justify-between px-6 py-5 lg:px-12 lg:py-7">
-        <Wordmark />
-        <div className="flex items-center gap-3.5">
-          <span className="label hidden text-text-muted sm:inline">Signed in as {user.firstName}</span>
-          <UserMenu name={user.name} image={user.image} email={user.email} />
-        </div>
+      <header className="relative z-20 mx-auto flex h-16 w-full max-w-[1088px] items-center justify-between px-6 lg:box-content lg:h-24 lg:px-12">
+        <Wordmark size="sm" />
+        <UserMenu name={user.name} image={user.image} email={user.email} showName />
       </header>
       <ConnectAccounts initialSources={sources} connectError={typeof connect_error === 'string' ? connect_error : null} />
     </div>

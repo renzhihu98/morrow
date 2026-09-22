@@ -2,31 +2,38 @@ import { typeScale, type TypeToken } from '@morrow/tokens';
 import type { TextStyle } from 'react-native';
 import { family } from './fonts';
 
-const SERIF: TypeToken[] = ['display', 'title', 'confirm', 'answer', 'prophecy', 'listItem', 'row'];
+/**
+ * Txt variants: the mobile type-scale tokens (SPEC §4.D) plus `meta` — Geist Mono 12/16,
+ * for numerals only (times, `09.30` dates, counts, likelihood, `n/15`).
+ */
+export type TxtVariant = TypeToken | 'meta';
+
+const SERIF: readonly TypeToken[] = ['hero', 'display', 'title', 'confirm', 'prophecy', 'listItem', 'row', 'wordmark'];
 
 /** px letter-spacing for React Native from an em value. */
 export const em = (value: number, size: number) => Math.round(value * size * 100) / 100;
 
-/** Family for a scale token: serif for voice/titles, Geist for everything else. */
-export function familyFor(token: TypeToken): string {
-  return SERIF.includes(token) ? family.serif : family.sans;
+/** Family for a variant: Instrument Serif for headlines/statements, Geist Mono for `meta`, Geist otherwise. */
+export function familyFor(variant: TxtVariant, medium = false): string {
+  if (variant === 'meta') return family.mono;
+  if ((SERIF as readonly string[]).includes(variant)) return family.serif;
+  return medium ? family.sansMedium : family.sans;
 }
 
 /** Mobile type scale → RN TextStyle (tokens' `letterSpacing` is em → multiplied by size). */
-export function typeStyle(token: TypeToken): TextStyle {
-  const t: { size: number; lineHeight: number; letterSpacing?: number } = typeScale.mobile[token];
-  // `label` is a plain sentence-case sans line — the token's mono tracking does not apply.
-  const tracking = token === 'label' ? 0 : t.letterSpacing;
+export function typeStyle(variant: TxtVariant, medium = false): TextStyle {
+  if (variant === 'meta') return monoStyle(12, 16);
+  const t: { size: number; lineHeight: number; letterSpacing?: number } = typeScale.mobile[variant];
   return {
-    fontFamily: familyFor(token),
+    fontFamily: familyFor(variant, medium),
     fontSize: t.size,
     lineHeight: t.lineHeight,
-    ...(tracking !== undefined ? { letterSpacing: em(tracking, t.size) } : {}),
+    ...(t.letterSpacing !== undefined ? { letterSpacing: em(t.letterSpacing, t.size) } : {}),
   };
 }
 
-/** Ad-hoc mono label (10–12px) with the 0.04em label tracking. */
-export function monoStyle(size = 11, lineHeight = 14, tracking = 0.04): TextStyle {
+/** Geist Mono — numerals only. Zero tracking by default (v4 has no tracked labels). */
+export function monoStyle(size = 12, lineHeight = 16, tracking = 0): TextStyle {
   return { fontFamily: family.mono, fontSize: size, lineHeight, letterSpacing: em(tracking, size) };
 }
 

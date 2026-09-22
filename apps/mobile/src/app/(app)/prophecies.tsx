@@ -1,18 +1,21 @@
-import { type Prophecy } from '@morrow/core';
+import { formatShortDate, type Prophecy } from '@morrow/core';
 import { useMemo, useState } from 'react';
 import { Pressable, StyleSheet, View } from 'react-native';
-import { Dot } from '@/components/Dot';
-import { Page, PageState, PageTitle } from '@/components/Page';
-import { ProphecyCard, RecordMarks, StatusMark } from '@/components/Reading';
+import { BodyFigure } from '@/components/BodyFigure';
+import { Page, PageState } from '@/components/Page';
+import { ProphecyCard, ProphecyRow } from '@/components/ProphecyCard';
+import { RecordCounts, RecordStrip } from '@/components/RecordMarks';
 import { Txt } from '@/components/Txt';
 import { useProphecies, useToday } from '@/data/queries';
-import { shortDateOf } from '@/lib/format';
+import { shortDateOf, windowLabel } from '@/lib/format';
 import { useTheme } from '@/theme/ThemeProvider';
-import { monoStyle, serifStyle } from '@/theme/typography';
 
 const VISIBLE_OPEN = 2;
 
-/** Screen 09 — open prophecies being watched + resolved record. */
+/** `2026-09-26` → `From 09.26`. */
+const fromLabel = (p: Prophecy) => `From ${formatShortDate(p.madeOn)}`;
+
+/** v4 screen 11 — open prophecies + resolved record (Paper AZD). */
 export default function PropheciesScreen() {
   const q = useProphecies();
   const today = useToday();
@@ -32,68 +35,96 @@ export default function PropheciesScreen() {
 
   return (
     <Page active="prophecies" refreshing={q.isRefetching} onRefresh={() => void q.refetch()}>
-      <PageTitle title="Prophecies">
-        {data ? <RecordMarks record={data.record} /> : null}
-      </PageTitle>
+      <View style={styles.head}>
+        <View style={styles.headText}>
+          <Txt variant="title" accessibilityRole="header">
+            Prophecies
+          </Txt>
+          {data ? <RecordCounts record={data.record} /> : null}
+        </View>
+        <BodyFigure height={136} />
+      </View>
+      {data ? (
+        <View style={{ paddingBottom: 24 }}>
+          <RecordStrip marks={data.record.marks} />
+        </View>
+      ) : null}
+
       {!data ? (
         <PageState error={q.error} onRetry={() => void q.refetch()} />
       ) : (
         <>
-          <View style={[styles.row, { marginTop: 6, marginBottom: 12 }]}>
-            <Dot color={palette.accent} size={7} />
-            <Txt variant="label" color="accent">{`Watching · ${open.length} open`}</Txt>
-          </View>
-          <View style={{ gap: 12 }}>
-            {shown.map((p) => (
-              <ProphecyCard key={p.id} prophecy={p} now={now} timeZone={tz} />
-            ))}
-          </View>
-          {hidden > 0 || expanded ? (
-            <Pressable accessibilityRole="button" onPress={() => setExpanded((e) => !e)} hitSlop={8} style={{ paddingTop: 16 }}>
-              <Txt variant="label" color="textMuted">
-                {expanded ? '− Show fewer' : `+ ${hidden} more open`}
-              </Txt>
-            </Pressable>
-          ) : null}
+          {open.length > 0 ? (
+            <>
+              <View style={styles.sectionLabel}>
+                <Txt variant="label" medium color="accent">
+                  Open
+                </Txt>
+              </View>
+              <View style={{ gap: 12 }}>
+                {shown.map((p) => {
+                  const right = windowLabel(p, now, tz);
+                  return (
+                    <ProphecyCard
+                      key={p.id}
+                      variant="list"
+                      statement={p.statement}
+                      likelihood={p.likelihood}
+                      window={fromLabel(p)}
+                      badge={{ label: right.text, tone: right.urgent ? 'accent' : 'outline' }}
+                    />
+                  );
+                })}
+              </View>
+              {hidden > 0 || expanded ? (
+                <Pressable
+                  accessibilityRole="button"
+                  onPress={() => setExpanded((e) => !e)}
+                  hitSlop={8}
+                  style={{ paddingTop: 16, alignSelf: 'flex-start' }}
+                >
+                  <Txt variant="label" color="accent">
+                    {expanded ? '− Show fewer' : `+ ${hidden} more open`}
+                  </Txt>
+                </Pressable>
+              ) : null}
+            </>
+          ) : (
+            <Txt color="textMuted" style={{ paddingTop: 8 }}>
+              Nothing open. Morrow makes a new prophecy with each reading.
+            </Txt>
+          )}
 
-          <Txt variant="label" color="textMuted" style={{ marginTop: 28, marginBottom: 12 }}>
-            {`Resolved · ${data.resolved.length}`}
-          </Txt>
-          <View style={{ borderBottomWidth: 1, borderBottomColor: palette.hairline }}>
-            {resolved.map((p) => (
-              <ResolvedRow key={p.id} prophecy={p} timeZone={tz} />
-            ))}
-          </View>
+          {resolved.length > 0 ? (
+            <>
+              <Txt variant="label" color="textMuted" style={{ marginTop: 28, marginBottom: 12 }}>
+                {'Resolved · '}
+                <Txt variant="meta" color="textMuted">
+                  {String(resolved.length)}
+                </Txt>
+              </Txt>
+              <View style={{ borderBottomWidth: 1, borderBottomColor: palette.hairline }}>
+                {resolved.map((p) => (
+                  <ProphecyRow
+                    key={p.id}
+                    statement={p.title}
+                    status={p.status}
+                    likelihood={p.likelihood}
+                    meta={p.status === 'fulfilled' && p.resolvedAt ? shortDateOf(p.resolvedAt, tz) : 'Missed'}
+                    metaIsLabel={!(p.status === 'fulfilled' && p.resolvedAt)}
+                  />
+                ))}
+              </View>
+            </>
+          ) : null}
         </>
       )}
     </Page>
   );
 }
 
-function ResolvedRow({ prophecy, timeZone }: { prophecy: Prophecy; timeZone: string }) {
-  const { palette } = useTheme();
-  const fulfilled = prophecy.status === 'fulfilled';
-  const date = prophecy.resolvedAt ? shortDateOf(prophecy.resolvedAt, timeZone) : '—';
-  return (
-    <View
-      style={[styles.resolved, { borderTopColor: palette.hairline }]}
-      accessible
-      accessibilityLabel={`${prophecy.title} ${fulfilled ? 'Fulfilled' : 'Expired'} ${date}`}
-    >
-      <Txt color={fulfilled ? 'textPrimary' : 'textMuted'} style={[serifStyle(19, 24, -0.01), { flex: 1 }]}>
-        {prophecy.title}
-      </Txt>
-      <View style={styles.row}>
-        <StatusMark status={prophecy.status} />
-        <Txt color={fulfilled ? 'accent' : 'textMuted'} style={monoStyle(11, 14, 0)}>
-          {date}
-        </Txt>
-      </View>
-    </View>
-  );
-}
-
 const styles = StyleSheet.create({
-  row: { flexDirection: 'row', alignItems: 'center', gap: 8 },
-  resolved: { flexDirection: 'row', alignItems: 'center', gap: 16, paddingVertical: 14, borderTopWidth: 1 },
+  head: { flexDirection: 'row', alignItems: 'flex-end', paddingTop: 16, paddingBottom: 20, gap: 12 },
+  headText: { flex: 1, gap: 16 },
+  sectionLabel: { flexDirection: 'row', alignItems: 'center', gap: 8, marginBottom: 12 },
 });

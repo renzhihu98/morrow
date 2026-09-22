@@ -1,20 +1,21 @@
 import { formatShortDate } from '@morrow/core';
 import { router, useLocalSearchParams } from 'expo-router';
 import { useEffect, useMemo } from 'react';
-import { Pressable, StyleSheet, View } from 'react-native';
+import { View } from 'react-native';
+import { THREAD_STYLE } from '@/components/chat/MessageRow';
 import { Composer } from '@/components/Composer';
+import { ChatHeader } from '@/components/Header';
 import { Page, PageState } from '@/components/Page';
-import { Transcript } from '@/components/Transcript';
-import { Txt } from '@/components/Txt';
+import { Thread, turnsFromMessages } from '@/components/Transcript';
 import { useReading, useToday } from '@/data/queries';
-import { useTheme } from '@/theme/ThemeProvider';
 
-/** Screen 05 — a sealed reading (read-only transcript). */
+const isLocalDate = (d: string) => /^\d{4}-\d{2}-\d{2}$/.test(d);
+
+/** Screen 10 — a sealed reading (Paper B2K): the day's chat, read-only, with the sealed composer bar. */
 export default function SealedReadingScreen() {
   const { date = '' } = useLocalSearchParams<{ date: string }>();
   const detail = useReading(date);
   const today = useToday();
-  const { palette } = useTheme();
 
   const now = useMemo(() => new Date(today.data?.now ?? Date.now()), [today.data?.now]);
   const reading = detail.data?.reading;
@@ -24,49 +25,37 @@ export default function SealedReadingScreen() {
     if (reading?.status === 'open') router.replace('/');
   }, [reading?.status]);
 
-  const bar = (
-    <View style={[styles.bar, { borderBottomColor: palette.hairline }]}>
-      <Pressable accessibilityRole="link" hitSlop={10} onPress={() => (router.canGoBack() ? router.back() : router.replace('/readings'))}>
-        <Txt variant="label" color="textSecondary">← Past</Txt>
-      </Pressable>
-      <Txt variant="label" color="textMuted">{`Reading ${/^\d{4}-\d{2}-\d{2}$/.test(date) ? formatShortDate(date) : '—'} · sealed`}</Txt>
-    </View>
+  const header = (
+    <ChatHeader
+      status={`Reading ${isLocalDate(date) ? formatShortDate(date) : '—'} · sealed`}
+      live={false}
+      onBack={() => (router.canGoBack() ? router.back() : router.replace('/readings'))}
+      onMore={() => router.push({ pathname: '/menu', params: { active: 'readings' } })}
+    />
   );
 
   return (
     <Page
       active="readings"
-      bar={bar}
-      footer={
-        <View style={{ paddingTop: 8 }}>
-          <Composer value="" onChangeText={() => {}} onSend={() => {}} sealed onToday={() => router.navigate('/')} />
-        </View>
-      }
+      header={header}
+      gutter={0}
+      footer={<Composer value="" onChangeText={() => {}} onSend={() => {}} sealed onToday={() => router.navigate('/')} />}
     >
-      <View style={{ paddingTop: 40 }}>
-        {detail.data ? (
-          <Transcript
-            messages={detail.data.messages}
-            prophecies={detail.data.prophecies}
+      {detail.data ? (
+        <View style={THREAD_STYLE}>
+          <Thread
+            turns={turnsFromMessages(detail.data.messages, detail.data.prophecies)}
             timeZone={detail.data.reading.timezone}
             now={now}
+            date={detail.data.reading.localDate}
+            today={today.data?.reading.localDate}
           />
-        ) : (
+        </View>
+      ) : (
+        <View style={{ paddingHorizontal: 24 }}>
           <PageState error={detail.error} onRetry={() => void detail.refetch()} />
-        )}
-      </View>
+        </View>
+      )}
     </Page>
   );
 }
-
-const styles = StyleSheet.create({
-  bar: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    paddingHorizontal: 24,
-    paddingTop: 14,
-    paddingBottom: 16,
-    borderBottomWidth: 1,
-  },
-});

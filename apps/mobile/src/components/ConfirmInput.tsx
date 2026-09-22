@@ -5,13 +5,18 @@ import { family } from '@/theme/fonts';
 import { em } from '@/theme/typography';
 import { Txt } from './Txt';
 
-/** "Type FORGET to confirm" input; border turns danger once the word matches. */
-export function ConfirmInput({ value, onChangeText }: { value: string; onChangeText: (v: string) => void }) {
-  const { palette, alpha } = useTheme();
+type Props = { value: string; onChangeText: (v: string) => void };
+
+/**
+ * "Type FORGET to confirm" (Paper B4T): `surface` field, radius 12, 48pt, Brick border + caret.
+ * The typed word is the one sanctioned all-caps string in the app (SPEC §4.D).
+ */
+export function ConfirmInput({ value, onChangeText }: Props) {
+  const { palette } = useTheme();
   const ok = isForgetConfirmed(value);
   return (
-    <View style={{ gap: 8 }}>
-      <Txt variant="label" color="textMuted" style={{ fontSize: 10, lineHeight: 12 }}>
+    <View style={styles.wrap}>
+      <Txt color="textMuted" style={styles.label}>
         Type FORGET to confirm
       </Txt>
       <TextInput
@@ -21,18 +26,19 @@ export function ConfirmInput({ value, onChangeText }: { value: string; onChangeT
         autoCorrect={false}
         spellCheck={false}
         placeholder="FORGET"
-        placeholderTextColor={palette.textFaint}
+        placeholderTextColor={palette.textMuted}
         selectionColor={palette.danger}
         cursorColor={palette.danger}
         accessibilityLabel="Type FORGET to confirm"
+        accessibilityHint={ok ? 'Confirmed' : undefined}
         style={[
           styles.input,
           {
-            color: palette.textPrimary,
-            backgroundColor: palette.panel,
-            borderColor: ok ? alpha.dangerBorder : palette.hairline,
+            color: palette.text,
+            backgroundColor: palette.surface,
+            borderColor: ok ? palette.danger : palette.dangerBorder,
             fontFamily: family.mono,
-            letterSpacing: em(0.06, 16),
+            letterSpacing: em(0.08, 15),
           },
         ]}
       />
@@ -41,5 +47,7 @@ export function ConfirmInput({ value, onChangeText }: { value: string; onChangeT
 }
 
 const styles = StyleSheet.create({
-  input: { height: 44, borderRadius: 10, borderWidth: 1, paddingHorizontal: 14, fontSize: 16 },
+  wrap: { gap: 8 },
+  label: { fontSize: 13, lineHeight: 18 },
+  input: { height: 48, borderRadius: 12, borderWidth: 1, paddingHorizontal: 16, fontSize: 15 },
 });

@@ -7,6 +7,7 @@ import * as SystemUI from 'expo-system-ui';
 import { useEffect, useState } from 'react';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 import { isApiError } from '@morrow/core';
+import { Grain } from '@/components/Grain';
 import { GateProvider, useGate } from '@/data/session';
 import { fontAssets } from '@/theme/fonts';
 import { ThemeProvider, useTheme } from '@/theme/ThemeProvider';
@@ -49,12 +50,15 @@ function ThemedStack({ fontsReady }: { fontsReady: boolean }) {
       <Stack screenOptions={{ headerShown: false, contentStyle: { backgroundColor: palette.bg } }}>
         <Stack.Protected guard={inApp}>
           <Stack.Screen name="(app)" />
-          <Stack.Screen name="menu" options={{ presentation: 'fullScreenModal', animation: 'fade' }} />
+          {/* containedModal (not fullScreenModal) so the menu presents inside the root view and sits under <Grain />. */}
+          <Stack.Screen name="menu" options={{ presentation: 'containedModal', animation: 'fade' }} />
         </Stack.Protected>
         <Stack.Protected guard={!inApp}>
           <Stack.Screen name="(auth)" options={{ animation: 'fade' }} />
         </Stack.Protected>
       </Stack>
+      {/* Paper grain — top layer of every screen (SPEC §4.C). */}
+      <Grain />
     </>
   );
 }

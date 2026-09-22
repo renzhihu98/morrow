@@ -6,8 +6,8 @@
     "orientation": "portrait",
     "icon": "./assets/images/icon.png",
     "scheme": "morrow",
-    "userInterfaceStyle": "automatic",
-    "backgroundColor": "#0C0D10",
+    "userInterfaceStyle": "light",
+    "backgroundColor": "#E5E3DA",
     "ios": {
       "bundleIdentifier": "com.morrow.app",
       "supportsTablet": false
@@ -32,7 +32,7 @@
           "image": "./assets/images/splash-icon.png",
           "imageWidth": 120,
           "resizeMode": "contain",
-          "backgroundColor": "#F3F4F6",
+          "backgroundColor": "#E5E3DA",
           "dark": {
             "image": "./assets/images/splash-icon.png",
             "backgroundColor": "#0C0D10"

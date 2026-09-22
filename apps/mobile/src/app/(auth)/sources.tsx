@@ -3,16 +3,17 @@ import { useQueryClient } from '@tanstack/react-query';
 import { useState } from 'react';
 import { Pressable, ScrollView, StyleSheet, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import { Button } from '@/components/Button';
 import { Dot } from '@/components/Dot';
-import { ArrowRightIcon } from '@/components/Icons';
-import { AuthHeader, PrimaryButton } from '@/components/Onboarding';
+import { AuthHeader } from '@/components/Onboarding';
 import { Hairline } from '@/components/Page';
 import { Txt } from '@/components/Txt';
 import { useLinkSource } from '@/data/queries';
 import { drawFirstReading, useFirstReading, useGate, useMe } from '@/data/session';
-import { formatCount, sourceGlyph } from '@/lib/format';
+import { formatCount } from '@/lib/format';
 import { useTheme } from '@/theme/ThemeProvider';
-import { monoStyle, sansStyle, serifStyle } from '@/theme/typography';
+import { ink } from '@/theme/ink';
+import { sansStyle, serifStyle } from '@/theme/typography';
 
 type Card = { kind: SourceKind; name: string; reads: string; never: string };
 
@@ -37,14 +38,28 @@ const CARDS: Card[] = [
   },
 ];
 
-function metaLine(source: Source | undefined): string {
-  if (!source || source.status === 'not_linked') return 'Recommended';
-  if (source.status === 'error') return 'Needs attention';
-  if (source.stat) return `${formatCount(source.stat.value)} ${source.stat.label} found`;
-  return 'Reading…';
+/** Meta under the source name: numerals in Geist Mono, words in Geist (SPEC §4.D). */
+function MetaLine({ source }: { source: Source | undefined }) {
+  if (source?.status === 'linked' && source.stat) {
+    return (
+      <Txt variant="label" color="textMuted">
+        <Txt variant="meta" color="textMuted">
+          {formatCount(source.stat.value)}
+        </Txt>
+        {` ${source.stat.label} found`}
+      </Txt>
+    );
+  }
+  const text =
+    !source || source.status === 'not_linked' ? 'Recommended' : source.status === 'error' ? 'Needs attention' : 'Reading…';
+  return (
+    <Txt variant="label" color="textMuted">
+      {text}
+    </Txt>
+  );
 }
 
-/** Screen 14 — Connect accounts (onboarding step 2 of 3). */
+/** v4 screen 02 — Connect accounts (onboarding step 2 of 3; Paper CAQ). */
 export default function ConnectAccountsScreen() {
   const { palette } = useTheme();
   const qc = useQueryClient();
@@ -73,12 +88,10 @@ export default function ConnectAccountsScreen() {
       <AuthHeader note="Step 2 of 3" />
       <ScrollView contentContainerStyle={{ paddingBottom: 24 }}>
         <View style={styles.titleBlock}>
-          <Txt accessibilityRole="header" style={serifStyle(42, 44, -0.015)}>
+          <Txt accessibilityRole="header" style={serifStyle(40, 44, -0.02)}>
             What may Morrow read?
           </Txt>
-          <Txt color="textSecondary" style={[sansStyle(14, 21), { paddingTop: 10 }]}>
-            Start with two. Morrow asks before it needs more.
-          </Txt>
+          <Txt color="textMuted">Start with two. Morrow asks before it needs more.</Txt>
         </View>
 
         <View style={styles.cards}>
@@ -105,10 +118,10 @@ export default function ConnectAccountsScreen() {
           </Txt>
           <Hairline dashed />
           <View style={styles.laterRow} accessible accessibilityLabel="Instagram. Locked until a prophecy needs it.">
-            <Txt color="textSecondary" style={serifStyle(19, 24)}>
+            <Txt color="textMuted" style={serifStyle(20, 24)}>
               Instagram
             </Txt>
-            <Txt variant="label" color="textFaint">
+            <Txt variant="label" color="textMuted">
               Locked
             </Txt>
           </View>
@@ -122,20 +135,14 @@ export default function ConnectAccountsScreen() {
             {first.message}
           </Txt>
         ) : null}
-        <PrimaryButton
-          label="Draw my first reading"
-          height={50}
-          trailing={<ArrowRightIcon color={palette.onAccent} size={14} />}
+        <Button
+          label="Draw my first reading →"
+          accessibilityLabel="Draw my first reading"
           disabled={linkedCount === 0}
-          busy={drawing}
-          accessibilityHint={linkedCount === 0 ? 'Connect at least one source first' : undefined}
+          loading={drawing}
           onPress={draw}
         />
-        <Pressable accessibilityRole="button" onPress={draw} disabled={drawing} hitSlop={10}>
-          <Txt color="textMuted" style={[sansStyle(13, 18), { textAlign: 'center' }]}>
-            Skip for now
-          </Txt>
-        </Pressable>
+        <Button variant="link" label="Skip for now" onPress={draw} disabled={drawing} />
       </View>
     </SafeAreaView>
   );
@@ -154,29 +161,21 @@ function SourceCard({
   disabled: boolean;
   onConnect: () => void;
 }) {
-  const { palette, alpha } = useTheme();
+  const { palette } = useTheme();
   const linked = source?.status === 'linked';
   return (
     <View
-      style={[
-        styles.card,
-        { backgroundColor: palette.panel, borderColor: linked ? alpha.accentBorder : palette.hairline },
-      ]}
+      style={[styles.card, { backgroundColor: palette.surface, borderColor: linked ? LINKED_BORDER : palette.hairline }]}
     >
       <View style={styles.cardTop}>
-        <View style={[styles.glyph, { borderColor: palette.hairlineStrong }]}>
-          <Txt style={monoStyle(11, 14, 0)}>{sourceGlyph(card.kind)}</Txt>
-        </View>
         <View style={{ flex: 1, gap: 2 }}>
-          <Txt style={serifStyle(22, 24)}>{card.name}</Txt>
-          <Txt variant="label" color="textMuted" style={{ fontSize: 10, lineHeight: 13 }}>
-            {metaLine(source)}
-          </Txt>
+          <Txt style={serifStyle(23, 26, -0.01)}>{card.name}</Txt>
+          <MetaLine source={source} />
         </View>
         {linked ? (
-          <View style={styles.linked}>
-            <Dot color={palette.accent} size={7} />
-            <Txt variant="label" color="accent">
+          <View style={styles.linked} accessible accessibilityLabel={`${card.name} linked`}>
+            <Dot color={palette.highlight} size={8} style={{ borderWidth: 1, borderColor: ink.outline }} />
+            <Txt medium style={sansStyle(13, 18, true)}>
               Linked
             </Txt>
           </View>
@@ -188,18 +187,20 @@ function SourceCard({
             disabled={disabled}
             style={({ pressed }) => [
               styles.connect,
-              { borderColor: palette.hairlineStrong, opacity: pressed || connecting ? 0.6 : disabled ? 0.5 : 1 },
+              { borderColor: palette.accent, opacity: pressed || connecting ? 0.6 : disabled ? 0.5 : 1 },
             ]}
           >
-            <Txt style={sansStyle(13, 18, true)}>{connecting ? 'Opening…' : 'Connect'}</Txt>
+            <Txt color="accent" style={sansStyle(14, 18, true)}>
+              {connecting ? 'Opening…' : 'Connect'}
+            </Txt>
           </Pressable>
         )}
       </View>
       <View style={[styles.cardBody, { borderTopColor: palette.hairline }]}>
-        <Txt color="textSecondary" style={sansStyle(13, 19)}>
+        <Txt color="text" style={sansStyle(14, 21)}>
           {card.reads}
         </Txt>
-        <Txt color="textMuted" style={sansStyle(13, 19)}>
+        <Txt color="textMuted" style={sansStyle(14, 21)}>
           {card.never}
         </Txt>
       </View>
@@ -207,17 +208,19 @@ function SourceCard({
   );
 }
 
+/** Oxblood at 45% — the linked card's outline (Paper CAQ). */
+const LINKED_BORDER = 'rgba(90,29,34,0.45)';
+
 const styles = StyleSheet.create({
   root: { flex: 1 },
-  titleBlock: { paddingHorizontal: 24, paddingTop: 18 },
-  cards: { paddingHorizontal: 16, paddingTop: 20, gap: 10 },
-  card: { borderRadius: 14, borderWidth: 1, paddingVertical: 14, paddingHorizontal: 16, gap: 10 },
+  titleBlock: { paddingHorizontal: 24, paddingTop: 20, gap: 10 },
+  cards: { paddingHorizontal: 24, paddingTop: 20, gap: 10 },
+  card: { borderRadius: 14, borderWidth: 1, paddingVertical: 14, paddingHorizontal: 16, gap: 12 },
   cardTop: { flexDirection: 'row', alignItems: 'center', gap: 12 },
-  glyph: { width: 36, height: 36, borderRadius: 9, borderWidth: 1, alignItems: 'center', justifyContent: 'center' },
   linked: { flexDirection: 'row', alignItems: 'center', gap: 6 },
-  connect: { height: 32, paddingHorizontal: 14, borderRadius: 9, borderWidth: 1, justifyContent: 'center' },
-  cardBody: { borderTopWidth: 1, paddingTop: 10, gap: 4 },
-  later: { paddingHorizontal: 24, paddingTop: 18 },
+  connect: { height: 34, paddingHorizontal: 14, borderRadius: 10, borderWidth: 1, justifyContent: 'center' },
+  cardBody: { borderTopWidth: 1, paddingTop: 12, gap: 2 },
+  later: { paddingHorizontal: 24, paddingTop: 16 },
   laterRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingVertical: 10 },
-  footer: { paddingHorizontal: 16, paddingBottom: 8, gap: 10 },
+  footer: { paddingHorizontal: 24, paddingTop: 12, paddingBottom: 12, gap: 14 },
 });

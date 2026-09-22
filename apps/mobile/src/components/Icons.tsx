@@ -1,51 +1,65 @@
-import Svg, { Path, Rect } from 'react-native-svg';
+import Svg, { Circle, Path, Rect } from 'react-native-svg';
 
+/** Functional UI icons only (SPEC §4.E): send, stop, back, close, menu, more, lock, check, Google "G". Paths from the v4 Paper artboards. */
 type IconProps = { color: string; size?: number };
 
-export const MenuIcon = ({ color, size = 22 }: IconProps) => (
-  <Svg width={size} height={size} viewBox="0 0 22 22">
-    <Path d="M3 8 H19 M3 14 H13" fill="none" stroke={color} strokeWidth={1.4} strokeLinecap="round" />
+export const MenuIcon = ({ color, size = 24 }: IconProps) => (
+  <Svg width={size} height={size} viewBox="0 0 24 24">
+    <Path d="M4 8.5h16M10 15.5h10" fill="none" stroke={color} strokeWidth={1.5} strokeLinecap="round" />
   </Svg>
 );
 
-export const CloseIcon = ({ color, size = 22 }: IconProps) => (
-  <Svg width={size} height={size} viewBox="0 0 22 22">
-    <Path d="M6 6 L16 16 M16 6 L6 16" fill="none" stroke={color} strokeWidth={1.4} strokeLinecap="round" />
+export const CloseIcon = ({ color, size = 24 }: IconProps) => (
+  <Svg width={size} height={size} viewBox="0 0 24 24">
+    <Path d="M6 6l12 12M18 6L6 18" fill="none" stroke={color} strokeWidth={1.5} strokeLinecap="round" />
   </Svg>
 );
 
-export const SendIcon = ({ color, size = 16 }: IconProps) => (
-  <Svg width={size} height={size} viewBox="0 0 16 16">
-    <Path
-      d="M8 13 V3 M3.5 7.5 L8 3 L12.5 7.5"
-      fill="none"
-      stroke={color}
-      strokeWidth={1.6}
-      strokeLinecap="round"
-      strokeLinejoin="round"
-    />
+export const BackIcon = ({ color, size = 24 }: IconProps) => (
+  <Svg width={size} height={size} viewBox="0 0 24 24">
+    <Path d="M15 5l-7 7 7 7" fill="none" stroke={color} strokeWidth={1.5} strokeLinecap="round" strokeLinejoin="round" />
   </Svg>
 );
 
-export const ArrowRightIcon = ({ color, size = 12 }: IconProps) => (
-  <Svg width={size} height={size} viewBox="0 0 12 12">
-    <Path d="M2 6 H10 M6.5 2.5 L10 6 L6.5 9.5" fill="none" stroke={color} strokeWidth={1.4} strokeLinecap="round" strokeLinejoin="round" />
+export const MoreIcon = ({ color, size = 24 }: IconProps) => (
+  <Svg width={size} height={size} viewBox="0 0 24 24">
+    <Circle cx={5} cy={12} r={1.5} fill={color} />
+    <Circle cx={12} cy={12} r={1.5} fill={color} />
+    <Circle cx={19} cy={12} r={1.5} fill={color} />
   </Svg>
 );
 
-export const LockIcon = ({ color, size = 14 }: IconProps) => (
-  <Svg width={size} height={size} viewBox="0 0 14 14">
-    <Rect x={2.5} y={6} width={9} height={6.5} rx={1.5} fill="none" stroke={color} strokeWidth={1.2} />
-    <Path d="M4.5 6 V4.5 a2.5 2.5 0 0 1 5 0 V6" fill="none" stroke={color} strokeWidth={1.2} />
-  </Svg>
-);
-
-/** Monochrome Google "G" (sign-in button, SPEC §12.1). */
-export const GoogleIcon = ({ color, size = 18 }: IconProps) => (
+export const SendIcon = ({ color, size = 18 }: IconProps) => (
   <Svg width={size} height={size} viewBox="0 0 18 18">
-    <Path d="M16.5 9.2c0-.6-.05-1.1-.15-1.6H9v3.1h4.2a3.6 3.6 0 0 1-1.55 2.35v1.95h2.5c1.47-1.35 2.35-3.35 2.35-5.8Z" fill={color} />
-    <Path d="M9 17c2.1 0 3.85-.7 5.15-1.9l-2.5-1.95c-.7.47-1.6.75-2.65.75-2.03 0-3.76-1.37-4.37-3.22H2.05v2A8 8 0 0 0 9 17Z" fill={color} />
-    <Path d="M4.63 10.68a4.8 4.8 0 0 1 0-3.36v-2H2.05a8 8 0 0 0 0 7.36l2.58-2Z" fill={color} />
-    <Path d="M9 4.4c1.15 0 2.18.4 3 1.17l2.22-2.22A8 8 0 0 0 2.05 5.32l2.58 2C5.24 5.77 6.97 4.4 9 4.4Z" fill={color} />
+    <Path d="M9 14.5V3.5M4.5 8L9 3.5L13.5 8" fill="none" stroke={color} strokeWidth={1.8} strokeLinecap="round" strokeLinejoin="round" />
+  </Svg>
+);
+
+export const ArrowRightIcon = ({ color, size = 14 }: IconProps) => (
+  <Svg width={size} height={size} viewBox="0 0 14 14">
+    <Path d="M2.5 7h9M8 3.5L11.5 7 8 10.5" fill="none" stroke={color} strokeWidth={1.5} strokeLinecap="round" strokeLinejoin="round" />
+  </Svg>
+);
+
+export const LockIcon = ({ color, size = 16 }: IconProps) => (
+  <Svg width={size} height={size} viewBox="0 0 16 16">
+    <Rect x={3} y={7} width={10} height={7} rx={1.5} fill="none" stroke={color} strokeWidth={1.3} />
+    <Path d="M5.5 7V5a2.5 2.5 0 0 1 5 0v2" fill="none" stroke={color} strokeWidth={1.3} strokeLinecap="round" />
+  </Svg>
+);
+
+export const CheckIcon = ({ color, size = 16 }: IconProps) => (
+  <Svg width={size} height={size} viewBox="0 0 16 16">
+    <Path d="M3.5 8.5l3 3 6-7" fill="none" stroke={color} strokeWidth={1.5} strokeLinecap="round" strokeLinejoin="round" />
+  </Svg>
+);
+
+/** Monochrome Google "G" (sign-in button), from the v4 Sign in artboard. */
+export const GoogleIcon = ({ color, size = 20 }: IconProps) => (
+  <Svg width={size} height={size} viewBox="0 0 24 24">
+    <Path
+      d="M12 10.2v3.9h5.5c-.24 1.4-1.7 4.1-5.5 4.1-3.3 0-6-2.75-6-6.2s2.7-6.2 6-6.2c1.9 0 3.15.8 3.87 1.5l2.64-2.55C16.8 3.2 14.6 2.2 12 2.2 6.6 2.2 2.2 6.6 2.2 12s4.4 9.8 9.8 9.8c5.66 0 9.4-3.97 9.4-9.57 0-.64-.07-1.13-.16-1.63z"
+      fill={color}
+    />
   </Svg>
 );

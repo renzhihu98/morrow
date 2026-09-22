@@ -4,23 +4,18 @@ import { useChat } from '@ai-sdk/react';
 import { formatLocalTime, formatShortDate, getLocalParts, type Prophecy, type TodayResponse } from '@morrow/core';
 import { DefaultChatTransport, generateId } from 'ai';
 import { useRouter } from 'next/navigation';
-import { useMemo, useRef, useState } from 'react';
-import type { MorrowUIMessage, StepData } from '@/lib/chat-types';
-import { shortDateOf } from '@/lib/ui/format';
+import { useEffect, useMemo, useRef, useState } from 'react';
+import type { MorrowUIMessage } from '@/lib/chat-types';
+import { numberWord, shortDateOf } from '@/lib/ui/format';
+import { ChatLayout, dayLabel, FigureColumn, FulfilledRail, PromptPills } from './chat/ChatLayout';
+import { DayDivider } from './chat/DayDivider';
+import { UserMessage } from './chat/MessageRow';
 import { Composer } from './Composer';
-import { IndexList } from './IndexList';
-import { Stat } from './Labels';
-import { Orbit, type OrbitNode } from './Orbit';
-import { ReadingSteps } from './ReadingSteps';
+import { CrystalBall } from './CrystalBall';
 import { Transcript, TurnView, turnFromMessage, type Turn } from './Transcript';
 
 type Props = {
   initial: TodayResponse;
-  /** `Calendar · Spotify · Mail` */
-  linkedSources: string;
-  /** e.g. `Reading 214 events across 3 sources` */
-  readingCaption: string;
-  linkedCount: number;
   record: { fulfilled: number; total: number };
 };
 
@@ -37,18 +32,24 @@ function errorCode(error: Error | undefined): ChatErrorCode | null {
   return 'other';
 }
 
-function contactLabel(evidenceRef: string | undefined): string {
-  const parts = (evidenceRef ?? '').split('.');
-  const i = parts.indexOf('people');
-  const key = i >= 0 ? parts[i + 1] : parts.at(-1);
-  return (key ?? 'you')
-    .replace(/_/g, ' ')
-    .replace(/(^|\s)\S/g, (c) => c.toUpperCase());
+/** `people.sam` in a check condition → `Sam`. */
+function contactOf(p: Prophecy): string | null {
+  const c = p.checkCondition;
+  if (!('contact' in c) || !c.contact || c.contact === 'any') return null;
+  return c.contact.replace(/_/g, ' ').replace(/(^|\s)\S/g, (s) => s.toUpperCase());
 }
 
+const cap = (s: string) => s.charAt(0).toUpperCase() + s.slice(1);
 const greeting = (hour: number) => (hour < 12 ? 'Good morning' : hour < 18 ? 'Good afternoon' : 'Good evening');
 
-export function Today({ initial, linkedSources, readingCaption, linkedCount, record }: Props) {
+const SUGGESTIONS = ['What am I not seeing?', "Did last week's prophecy land?"] as const;
+const FOLLOW_UPS = ['What comes next?', 'Help me write back', 'Show my track record'] as const;
+
+/**
+ * Today (Paper 03 ASB-0 → 04 B8E-0 / 05 BE5-0 / 06 AST-0, or 07 C1G-0 on a day a prophecy landed).
+ * One route; the view follows the conversation.
+ */
+export function Today({ initial, record }: Props) {
   const router = useRouter();
   const { user, reading } = initial;
   const tz = user.timezone;
@@ -64,7 +65,7 @@ export function Today({ initial, linkedSources, readingCaption, linkedCount, rec
   const [input, setInput] = useState('');
   const [used, setUsed] = useState(reading.questionCount);
   const [revealed, setRevealed] = useState(false);
-  const [showEarlier, setShowEarlier] = useState(false);
+  const endRef = useRef<HTMLDivElement>(null);
 
   const transport = useMemo(
     () =>
@@ -94,37 +95,39 @@ export function Today({ initial, linkedSources, readingCaption, linkedCount, rec
   const stored = useMemo(() => initial.messages.map((m) => turnFromMessage(m, tz)), [initial.messages, tz]);
   const storedIds = new Set(stored.map((t) => t.id));
 
-  const live: Turn[] = chat.messages
-    .filter((m) => !storedIds.has(m.id))
-    .map((m) => {
-      const texts = m.parts.flatMap((p) => (p.type === 'text' ? [p.text] : []));
-      const observation = m.parts.find((p) => p.type === 'data-observation')?.data;
-      const steps = m.parts.flatMap((p): StepData[] => (p.type === 'data-step' ? [p.data] : []));
-      return {
-        id: m.id,
-        role: m.role === 'user' ? 'user' : 'assistant',
-        time: stamp(m.id),
-        headline: m.role === 'user' ? texts.join('') : (observation?.text ?? ''),
-        body: m.role === 'user' ? [] : texts.filter(Boolean),
-        sourceLabel: observation?.sourceLabel ?? null,
-        prophecyRefs: [],
-        steps,
-        streaming: busy,
-      } satisfies Turn;
-    });
+  // Live turns. `data-step` parts keep streaming but are never shown (SPEC §4.A.5).
+  const liveMessages = chat.messages.filter((m) => !storedIds.has(m.id));
+  const live: Turn[] = liveMessages.map((m, i) => {
+    const texts = m.parts.flatMap((p) => (p.type === 'text' && p.text ? [p.text] : []));
+    const observation = m.parts.find((p) => p.type === 'data-observation')?.data.text;
+    const paragraphs = m.role === 'user' ? [texts.join('')] : [observation, ...texts].filter((t): t is string => Boolean(t));
+    const last = i === liveMessages.length - 1;
+    return {
+      id: m.id,
+      role: m.role === 'user' ? 'user' : 'assistant',
+      time: stamp(m.id),
+      paragraphs,
+      prophecyRefs: [],
+      thinking: m.role !== 'user' && paragraphs.length === 0,
+      streaming: busy && last,
+    } satisfies Turn;
+  });
+  // Submitted, nothing streamed back yet: Morrow is reading.
+  if (busy && live.at(-1)?.role === 'user') {
+    live.push({ id: 'pending', role: 'assistant', time: stamp(`pending-${live.length}`), paragraphs: [], prophecyRefs: [], thinking: true, streaming: true });
+  }
 
-  const turns = [...stored, ...live];
-  const opening = stored[0];
+  const opening = stored[0]?.role === 'assistant' ? stored[0] : undefined;
+  const rest = opening ? stored.slice(1) : stored;
+  const turns = [...rest, ...live];
+  const hasQuestions = turns.some((t) => t.role === 'user');
+
+  const fulfilledId = opening?.prophecyRefs.find((r) => r.event === 'fulfilled')?.prophecyId;
+  const fulfilled = fulfilledId ? initial.prophecies.find((p) => p.id === fulfilledId) : undefined;
+
   const openingMessage = initial.messages[0];
-  const fulfilledRef = openingMessage?.parts.find((p) => p.type === 'prophecyRef' && p.event === 'fulfilled');
-  const fulfilled: Prophecy | undefined =
-    fulfilledRef?.type === 'prophecyRef' ? initial.prophecies.find((p) => p.id === fulfilledRef.prophecyId) : undefined;
-  const openingObservation = openingMessage?.parts.find((p) => p.type === 'observation');
-  const madeRef = openingMessage?.parts.find((p) => p.type === 'prophecyRef' && p.event === 'made');
-  const made = madeRef?.type === 'prophecyRef' ? initial.prophecies.find((p) => p.id === madeRef.prophecyId) : undefined;
-
-  const lastUserIndex = turns.findLastIndex((t) => t.role === 'user');
-  const hasQuestions = lastUserIndex >= 0;
+  const nothingToRead =
+    openingMessage?.parts.some((p) => p.type === 'observation' && p.evidenceRef === 'dossier.empty') ?? false;
 
   const send = (text: string) => {
     if (busy || limitReached) return;
@@ -134,196 +137,137 @@ export function Today({ initial, linkedSources, readingCaption, linkedCount, rec
     void chat.sendMessage({ text });
   };
 
-  // ── view selection ────────────────────────────────────────────────────────
-  type View = 'invocation' | 'fulfilled' | 'reading' | 'asking' | 'answer';
-  const lastTurn = turns.at(-1);
-  const awaitingAnswer = hasQuestions && (lastTurn?.role === 'user' || (busy && !lastTurn?.headline));
-  const view: View = awaitingAnswer
-    ? 'asking'
-    : hasQuestions
-      ? 'answer'
-      : revealed
-        ? 'reading'
-        : fulfilled
-          ? 'fulfilled'
-          : 'invocation';
+  // Open on the newest message when today's conversation has already begun.
+  const resumed = useRef(hasQuestions);
+  useEffect(() => {
+    if (resumed.current) endRef.current?.scrollIntoView({ block: 'end' });
+  }, []);
 
-  const orbitState = view === 'asking' ? 'reading' : view === 'fulfilled' ? 'fulfilled' : 'idle';
-  const hero = view === 'invocation' || view === 'fulfilled';
-  const composerMeta =
-    used > 0 ? `${used} of ${initial.questionLimit} today` : linkedSources || `0 of ${initial.questionLimit} today`;
+  // Keep the newest message in view while the conversation moves.
+  const lastLength = turns.at(-1)?.paragraphs.join('').length ?? 0;
+  useEffect(() => {
+    if (chat.messages.length === 0 && !revealed) return;
+    endRef.current?.scrollIntoView({ block: 'end', behavior: 'smooth' });
+  }, [chat.messages.length, turns.length, lastLength, revealed]);
 
-  const nothingToRead = openingObservation?.type === 'observation' && openingObservation.evidenceRef === 'dossier.empty';
+  type View = 'invocation' | 'fulfilled' | 'chat';
+  const view: View = hasQuestions || revealed ? 'chat' : fulfilled ? 'fulfilled' : 'invocation';
+  const showCount = view === 'chat' || used > 0;
 
-  const nodes: [OrbitNode, OrbitNode, OrbitNode] = [
-    { label: 'Calendar' },
-    { label: 'Spotify' },
-    {
-      accent: true,
-      label: fulfilled
-        ? `Fulfilled · ${contactLabel('contact' in fulfilled.checkCondition ? `people.${fulfilled.checkCondition.contact}` : undefined)}`
-        : nothingToRead
-          ? 'Listening'
-          : `Pattern · ${contactLabel(openingObservation?.type === 'observation' ? openingObservation.evidenceRef : undefined)}`,
-    },
-  ];
+  const composer = (
+    <Composer
+      state={busy ? 'waiting' : input ? 'typing' : 'idle'}
+      value={input}
+      onChange={setInput}
+      onSubmit={send}
+      onStop={() => void chat.stop()}
+      count={showCount ? { used, limit: initial.questionLimit } : undefined}
+      disabled={limitReached}
+      placeholder={
+        limitReached
+          ? 'Morrow has answered fifteen questions today. It speaks again at dawn.'
+          : 'Ask Morrow anything about the days ahead'
+      }
+    />
+  );
 
-  // Latest exchange (answer / asking views): the last user turn and what follows.
-  const exchange = hasQuestions ? turns.slice(lastUserIndex) : [];
-  const earlier = hasQuestions ? turns.slice(0, lastUserIndex) : [];
-  const previousMorrow = [...earlier].reverse().find((t) => t.role === 'assistant');
-  const previousLine =
-    previousMorrow?.headline && previousMorrow.prophecyRefs.length === 0
-      ? previousMorrow.headline
-      : (made?.statement ?? previousMorrow?.headline);
-  const liveSteps = exchange.find((t) => t.role === 'assistant')?.steps ?? [];
-
-  return (
-    <main className="relative mx-auto flex min-h-[calc(100dvh-80px)] w-full max-w-[1440px] flex-col px-6 lg:min-h-[calc(100dvh-88px)] lg:px-[120px]">
-      {/* Orbit: large hero diagram (01/03) or compact conversation diagram (02/06/07). */}
-      {hero ? (
-        <div className="pointer-events-none mx-auto mt-2 w-[220px] sm:w-[320px] lg:absolute lg:right-[90px] lg:top-2 lg:mt-0 lg:w-[660px]">
-          <Orbit state={orbitState} nodes={nodes} showLabels className="hidden lg:block" />
-          <Orbit state={orbitState} nodes={nodes} className="lg:hidden" />
-        </div>
-      ) : (
-        <div className="pointer-events-none mx-auto mt-2 flex w-[180px] flex-col items-center gap-6 lg:absolute lg:right-[100px] lg:top-[148px] lg:mt-0 lg:w-[440px]">
-          <Orbit state={orbitState} nodes={nodes} />
-          <div className="hidden items-center gap-2.5 lg:flex">
-            <span className="size-[5px] rounded-full bg-accent" />
-            <span className="label-sm text-text-muted">
-              {view === 'asking' ? `Consulting ${linkedCount} sources` : readingCaption}
-            </span>
-          </div>
-        </div>
+  const errors = (
+    <>
+      {errorKind === 'reading_sealed' && (
+        <p className="text-body-m text-text lg:text-body">
+          This reading was sealed at dawn.{' '}
+          <button type="button" className="text-accent underline underline-offset-2" onClick={() => router.refresh()}>
+            Open today&apos;s reading
+          </button>
+        </p>
       )}
+      {errorKind === 'other' && <p className="text-body-m text-text lg:text-body">Morrow lost the thread. Try asking again.</p>}
+    </>
+  );
 
-      <div
-        className={`relative flex flex-1 flex-col pb-10 ${
-          hero ? 'pt-8 lg:w-[600px] lg:pt-[108px]' : 'pt-8 lg:w-[700px] lg:justify-center lg:pt-10'
-        }`}
-      >
-        {view === 'invocation' && (
-          <div className="flex flex-col">
-            <h1 className="font-serif text-display-m lg:w-[560px] lg:text-display">
-              The day is leaning toward you.
-            </h1>
-            <p className="max-w-[420px] pt-5 text-body-m text-text-secondary lg:pt-6 lg:text-[16px] lg:leading-[26px]">
+  // ── 03 Invocation ──────────────────────────────────────────────────────────
+  if (view === 'invocation') {
+    return (
+      <main className="mx-auto flex min-h-[calc(100dvh-64px)] w-full max-w-[808px] flex-col px-6 lg:min-h-[calc(100dvh-88px)]">
+        <div className="flex flex-1 flex-col pb-10 pt-8 lg:pt-[52px]">
+          <span className="label text-text-muted">{dayLabel(reading.localDate)}</span>
+          <h1 className="pt-4 font-serif text-display-m text-text lg:max-w-[640px] lg:pt-5 lg:text-display lg:leading-[84px]">
+            {opening?.paragraphs[0] ?? reading.headline}
+          </h1>
+          <div className="flex items-center gap-4 pt-7 lg:gap-5 lg:pt-9">
+            <CrystalBall size={64} variant="large" state="idle" />
+            <p className="max-w-[480px] text-body-m text-text lg:text-[17px] lg:leading-[26px]">
               {greeting(getLocalParts(new Date(initial.now), tz).hour)}, {user.name}.{' '}
               {nothingToRead
                 ? 'I can barely see your days yet. Link a source and I will start to read them.'
                 : 'I read your week while you slept. There is one pattern worth your attention.'}
             </p>
-            <IndexList
-              className="mt-10 lg:mt-12"
-              items={[
-                { label: "Draw today's reading", onSelect: () => setRevealed(true) },
-                { label: 'What am I not seeing?', onSelect: () => send('What am I not seeing?'), disabled: limitReached },
-                { label: "Did last week's prophecy land?", onSelect: () => send("Did last week's prophecy land?"), disabled: limitReached },
-              ]}
-            />
           </div>
-        )}
+          <ul className="flex flex-col pt-9 lg:pt-11">
+            {[
+              { label: "Draw today's reading", onSelect: () => setRevealed(true), disabled: false },
+              ...SUGGESTIONS.map((q) => ({ label: q, onSelect: () => send(q), disabled: limitReached })),
+            ].map((s, i) => (
+              <li key={s.label} className={`border-b border-hairline ${i === 0 ? 'border-t' : ''}`}>
+                <button
+                  type="button"
+                  onClick={s.onSelect}
+                  disabled={s.disabled}
+                  className="flex h-[60px] w-full items-center text-left text-body-m text-text transition-colors hover:text-accent disabled:opacity-50 lg:text-[17px] lg:leading-[22px]"
+                >
+                  {s.label}
+                </button>
+              </li>
+            ))}
+          </ul>
+          <div className="pt-6">{errors}</div>
+        </div>
+        <div className="sticky bottom-0 z-10 -mx-1 bg-bg px-1 pb-6 pt-2.5 lg:pb-[30px]">{composer}</div>
+      </main>
+    );
+  }
 
-        {view === 'fulfilled' && fulfilled && (
-          <div className="flex flex-col">
-            <h1 className="font-serif text-display-m lg:w-[560px] lg:text-display">{opening?.headline}</h1>
-            {opening?.body[0] && (
-              <p className="max-w-[540px] pt-5 text-body-m text-text-secondary lg:pt-6 lg:text-[16px] lg:leading-[26px]">
-                {opening.body[0]}
-              </p>
-            )}
-            <div className="flex gap-10 pt-8 lg:gap-12">
-              <Stat label="Foretold" value={formatShortDate(fulfilled.madeOn)} />
-              <Stat label="Fulfilled" value={shortDateOf(fulfilled.resolvedAt ?? initial.now, tz)} accent />
-              <Stat label="Record" value={`${record.fulfilled} / ${record.total}`} />
-            </div>
-            <IndexList
-              className="mt-9"
-              items={[
-                { label: 'What comes next?', onSelect: () => send('What comes next?'), disabled: limitReached },
-                { label: 'Help me write back', onSelect: () => send('Help me write back'), disabled: limitReached },
-                { label: 'Show my track record', onSelect: () => send('Show my track record'), disabled: limitReached },
-              ]}
-            />
-          </div>
-        )}
+  // ── 07 Prophecy fulfilled / 04 Reading / 05 Asking / 06 Answer ────────────
+  const aside =
+    view === 'fulfilled' && fulfilled ? (
+      <FulfilledRail
+        label={['Fulfilled', contactOf(fulfilled)].filter(Boolean).join(' · ')}
+        headline={`${cap(numberWord(record.fulfilled))} of ${numberWord(record.total)} have landed.`}
+        rows={[
+          { label: 'Foretold', value: formatShortDate(fulfilled.madeOn) },
+          { label: 'Fulfilled', value: shortDateOf(fulfilled.resolvedAt ?? initial.now, tz), strong: true },
+          { label: 'Record', value: `${record.fulfilled} / ${record.total}` },
+        ]}
+      />
+    ) : (
+      <FigureColumn
+        caption={
+          !hasQuestions && opening ? (
+            <>
+              Today&apos;s reading · <span className="font-mono">{opening.time}</span>
+            </>
+          ) : undefined
+        }
+      />
+    );
 
-        {view === 'reading' && opening && (
-          <div className="flex flex-col gap-9">
-            <TurnView
-              turn={{ ...opening, id: 'draw', role: 'user', headline: "Draw today's reading.", body: [], prophecyRefs: [] }}
-              prophecies={[]}
-              timeZone={tz}
-            />
-            <TurnView turn={opening} prophecies={initial.prophecies} timeZone={tz} />
-          </div>
-        )}
-
-        {(view === 'asking' || view === 'answer') && (
-          <div className="flex flex-col gap-9">
-            {earlier.length > 0 && (
-              <button
-                type="button"
-                onClick={() => setShowEarlier((s) => !s)}
-                className="label-sm self-start text-text-muted transition-colors hover:text-text-secondary"
-              >
-                {showEarlier ? '↓ Hide earlier' : `↑ Earlier today — ${earlier.length} ${earlier.length === 1 ? 'turn' : 'turns'}`}
-              </button>
-            )}
-            {showEarlier && <Transcript turns={earlier} prophecies={initial.prophecies} timeZone={tz} />}
-
-            {view === 'asking' && previousLine && !showEarlier && (
-              <div className="flex flex-col gap-2.5 opacity-35">
-                <span className="label text-accent">Morrow{previousMorrow ? ` — ${previousMorrow.time}` : ''}</span>
-                <p className="font-serif text-prophecy-m lg:text-prophecy">{previousLine}</p>
-              </div>
-            )}
-
-            {exchange.map((t) =>
-              t.role === 'user' ? (
-                <div key={t.id} className="flex flex-col gap-2">
-                  <span className="label text-text-muted">You — {t.time}</span>
-                  <p className={view === 'asking' ? 'text-body-lg-m lg:text-body-lg' : 'text-body-m lg:text-body'}>{t.headline}</p>
-                </div>
-              ) : t.headline ? (
-                <TurnView key={t.id} turn={t} prophecies={initial.prophecies} timeZone={tz} />
-              ) : null,
-            )}
-            {view === 'asking' && <ReadingSteps steps={liveSteps} />}
-          </div>
-        )}
-
-        {errorKind === 'reading_sealed' && (
-          <p className="pt-6 text-sm text-text-secondary">
-            This reading was sealed at dawn.{' '}
-            <button type="button" className="underline" onClick={() => router.refresh()}>
-              Open today&apos;s reading
-            </button>
-          </p>
-        )}
-        {errorKind === 'other' && (
-          <p className="pt-6 text-sm text-text-secondary">Morrow lost the thread. Try asking again.</p>
-        )}
-      </div>
-
-      <div className="sticky bottom-0 z-10 -mx-4 bg-gradient-to-t from-bg from-60% to-transparent px-4 pb-[30px] pt-6 lg:mx-0 lg:px-0 lg:pb-10">
-        <Composer
-          state={busy ? 'waiting' : input ? 'typing' : 'idle'}
-          value={input}
-          onChange={setInput}
-          onSubmit={send}
-          onStop={() => void chat.stop()}
-          meta={composerMeta}
-          metaCompact={`${used}/${initial.questionLimit}`}
-          disabled={limitReached}
-          placeholder={
-            limitReached
-              ? 'Morrow has answered fifteen questions today. It speaks again at dawn.'
-              : 'Ask Morrow anything about the days ahead'
+  return (
+    <ChatLayout aside={aside} composer={composer}>
+      <DayDivider label={dayLabel(reading.localDate)} />
+      {opening && !fulfilled && <UserMessage>Draw today&apos;s reading.</UserMessage>}
+      {opening && (
+        <TurnView
+          turn={opening}
+          prophecies={initial.prophecies}
+          timeZone={tz}
+          after={
+            view === 'fulfilled' ? <PromptPills prompts={[...FOLLOW_UPS]} onSelect={send} disabled={limitReached} /> : undefined
           }
         />
-      </div>
-    </main>
+      )}
+      <Transcript turns={turns} prophecies={initial.prophecies} timeZone={tz} />
+      {errors}
+      <div ref={endRef} aria-hidden className="scroll-mb-28" />
+    </ChatLayout>
   );
 }

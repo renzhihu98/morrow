@@ -1,6 +1,7 @@
 'use client';
 
 import { useEffect, useState } from 'react';
+import { buttonClass } from '@/components/ui/Button';
 import { authClient } from '@/lib/auth/client';
 
 const TZ_COOKIE = 'morrow_tz';
@@ -47,12 +48,12 @@ export function SignInButton({ callbackURL }: { callbackURL: string }) {
         type="button"
         onClick={signIn}
         disabled={state === 'working'}
-        className="mt-10 flex h-[52px] w-full max-w-[400px] items-center justify-center gap-3 rounded-[12px] bg-accent-fill text-[15px] font-medium leading-5 text-on-accent transition-opacity hover:opacity-90 disabled:opacity-70"
+        className={buttonClass('primary', 'lg', 'disabled:opacity-70')}
       >
         <GoogleGlyph />
         {state === 'working' ? 'Opening Google…' : 'Continue with Google'}
       </button>
-      {state === 'error' && <p className="pt-3 text-sm text-danger">Google sign-in isn&apos;t available right now. Try again.</p>}
+      {state === 'error' && <p role="alert" className="text-[14px] leading-5 text-danger">Google sign-in isn&apos;t available right now. Try again.</p>}
     </>
   );
 }

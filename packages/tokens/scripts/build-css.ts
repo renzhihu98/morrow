@@ -6,13 +6,12 @@
 import { readFileSync, writeFileSync, existsSync } from 'node:fs';
 import { dirname, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { alphaColors, colors, fonts, radii } from '../src/index';
+import { colors, fonts, radii } from '../src/index';
 
 const kebab = (s: string) => s.replace(/([a-z0-9])([A-Z])/g, '$1-$2').toLowerCase();
 
 const colorVars = (indent: string) => {
   const lines = Object.entries(colors).map(([k, v]) => `${indent}--color-${kebab(k)}: ${v};`);
-  for (const [k, v] of Object.entries(alphaColors)) lines.push(`${indent}--color-${kebab(k)}: ${v};`);
   lines.push(`${indent}color-scheme: light;`);
   return lines.join('\n');
 };

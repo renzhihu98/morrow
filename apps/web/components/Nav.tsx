@@ -4,7 +4,7 @@ import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { useEffect, useState } from 'react';
 
-const ITEMS = [
+export const NAV_ITEMS = [
   { href: '/', label: 'Today' },
   { href: '/readings', label: 'Readings' },
   { href: '/prophecies', label: 'Prophecies' },
@@ -12,22 +12,25 @@ const ITEMS = [
 ] as const;
 
 /** Active item per SPEC §3: Today on `/`, Readings on /readings/*, etc. */
-function isActive(pathname: string, href: string) {
+export function isActive(pathname: string, href: string) {
   return href === '/' ? pathname === '/' : pathname === href || pathname.startsWith(`${href}/`);
 }
 
+/** Desktop links: Geist 15/18, gap 36 — active 500 Oxblood, inactive 400 Capers. */
 export function Nav() {
   const pathname = usePathname();
   return (
     <nav className="flex items-center gap-9" aria-label="Main">
-      {ITEMS.map((item) => {
+      {NAV_ITEMS.map((item) => {
         const active = isActive(pathname, item.href);
         return (
           <Link
             key={item.href}
             href={item.href}
             aria-current={active ? 'page' : undefined}
-            className={`text-sm leading-5 transition-colors ${active ? 'text-text-primary' : 'text-text-muted hover:text-text-secondary'}`}
+            className={`text-[15px] leading-[18px] transition-colors ${
+              active ? 'font-medium text-accent' : 'text-text-muted hover:text-text'
+            }`}
           >
             {item.label}
           </Link>
@@ -37,8 +40,8 @@ export function Nav() {
   );
 }
 
-/** Below md: a menu button that opens a full-width sheet (mirrors mobile screen 08). */
-export function MobileMenu({ status }: { status: string }) {
+/** Below md: a menu button that opens a full-width sheet (serif items with hairlines, mobile screen 08). */
+export function MobileMenu() {
   const pathname = usePathname();
   const [open, setOpen] = useState(false);
   useEffect(() => setOpen(false), [pathname]);
@@ -50,7 +53,7 @@ export function MobileMenu({ status }: { status: string }) {
         onClick={() => setOpen((o) => !o)}
         aria-expanded={open}
         aria-label={open ? 'Close menu' : 'Open menu'}
-        className="flex size-10 items-center justify-center"
+        className="flex size-10 items-center justify-center text-text"
       >
         <svg width="20" height="12" viewBox="0 0 20 12" aria-hidden>
           {open ? (
@@ -63,26 +66,21 @@ export function MobileMenu({ status }: { status: string }) {
       {open && (
         <div className="absolute inset-x-0 top-full border-b border-hairline bg-bg px-6 pb-8">
           <nav className="flex flex-col" aria-label="Main">
-            {ITEMS.map((item) => {
+            {NAV_ITEMS.map((item) => {
               const active = isActive(pathname, item.href);
               return (
                 <Link
                   key={item.href}
                   href={item.href}
                   aria-current={active ? 'page' : undefined}
-                  className="flex items-center border-t border-hairline py-4"
+                  className="flex items-center border-b border-hairline py-4"
                 >
-                  <span className={`font-serif text-list-item-m ${active ? 'text-text-primary' : 'text-text-secondary'}`}>
-                    {item.label}
-                  </span>
-                  {active && <span className="ml-auto size-[5px] rounded-full bg-accent" />}
+                  <span className={`font-serif text-list-item-m ${active ? 'text-accent' : 'text-text'}`}>{item.label}</span>
+                  {active && <span className="ml-auto size-1.5 rounded-full bg-highlight" aria-hidden />}
                 </Link>
               );
             })}
           </nav>
-          <div className="mt-2 rounded-card border border-hairline bg-panel px-4 py-3">
-            <span className="font-mono text-label-sm text-text-muted">{status}</span>
-          </div>
         </div>
       )}
     </div>

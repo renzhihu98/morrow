@@ -55,7 +55,6 @@ export function formatCount(n: number): string {
   return String(n).replace(/\B(?=(\d{3})+(?!\d))/g, ',');
 }
 
-const SOURCE_GLYPH: Record<SourceKind, string> = { calendar: 'CA', spotify: 'SP', mail: 'MA', instagram: 'IG' };
 const SOURCE_SHORT: Record<SourceKind, string> = {
   calendar: 'Calendar',
   spotify: 'Spotify',
@@ -63,7 +62,6 @@ const SOURCE_SHORT: Record<SourceKind, string> = {
   instagram: 'Instagram',
 };
 
-export const sourceGlyph = (kind: SourceKind) => SOURCE_GLYPH[kind];
 /** Dossier source column: `Calendar · Spotify`. */
 export const sourceShortList = (kinds: SourceKind[]) => kinds.map((k) => SOURCE_SHORT[k]).join(' · ');
 

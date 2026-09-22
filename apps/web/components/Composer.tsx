@@ -11,18 +11,22 @@ type Props = {
   onChange?: (value: string) => void;
   onSubmit?: (value: string) => void;
   onStop?: () => void;
-  /** Right-side meta: linked sources (`Calendar · Spotify`) or `n of 15 today`. */
+  /** Question count: renders mono `n of 15 today` (`n/15` under 640px). Preferred over `meta`. */
+  count?: { used: number; limit: number };
+  /** Legacy free-form meta (desktop). Numerals only — never source names (SPEC §4.A.5). */
   meta?: string;
-  /** Compact meta for mobile, e.g. `2/15`. */
+  /** Legacy compact meta for mobile, e.g. `2/15`. */
   metaCompact?: string;
   placeholder?: string;
   disabled?: boolean;
   sealedMessage?: string;
+  /** Sealed-bar action target (default `/`). */
+  sealedHref?: string;
 };
 
-const ArrowUp = ({ className = '' }: { className?: string }) => (
-  <svg width="16" height="16" viewBox="0 0 16 16" aria-hidden className={className}>
-    <path d="M8 13 V3 M3.5 7.5 L8 3 L12.5 7.5" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round" />
+const ArrowUp = () => (
+  <svg width="18" height="18" viewBox="0 0 18 18" aria-hidden>
+    <path d="M9 14V4M4.5 8.5L9 4l4.5 4.5" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round" />
   </svg>
 );
 
@@ -33,38 +37,40 @@ const subscribeNarrow = (cb: () => void) => {
   return () => mq.removeEventListener('change', cb);
 };
 
-/** Composer — idle / typing / waiting / sealed (SPEC §4.4). */
+/** Composer — idle / typing / waiting / sealed (SPEC §4.F, Paper B8E-0 / BE5-0 / C4I-0). No source chips. */
 export function Composer({
   state,
   value = '',
   onChange,
   onSubmit,
   onStop,
+  count,
   meta,
   metaCompact,
   placeholder = 'Ask Morrow anything about the days ahead',
   disabled = false,
   sealedMessage = 'This reading is sealed. Morrow speaks once a day.',
+  sealedHref = '/',
 }: Props) {
   const inputRef = useRef<HTMLInputElement>(null);
   const narrow = useSyncExternalStore(subscribeNarrow, () => window.matchMedia(NARROW).matches, () => false);
 
   if (state === 'sealed') {
     return (
-      <div className="flex items-center gap-4 rounded-panel border border-dashed border-hairline-strong bg-bg py-3.5 pl-5 pr-3.5 lg:pl-6">
-        <svg width="16" height="16" viewBox="0 0 16 16" aria-hidden className="shrink-0 text-text-muted">
-          <rect x="3" y="7" width="10" height="7" rx="1.5" fill="none" stroke="currentColor" strokeWidth="1.2" />
-          <path d="M5.5 7 V5 a2.5 2.5 0 0 1 5 0 V7" fill="none" stroke="currentColor" strokeWidth="1.2" />
+      <div className="flex min-h-16 items-center gap-3.5 rounded-composer border border-dashed border-hairline py-2.5 pl-5 pr-2.5 lg:pl-6">
+        <svg width="18" height="18" viewBox="0 0 18 18" aria-hidden className="shrink-0 text-accent">
+          <rect x="3.5" y="8" width="11" height="7.5" rx="1.6" fill="none" stroke="currentColor" strokeWidth="1.5" />
+          <path d="M6 8 V5.8 a3 3 0 0 1 6 0 V8" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" />
         </svg>
-        <p className="flex-1 text-[15px] leading-6 text-text-secondary">{sealedMessage}</p>
+        <p className="min-w-0 flex-1 text-body-m text-text-muted lg:text-[16px] lg:leading-5">{sealedMessage}</p>
         <Link
-          href="/"
-          className="flex h-10 shrink-0 items-center gap-2.5 rounded-button bg-accent-fill px-4 text-sm font-medium text-on-accent"
+          href={sealedHref}
+          className="flex h-11 shrink-0 items-center gap-2.5 rounded-[22px] bg-accent pl-5 pr-[18px] text-[15px] font-medium leading-[18px] text-on-accent"
         >
           <span className="hidden sm:inline">Today&apos;s reading</span>
           <span className="sm:hidden">Today</span>
-          <svg width="14" height="14" viewBox="0 0 14 14" aria-hidden>
-            <path d="M3 7 H11 M7.5 3.5 L11 7 L7.5 10.5" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
+          <svg width="16" height="16" viewBox="0 0 16 16" aria-hidden>
+            <path d="M3.5 8 H12 M8.5 4.5 L12 8 L8.5 11.5" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round" />
           </svg>
         </Link>
       </div>
@@ -73,6 +79,8 @@ export function Composer({
 
   const waiting = state === 'waiting';
   const canSend = !waiting && !disabled && value.trim().length > 0;
+  const wide = count ? `${count.used} of ${count.limit} today` : meta;
+  const compact = count ? `${count.used}/${count.limit}` : metaCompact;
 
   const submit = (e: { preventDefault(): void }) => {
     e.preventDefault();
@@ -83,13 +91,8 @@ export function Composer({
     <form
       onSubmit={submit}
       onClick={() => inputRef.current?.focus()}
-      className={`flex items-center gap-3 rounded-panel border bg-panel py-3.5 pl-5 pr-3.5 transition-colors lg:gap-[18px] lg:pl-6 ${
-        state === 'typing' && !disabled ? 'border-accent-border' : 'border-hairline'
-      }`}
+      className="flex h-16 items-center gap-3.5 rounded-composer border border-hairline bg-surface pl-5 pr-2.5 lg:pl-6"
     >
-      <span className={`shrink-0 font-mono text-base leading-5 ${waiting || disabled ? 'text-text-faint' : 'text-accent'}`} aria-hidden>
-        ›
-      </span>
       <input
         ref={inputRef}
         value={waiting ? '' : value}
@@ -101,27 +104,25 @@ export function Composer({
         disabled={waiting || disabled}
         maxLength={2000}
         aria-label="Ask Morrow"
-        className={`min-w-0 flex-1 bg-transparent text-body-m text-text-primary caret-accent outline-none lg:text-body ${
-          waiting ? 'placeholder:text-text-faint' : 'placeholder:text-placeholder'
-        }`}
+        className="min-w-0 flex-1 bg-transparent text-body-m text-text caret-accent outline-none placeholder:text-text-muted disabled:cursor-default lg:text-[16px] lg:leading-5"
       />
-      {meta && <span className="label hidden shrink-0 text-text-muted sm:inline">{meta}</span>}
-      {metaCompact && <span className="shrink-0 font-mono text-label-sm text-text-muted sm:hidden">{metaCompact}</span>}
+      {wide && <span className="hidden shrink-0 font-mono text-meta text-text-muted sm:inline">{wide}</span>}
+      {compact && <span className="shrink-0 font-mono text-meta text-text-muted sm:hidden">{compact}</span>}
       {waiting ? (
         <button
           type="button"
           onClick={onStop}
           aria-label="Stop"
-          className="flex size-10 shrink-0 items-center justify-center rounded-button bg-subtle"
+          className="flex size-11 shrink-0 items-center justify-center rounded-full border border-accent"
         >
-          <span className="size-[11px] rounded-[2px] bg-text-secondary" />
+          <span className="size-3 rounded-[2px] bg-accent" />
         </button>
       ) : (
         <button
           type="submit"
           disabled={!canSend}
           aria-label="Send"
-          className="flex size-10 shrink-0 items-center justify-center rounded-button bg-accent-fill text-on-accent disabled:cursor-default"
+          className="flex size-11 shrink-0 items-center justify-center rounded-full bg-accent text-on-accent disabled:cursor-default"
         >
           <ArrowUp />
         </button>

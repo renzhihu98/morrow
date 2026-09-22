@@ -1,22 +1,21 @@
 import type { SourceKind } from '@morrow/core';
-import { Link } from 'expo-router';
+import { router } from 'expo-router';
 import { useState } from 'react';
 import { Alert, StyleSheet, View } from 'react-native';
-import { Hairline, Page, PageState, PageTitle } from '@/components/Page';
+import { Button } from '@/components/Button';
+import { Hairline, Page, PageState } from '@/components/Page';
 import { SourceRow } from '@/components/SourceRow';
 import { Txt } from '@/components/Txt';
 import { isLinkable } from '@/data/auth';
 import { useDisconnectSource, useLinkSource, useSources, useToday } from '@/data/queries';
-import { useTheme } from '@/theme/ThemeProvider';
-import { sansStyle } from '@/theme/typography';
+import { monoStyle, sansStyle } from '@/theme/typography';
 
-/** Screen 10 — connected sources. */
+/** v4 screen 12 — Sources, an account screen (Paper BKL). */
 export default function SourcesScreen() {
   const q = useSources();
   const today = useToday();
   const link = useLinkSource('/sources');
   const disconnect = useDisconnectSource();
-  const { palette } = useTheme();
   const [notice, setNotice] = useState<string | null>(null);
   const tz = today.data?.user.timezone ?? 'UTC';
 
@@ -46,26 +45,41 @@ export default function SourcesScreen() {
     );
   };
 
+  const all = q.data?.sources ?? [];
+  const linked = all.filter((s) => s.status === 'linked');
+  const unlinked = all.filter((s) => s.status !== 'linked');
+
   return (
     <Page active="sources" refreshing={q.isRefetching} onRefresh={() => void q.refetch()}>
-      <PageTitle title="Sources" />
+      <View style={styles.titleBlock}>
+        <Txt variant="title" accessibilityRole="header">
+          Sources
+        </Txt>
+      </View>
       {!q.data ? (
         <PageState error={q.error} onRetry={() => void q.refetch()} />
       ) : (
         <>
           <View>
-            {q.data.sources.map((s) => (
+            {linked.map((s) => (
+              <SourceRow
+                key={s.kind}
+                source={s}
+                timeZone={tz}
+                onDisconnect={isLinkable(s.kind) ? () => onDisconnect(s.kind, s.name) : undefined}
+                disconnecting={disconnect.isPending && disconnect.variables === s.kind}
+              />
+            ))}
+            {linked.length > 0 ? <Hairline /> : null}
+            {unlinked.map((s) => (
               <SourceRow
                 key={s.kind}
                 source={s}
                 timeZone={tz}
                 onConnect={() => onConnect(s.kind)}
                 connecting={link.isPending && link.variables === s.kind}
-                onDisconnect={isLinkable(s.kind) ? () => onDisconnect(s.kind, s.name) : undefined}
-                disconnecting={disconnect.isPending && disconnect.variables === s.kind}
               />
             ))}
-            <Hairline />
           </View>
           {notice ? (
             <Txt variant="label" color="textMuted" style={{ paddingTop: 12 }}>
@@ -75,29 +89,35 @@ export default function SourcesScreen() {
 
           <View style={styles.facts}>
             <View style={styles.between}>
-              <Txt variant="label" color="textMuted">Raw events kept</Txt>
-              <Txt variant="label">24 hours</Txt>
+              <Txt color="textMuted" style={sansStyle(14, 20)}>
+                Raw events kept
+              </Txt>
+              <Txt style={sansStyle(13, 16)}>
+                <Txt variant="meta" style={monoStyle(13, 16)}>
+                  24
+                </Txt>
+                {' hours'}
+              </Txt>
             </View>
             <View style={styles.between}>
-              <Txt variant="label" color="textMuted">Never read</Txt>
-              <Txt variant="label">Health · money</Txt>
+              <Txt color="textMuted" style={sansStyle(14, 20)}>
+                Never read
+              </Txt>
+              <Txt style={sansStyle(13, 16)}>Health · money</Txt>
             </View>
           </View>
 
           <View style={styles.links}>
-            <Link href="/sources/dossier" accessibilityRole="link">
-              <Txt style={[sansStyle(15, 22), { textDecorationLine: 'underline', textDecorationColor: palette.textPrimary }]}>
-                View dossier
-              </Txt>
-            </Link>
-            <Link href="/sources/forget" accessibilityRole="link">
-              <Txt color="textMuted" style={sansStyle(15, 22)}>
-                Forget everything
-              </Txt>
-            </Link>
+            <Button variant="link" label="View dossier" onPress={() => router.push('/sources/dossier')} style={styles.link} />
+            <Button
+              variant="dangerLink"
+              label="Forget everything"
+              onPress={() => router.push('/sources/forget')}
+              style={styles.link}
+            />
           </View>
 
-          <Txt color="textMuted" style={[sansStyle(14, 21), { paddingTop: 36 }]}>
+          <Txt color="textMuted" style={{ paddingTop: 28 }}>
             Morrow never connects anything on its own. It will ask only when a prophecy needs to see more.
           </Txt>
         </>
@@ -107,7 +127,9 @@ export default function SourcesScreen() {
 }
 
 const styles = StyleSheet.create({
-  facts: { paddingTop: 22, gap: 10 },
-  between: { flexDirection: 'row', justifyContent: 'space-between' },
-  links: { flexDirection: 'row', gap: 22, paddingTop: 22 },
+  titleBlock: { paddingTop: 28, paddingBottom: 20 },
+  facts: { paddingTop: 20, gap: 10 },
+  between: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
+  links: { flexDirection: 'row', gap: 24, paddingTop: 24 },
+  link: { alignSelf: 'flex-start' },
 });

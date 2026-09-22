@@ -6,7 +6,7 @@ export function DemoBadge() {
   const demo = useDemoMode();
   if (!demo) return null;
   return (
-    <Txt variant="label" color="textFaint" accessibilityLabel="Demo mode: showing sample data" style={{ fontSize: 10, lineHeight: 12 }}>
+    <Txt variant="label" color="textMuted" accessibilityLabel="Demo mode: showing sample data">
       Demo
     </Txt>
   );

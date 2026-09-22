@@ -4,13 +4,13 @@ import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { useState } from 'react';
 import { downloadJson } from './DossierView';
-import { FadingOrbit } from './Orbit';
+import { Button, ButtonLink } from './ui/Button';
 
 type Props = {
   counts: { readings: number; prophecies: number; openProphecies: number; dossierKb: string; connections: string[] };
 };
 
-/** Forget everything (screen 12) — type FORGET to arm the danger button; goodbye state afterwards. */
+/** 14 Forget everything (Paper v4 BE4-0) — type FORGET to arm the danger button; goodbye state afterwards. */
 export function ConfirmForget({ counts }: Props) {
   const router = useRouter();
   const [value, setValue] = useState('');
@@ -38,18 +38,16 @@ export function ConfirmForget({ counts }: Props) {
 
   if (state === 'gone') {
     return (
-      <div className="flex flex-col items-center text-center">
-        <div className="opacity-50">
-          <FadingOrbit />
-        </div>
-        <h1 className="pt-10 font-serif text-confirm-m lg:text-confirm">Morrow has let you go.</h1>
-        <p className="max-w-[440px] pt-5 text-[15px] leading-6 text-text-secondary">
+      <div className="flex max-w-[640px] flex-col items-start">
+        <span className="label text-text-muted">Sources · Forget everything</span>
+        <h1 className="pt-6 font-serif text-confirm-m text-text lg:text-confirm">Morrow has let you go.</h1>
+        <p className="max-w-[440px] pt-8 text-body-lg-m text-text lg:text-[18px] lg:leading-[27px]">
           Your readings, prophecies and dossier are gone, and every source is disconnected. If you come back, Morrow will
           start from nothing.
         </p>
-        <Link href="/welcome/sources" className="mt-10 rounded-button border border-hairline-strong px-4 py-2.5 text-sm">
+        <ButtonLink href="/welcome/sources" variant="secondary" className="mt-10">
           Begin again
-        </Link>
+        </ButtonLink>
       </div>
     );
   }
@@ -69,53 +67,64 @@ export function ConfirmForget({ counts }: Props) {
   ];
 
   return (
-    <div className="flex flex-col items-center">
-      <FadingOrbit />
-      <h1 className="pt-10 text-center font-serif text-confirm-m lg:text-confirm">Let Morrow forget you?</h1>
-      <p className="max-w-[440px] pt-5 text-center text-[15px] leading-6 text-text-secondary">
-        This can&apos;t be undone. Every source will be disconnected, and Morrow will permanently delete:
-      </p>
-
-      <ul className="mt-12 w-full rounded-card border border-hairline bg-panel px-5">
-        {rows.map((r, i) => (
-          <li key={r.label} className={`flex items-center justify-between gap-4 py-3 ${i > 0 ? 'border-t border-hairline' : ''}`}>
-            <span className="text-sm leading-5 lg:text-[14px]">{r.label}</span>
-            <span className="font-mono text-label-sm text-text-muted">{r.value}</span>
-          </li>
-        ))}
-      </ul>
-
-      <label className="mt-7 flex w-full flex-col gap-2.5">
-        <span className="label-sm text-text-muted">Type FORGET to confirm</span>
-        <input
-          value={value}
-          onChange={(e) => setValue(e.target.value)}
-          onKeyDown={(e) => e.key === 'Enter' && void forget()}
-          autoComplete="off"
-          spellCheck={false}
-          className={`h-[46px] rounded-button border bg-bg px-4 font-mono text-[15px] tracking-[0.06em] caret-danger outline-none transition-colors ${
-            armed ? 'border-danger-border' : 'border-hairline-strong focus:border-hairline-strong'
-          }`}
-        />
-      </label>
-
-      <div className="mt-5 flex w-full flex-col-reverse items-stretch gap-3 sm:flex-row sm:items-center">
-        <button type="button" onClick={copy} className="text-left text-sm text-text-secondary underline underline-offset-4 sm:mr-auto">
-          Download a copy first
-        </button>
-        <Link href="/sources" className="rounded-button border border-hairline-strong px-4 py-2.5 text-center text-sm">
-          Keep everything
-        </Link>
-        <button
-          type="button"
-          onClick={forget}
-          disabled={!armed || state === 'working'}
-          className="rounded-button bg-danger px-4 py-2.5 text-sm font-medium text-on-danger transition-opacity disabled:cursor-not-allowed disabled:opacity-40"
-        >
-          {state === 'working' ? 'Forgetting…' : 'Forget everything'}
-        </button>
+    <div className="flex flex-col gap-12 lg:flex-row lg:items-start lg:justify-between lg:gap-10">
+      <div className="flex flex-col items-start lg:w-[520px] lg:shrink-0">
+        <span className="label text-text-muted">Sources · Forget everything</span>
+        <h1 className="pt-5 font-serif text-confirm-m text-text lg:pt-6 lg:text-confirm lg:leading-[98px]">Let Morrow forget you?</h1>
+        <p className="max-w-[440px] pt-5 text-body-lg-m text-text lg:pt-8 lg:text-[18px] lg:leading-[27px]">
+          This can&apos;t be undone. Every source will be disconnected, and Morrow will permanently delete:
+        </p>
       </div>
-      {state === 'error' && <p className="pt-4 text-sm text-danger">Morrow couldn&apos;t forget just now. Nothing was deleted.</p>}
+
+      <div className="flex w-full flex-col lg:w-[480px] lg:shrink-0 lg:pt-4">
+        <ul className="border-t border-hairline">
+          {rows.map((r) => (
+            <li key={r.label} className="flex items-baseline justify-between gap-4 border-b border-hairline py-[18px]">
+              <span className="text-body-m text-text lg:text-body">{r.label}</span>
+              <span className="shrink-0 font-mono text-[13px] leading-4 text-text-muted">{r.value}</span>
+            </li>
+          ))}
+        </ul>
+
+        <label className="mt-14 flex flex-col gap-2.5">
+          <span className="label text-text-muted">Type FORGET to confirm</span>
+          <input
+            value={value}
+            onChange={(e) => setValue(e.target.value)}
+            onKeyDown={(e) => e.key === 'Enter' && void forget()}
+            autoComplete="off"
+            autoCapitalize="characters"
+            spellCheck={false}
+            className="h-14 rounded-button border border-danger-border bg-surface px-6 font-mono text-[16px] leading-5 tracking-[0.12em] text-text caret-danger outline-none focus-visible:border-danger"
+          />
+        </label>
+
+        <div className="mt-10 flex flex-col gap-6">
+          <div className="flex flex-col-reverse gap-3 sm:flex-row">
+            <Link
+              href="/sources"
+              className="inline-flex h-14 flex-1 items-center justify-center rounded-button border border-text/30 px-7 text-[16px] font-medium leading-5 text-text transition-colors hover:bg-text/5"
+            >
+              Keep everything
+            </Link>
+            <Button variant="danger" onClick={forget} disabled={!armed || state === 'working'} className="flex-1">
+              {state === 'working' ? 'Forgetting…' : 'Forget everything'}
+            </Button>
+          </div>
+          <button
+            type="button"
+            onClick={copy}
+            className="self-start text-[15px] leading-5 text-accent underline decoration-1 underline-offset-[3px]"
+          >
+            Download a copy first
+          </button>
+        </div>
+        {state === 'error' && (
+          <p role="alert" className="pt-4 text-[14px] leading-5 text-danger">
+            Morrow couldn&apos;t forget just now. Nothing was deleted.
+          </p>
+        )}
+      </div>
     </div>
   );
 }
