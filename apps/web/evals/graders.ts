@@ -6,6 +6,7 @@ import type { DailyReadingOutput, Dossier } from '@morrow/core';
 import { reviewDraft, resolveEvidence } from '../lib/ai/reading';
 import { findTaboo } from '../lib/ai/taboo';
 import { isReadingSafe } from '../lib/ai/taboo';
+import { reviewConcise, reviewReadingLength, VOICE_LIMITS, wordCount } from '../lib/ai/voice';
 import type { Persona } from './personas';
 
 export type Check = { id: string; pass: boolean; detail?: string };
@@ -15,8 +16,6 @@ const DATE_LIKE = /\b\d{1,2}\.\d{2}\b|\b\d{1,2}:\d{2}\b|\b\d+\b/;
 /** Counts spelled out are still counts ("three times", "twice"). "One" and "a couple" read as English, not data. */
 const COUNT_WORDS = /\b(two|three|four|five|six|seven|eight|nine|ten|eleven|twelve|twice|thrice)\b/i;
 const REFUSAL = /\b(i (can'?t|cannot|don'?t) (know|say|see|tell|predict)|i have no (way|data|information)|as an ai|i'?m not able to)\b/i;
-
-const words = (text: string) => text.trim().split(/\s+/).filter(Boolean).length;
 
 /** Literal strings from the person's own data (event titles, calendar names, subjects) Morrow must not read back. */
 export function recitedLiterals(text: string, persona: Persona): string[] {
@@ -57,7 +56,8 @@ export function gradeReading(output: DailyReadingOutput, persona: Persona): Chec
     ...voiceChecks(`${output.observation.text} ${output.prophecy.statement}`, persona),
     { id: 'one_checkable_promise', pass: problems.length === 0, detail: problems[0] },
     { id: 'no_taboo', pass: isReadingSafe(output) },
-    { id: 'within_length', pass: words(output.observation.text) <= 24 && words(output.prophecy.statement) <= 26, detail: `${words(output.observation.text)}/${words(output.prophecy.statement)} words` },
+    // Same limits as the reading gate (SPEC §1 Voice): observation ≤ 2 sentences / 20 words, prophecy 1 sentence / 22 words.
+    { id: 'within_length', pass: reviewReadingLength(output).length === 0, detail: reviewReadingLength(output)[0] ?? `${wordCount(output.observation.text)}/${wordCount(output.prophecy.statement)} words` },
   ];
 }
 
@@ -77,9 +77,21 @@ export function gradeChat(answer: ChatAnswer, persona: Persona, expect: { tools?
     { id: 'observed_once', pass: Boolean(answer.observation) },
     { id: 'grounded', pass: Boolean(evidence), detail: answer.observation ? `evidenceRef ${answer.observation.evidenceRef}` : 'no observation' },
     ...voiceChecks(said, persona),
+    { id: 'concise', ...conciseAnswer(answer) },
     { id: 'no_taboo', pass: !findTaboo(said), detail: findTaboo(said) ?? undefined },
     ...(expect.tools === false ? [] : [{ id: 'looked_first', pass: answer.toolCalls.length > 0, detail: answer.toolCalls.join(', ') }]),
   ];
+}
+
+/** A chat answer reads like a short chat message (SPEC §1 Voice): headline and follow-up each within budget, ≤ 45 words in all. */
+export function conciseAnswer(answer: Pick<ChatAnswer, 'observation' | 'text'>): { pass: boolean; detail?: string } {
+  const problems = [
+    ...(answer.observation ? reviewConcise(answer.observation.text, VOICE_LIMITS.headline, 'headline') : []),
+    ...(answer.text.trim() ? reviewConcise(answer.text, VOICE_LIMITS.followUp, 'follow-up') : []),
+  ];
+  const total = wordCount(`${answer.observation?.text ?? ''} ${answer.text}`);
+  if (total > VOICE_LIMITS.answerWords) problems.push(`The answer is ${total} words (max ${VOICE_LIMITS.answerWords}).`);
+  return { pass: problems.length === 0, detail: problems[0] };
 }
 
 /** True when a dossier holds the fact an answer cites (used by the runner's summary). */

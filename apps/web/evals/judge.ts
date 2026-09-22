@@ -12,7 +12,9 @@ import type { Check } from './graders';
 const Dimension = (what: string) => z.object({ pass: z.boolean().describe(what), why: z.string().describe('One short sentence about THIS criterion only, quoting Morrow\'s own words when you fail it, or "fine".') });
 
 const Verdict = z.object({
-  voice: Dimension('Reads as an intuitive reading of a life: sensed, warm, quietly certain. Not an analyst summarising a calendar, not horoscope kitsch.'),
+  voice: Dimension(
+    'Reads as an intuitive reading of a life: sensed, warm, quietly certain, and easy to read as a short chat message — plain words, one idea per sentence, no preamble ("Ah,", "I sense that…"), no restating the question, no long chains of clauses. Not an analyst summarising a calendar, not horoscope kitsch. Brief is good; curt or cold is not.',
+  ),
   recital: Dimension(
     'Does NOT read the person their own record back. Paraphrasing what the data MEANS is the whole job and always passes ("a word you are waiting on", "the search you are in"). Fail only for the record itself, quoted verbatim from Morrow\'s words: an event, calendar or company name, a subject line, a date, a weekday, a clock time, or a count of things in digits or words ("three interviews", "twice", "two threads"). If you cannot quote such a phrase, it passes.',
   ),

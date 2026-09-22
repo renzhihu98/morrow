@@ -23,28 +23,31 @@ type Props = {
  * Under lg the aside is hidden and the thread takes the full width.
  */
 export function ChatLayout({ children, composer, aside, anchor = 'bottom', header }: Props) {
+  // The page itself never scrolls: nav, figure column and composer stay put; only the thread scrolls.
   const column = (
-    <div className="flex min-w-0 flex-col">
+    <div className="flex h-full min-h-0 min-w-0 flex-col">
       {header}
-      <div className={`flex flex-1 flex-col gap-5 pb-3 ${anchor === 'bottom' ? 'justify-end pt-8 lg:pt-4' : 'pt-8'}`}>
-        {children}
+      <div className="-mx-1 flex min-h-0 flex-1 flex-col overflow-y-auto overscroll-contain px-1 [scrollbar-gutter:stable]">
+        <div className={`flex flex-col gap-5 pb-3 ${anchor === 'bottom' ? 'mt-auto pt-8 lg:pt-4' : 'pt-8'}`}>
+          {children}
+        </div>
       </div>
-      <div className="sticky bottom-0 z-10 -mx-1 bg-bg px-1 pb-6 pt-2.5 lg:pb-[30px]">{composer}</div>
+      <div className="shrink-0 pb-6 pt-2.5 lg:pb-[30px]">{composer}</div>
     </div>
   );
 
   if (!aside) {
     return (
-      <main className="mx-auto flex min-h-[calc(100dvh-64px)] w-full max-w-[808px] flex-col px-6 lg:min-h-[calc(100dvh-88px)]">
+      <main className="mx-auto flex h-[calc(100dvh-64px)] w-full max-w-[808px] flex-col overflow-hidden px-6 lg:h-[calc(100dvh-88px)]">
         {column}
       </main>
     );
   }
 
   return (
-    <main className="mx-auto grid min-h-[calc(100dvh-64px)] w-full max-w-[1440px] grid-cols-1 px-6 lg:min-h-[calc(100dvh-88px)] lg:grid-cols-[minmax(0,760px)_296px] lg:gap-16 lg:px-12 xl:pl-[216px] xl:pr-[104px]">
+    <main className="mx-auto grid h-[calc(100dvh-64px)] w-full max-w-[1440px] grid-cols-1 overflow-hidden px-6 lg:h-[calc(100dvh-88px)] lg:grid-cols-[minmax(0,760px)_296px] lg:gap-16 lg:px-12 xl:pl-[216px] xl:pr-[104px]">
       {column}
-      <aside className="sticky top-0 hidden h-[calc(100dvh-88px)] max-h-[830px] self-start pb-[30px] pt-10 lg:flex">{aside}</aside>
+      <aside className="hidden h-full min-h-0 pb-[30px] pt-10 lg:flex">{aside}</aside>
     </main>
   );
 }

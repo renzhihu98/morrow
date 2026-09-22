@@ -18,11 +18,11 @@ const SAM: Script = {
     { id: 'memory', source: 'memory', label: 'Past readings', detail: '09.16 — what you asked last time' },
   ],
   observation: {
-    text: "Yes. But choose the day yourself — Thursday morning is open, and you haven't cancelled a Thursday since June.",
+    text: 'Yes. But choose the day yourself, a morning you already keep for you.',
     evidenceRef: 'dossier.rhythms.protected_time',
     sourceLabel: 'Calendar · 11 Thursdays kept since 06.05 · Spotify · 4 late sessions',
   },
-  text: 'The four times it slipped were all Mondays, each after a late night. It was never about Sam.',
+  text: 'It kept slipping after late nights. It was never about them.',
 };
 
 function pickScript({ question, record, name }: DemoContext): Script {
@@ -35,11 +35,11 @@ function pickScript({ question, record, name }: DemoContext): Script {
         { id: 'memory', source: 'memory', label: 'Past readings', detail: '09.16 — the four moved coffees' },
       ],
       observation: {
-        text: 'Keep it short, and offer Thursday morning before anything else fills it.',
+        text: 'Keep it short. Offer the morning you protect before anything else fills it.',
         evidenceRef: 'dossier.people.sam',
         sourceLabel: 'Mail · 09.30 · 08:47 · Calendar · Thursday open',
       },
-      text: `Sam wrote first because the door was already open, ${name}. You don't need to explain the moved coffees.`,
+      text: `The door was already open, ${name}. You owe no explanation.`,
     };
   }
   if (/track record|record|how often|accurate|right/.test(q)) {
@@ -51,7 +51,7 @@ function pickScript({ question, record, name }: DemoContext): Script {
         { id: 'calendar', source: 'calendar', label: 'Calendar', detail: 'Which windows closed' },
       ],
       observation: {
-        text: `${cap(numberWord(record.fulfilled))} of ${numberWord(total)} have landed. ${cap(numberWord(record.expired))} closed quietly, and ${numberWord(record.open)} are still open.`,
+        text: `${cap(numberWord(record.fulfilled))} of ${numberWord(total)} have landed. The rest are still unfolding, or closed quietly.`,
         evidenceRef: 'prophecies.record',
         sourceLabel: `Prophecies · ${total} since August`,
       },
@@ -66,11 +66,11 @@ function pickScript({ question, record, name }: DemoContext): Script {
         { id: 'memory', source: 'memory', label: 'Past readings', detail: 'Open prophecies' },
       ],
       observation: {
-        text: 'Watch the old studio. The threads are warming, and they are not about coffee.',
+        text: 'Watch the place you used to work. Something there is warming toward you.',
         evidenceRef: 'dossier.people.old_studio',
         sourceLabel: 'Mail · 09.20 · 09.22 · 09.23',
       },
-      text: 'Prophecy 0052 is open until 10.30. Keep one Thursday morning free for it.',
+      text: 'What I saw coming is still on its way. Keep one quiet morning free for it.',
     };
   }
   return SAM;
@@ -87,7 +87,9 @@ const sleep = (ms: number, signal?: AbortSignal) =>
 
 /**
  * Scripted Morrow answer (SPEC §10 demo mode): the same data parts as the model path,
- * with small delays so both clients look identical with or without a model.
+ * with small delays so both clients look identical with or without a model. The spoken
+ * text follows the concise voice (SPEC §1 Voice): no names, days, counts of events or
+ * prophecy numbers; step details may carry data because steps are never rendered.
  */
 export async function writeDemoAnswer(
   writer: UIMessageStreamWriter<MorrowUIMessage>,

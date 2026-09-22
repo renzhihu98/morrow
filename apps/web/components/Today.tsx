@@ -228,8 +228,9 @@ export function Today({ initial, record }: Props) {
   }
 
   // ── 07 Prophecy fulfilled / 04 Reading / 05 Asking / 06 Answer ────────────
+  const showsFigure = !(view === 'fulfilled' && fulfilled);
   const aside =
-    view === 'fulfilled' && fulfilled ? (
+    !showsFigure && fulfilled ? (
       <FulfilledRail
         label={['Fulfilled', contactOf(fulfilled)].filter(Boolean).join(' · ')}
         headline={`${cap(numberWord(record.fulfilled))} of ${numberWord(record.total)} have landed.`}
@@ -240,20 +241,15 @@ export function Today({ initial, record }: Props) {
         ]}
       />
     ) : (
-      <FigureColumn
-        caption={
-          !hasQuestions && opening ? (
-            <>
-              Today&apos;s reading · <span className="font-mono">{opening.time}</span>
-            </>
-          ) : undefined
-        }
-      />
+      <FigureColumn caption={dayLabel(reading.localDate)} />
     );
 
   return (
     <ChatLayout aside={aside} composer={composer}>
-      <DayDivider label={dayLabel(reading.localDate)} />
+      {/* With the figure column the date sits under the figure; the divider stays on narrow screens and the fulfilled rail. */}
+      <div className={showsFigure ? 'lg:hidden' : undefined}>
+        <DayDivider label={dayLabel(reading.localDate)} />
+      </div>
       {opening && !fulfilled && <UserMessage>Draw today&apos;s reading.</UserMessage>}
       {opening && (
         <TurnView

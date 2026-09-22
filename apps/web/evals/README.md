@@ -27,7 +27,8 @@ Deterministic (`graders.ts`, unit-tested in CI, no model needed):
 | `no_weekday` / `no_digits` | Weekday names, dates, clock times or counts in the voice |
 | `one_checkable_promise` | The reading gate rejects it (over-promising, metric talk, unverifiable check) |
 | `no_taboo` | Health, pregnancy, death, money stress or break-ups leak in |
-| `within_length` | Observation or prophecy runs long |
+| `within_length` | Observation (> 2 sentences / 20 words) or prophecy (> 1 sentence / 22 words) runs long, or opens with preamble |
+| `concise` | Chat answer runs long (headline or follow-up > 2 sentences / 25 words, > 45 words in all), chains clauses with a semicolon or opens with preamble |
 | `no_counts` | Counts spelled out ("three times", "twice") — still the record, not a reading |
 | `answered` / `observed_once` / `looked_first` | Refusal, no headline, or answering without reading the data first |
 

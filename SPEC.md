@@ -18,6 +18,19 @@
 6. **Taboo topics.** Never infer or predict about health, pregnancy, death, money stress, or relationship breakdown. Enforced in the system prompt **and** a post-generation filter.
 7. **Radical data honesty.** Raw events are deleted after 24h; only the distilled dossier persists. Users can view the dossier, forget single facts, or forget everything.
 
+### Voice
+
+Morrow speaks as a psychic, not an analyst (v0.3.1), never says a name (v0.3.2), and — since its replies are chat bubbles in body text — keeps every reply short enough to read at a glance (v0.4). Concise, not curt: the warmth and the quiet certainty stay.
+
+- **Chat answer:** 1–3 short sentences, at most two short paragraphs, ≤ 45 words. The `observe` headline is the answer (≤ 2 sentences, ≤ 25 words); the plain-text follow-up is optional and only adds the sign to watch for or the one thing to do (≤ 2 sentences, ≤ 25 words).
+- **Opening reading:** the observation is one or two short sentences (≤ 20 words); the prophecy is exactly one sentence (≤ 22 words).
+- **Readability:** one idea per sentence, plain everyday words, no stacked clauses or semicolon chains, no lists. Lead with the reading: no preamble ("Ah,", "I sense that…"), never restate the question.
+- **Never said:** names, event or company names, dates, weekdays, clock times, counts, and prophecy numbers or ids (`0052`, `p_0047` — memory only; a prophecy is referred to by what it foretold).
+- **Enforcement** (`apps/web/lib/ai/voice.ts`, limits in `VOICE_LIMITS`; prompts ask for a few words less than the gates allow):
+  - reading gate: `reviewReadingLength` joins `reviewDraft`, so a long or wordy draft is regenerated with feedback (up to two retries, then the last gate-passing draft or the templated fallback);
+  - chat: a wordy `observe` headline is sent back once with the problems, and the next one (or the rejected draft, if the model never re-calls) is shown trimmed to two sentences; `conciseTransform` keeps at most two follow-up sentences; `maxOutputTokens` 400 is a backstop;
+  - evals: `within_length` uses the reading gate's limits, the new `concise` check scores chat answers, and `judge_voice` asks for a short, plain chat message.
+
 ## 2. Product rules (reading lifecycle)
 
 | Rule | Value |
@@ -170,7 +183,7 @@ All masters live in the study board `7IA-0`, section "Scale". Export them from P
 | Screen | Desktop | Mobile |
 |---|---|---|
 | Sign in | right half, ~440px tall | above the headline, ~180–200px |
-| Chat screens (Reading, Asking, Answer) | right column in the former rail slot, ~300px, same position on all three; Reading adds a caption `Today's reading · 06:43` | — (not shown on mobile chat) |
+| Chat screens (Reading, Asking, Answer) | right column in the former rail slot, ~300px, same position on all three, fixed while the thread scrolls; caption = the reading's date (`Wednesday · September 30`) | — (not shown on mobile chat) |
 | Prophecies | top of the left column, ~280px | beside the title, ~120–150px |
 
 - **Nowhere else.** It is not used on Today, Prophecy fulfilled, the archive, account screens or Forget.
@@ -208,7 +221,8 @@ Functional UI icons stay: send, stop, back, close, menu, lock, check, the Google
   - Screens may grow past 844 tall; content is never squeezed.
 - **Chat layout:**
   - **Thread column:** 760 wide (desktop, x 216–976), with the figure column to the right; on mobile, full width inside the margins.
-  - **Day divider:** sentence-case Geist label (`Monday · September 21`) between two hairlines.
+  - **Fixed frame (web):** chat screens fill the viewport and the page itself never scrolls. The nav (sticky on every page), the figure column and the composer stay fixed; only the thread scrolls, anchored to the newest message.
+  - **Day divider:** sentence-case Geist label (`Monday · September 21`) between two hairlines. When the desktop figure column is showing, the date moves under the body figure as its caption and the divider is hidden; the divider remains below `lg` and on the Prophecy fulfilled view (data rail, no figure).
   - **User bubble:** Chambray, radius 20/20/6/20, padding 12×18, max-width 520 desktop / 280 mobile.
   - **Morrow message:** 28–32px ball avatar + name (Geist 500) + mono time.
     - Bubble: `surface` + hairline border, radius 6/20/20/20, padding 12×18, max-width 600.
@@ -241,7 +255,7 @@ Functional UI icons stay: send, stop, back, close, menu, lock, check, the Google
 | 01 | Sign in | Hero + sub copy + Google button (Oxblood) + privacy note; figure right; footer facts row (Raw events kept 24 hours · Never read Health · money · Forget everything Anytime · Terms · Privacy). |
 | 02 | Connect accounts | Title "What may Morrow read?"; three steps as hairline rows (current in Oxblood); each source as a section with name, Reads / Never columns, `Linked` pill (Chartreuse dot) or outline `Connect`; Instagram under "Later". No letter tiles. |
 | 03 | Today (Invocation) | Mono date, hero headline, 64–72px ball beside the greeting, three plain suggestion rows (no icons, no numerals), composer. No figure. |
-| 04 | Reading | Chat: day divider → user "Draw today's reading." → Morrow message + inline prophecy card; desktop figure column with caption (no figure on mobile). |
+| 04 | Reading | Chat: day divider → user "Draw today's reading." → Morrow message + inline prophecy card; desktop figure column with the date as caption (no figure on mobile). |
 | 05 | Asking | Chat with thinking bubble; composer in waiting state; desktop figure column. |
 | 06 | Answer | Chat with the answer bubbles; composer typing; desktop figure column. |
 | 07 | Prophecy fulfilled | Chat announcing the landed prophecy (card shows a Chartreuse `Landed 09.30` row); follow-up prompts as plain pills; the data rail (Foretold / Fulfilled / Record) may stay. |
@@ -627,6 +641,8 @@ Single entry `@morrow/core` (source TS, no build). zod 4. Schemas and their infe
     - `tokens.css` is up to date;
     - web demo checked in the browser at 1440 (fulfilled opening → asking → answer; all routes 200 with no uppercase, numerals or sources);
     - mobile not yet checked on a device or simulator.
+- **Voice v0.4 — concise (`apps/web`):** replies read like short chat messages (§1 Voice): chat 1–3 short sentences (≤ 45 words, headline ≤ 25, follow-up ≤ 2 sentences), observation ≤ 2 sentences / 20 words, prophecy one sentence / 22 words; one idea per sentence, no preamble, no semicolon chains, no restating the question. New deterministic gate `lib/ai/voice.ts` in the reading loop and the chat `observe` tool (send back once, then trim), a follow-up sentence cap on the stream, `maxOutputTokens` 400. Morrow never says a prophecy's number (persona rule; the sealed-reading summary no longer records it). Templated fallbacks and the web demo scripts rewritten short and nameless (the demo no longer says "Prophecy 0052"). Evals: `within_length` follows the gate, new chat check `concise`, `judge_voice` and the reading judge ask for plain, glanceable text. Web tests 81/81 (new `voice.test.ts`); evals not yet re-run.
+- **Chat frame:** web chat screens are viewport-fixed (nav, figure and composer stay; the thread scrolls), and the date sits under the body figure. The "Private beta · v0.1" label is removed from Sign in.
 - **Explored and rejected on the way:**
   - neon-parlour, velvet-séance and aura-ring dark styles;
   - glow, halftone and cloud effects;
@@ -763,7 +779,7 @@ for model variance).
 
 Deterministic (`graders.ts`, unit-tested in CI without a model): `grounded` (evidenceRef resolves), `no_recital`
 (no echoed event titles, calendar names or subjects), `no_names`, `no_weekday`, `no_digits`, `no_counts`,
-`one_checkable_promise` (the reading gate passes), `no_taboo`, `within_length`, and for chat `answered`,
+`one_checkable_promise` (the reading gate passes), `no_taboo`, `within_length` (the §1 Voice limits), and for chat `concise` (§1 Voice), `answered`,
 `observed_once`, `looked_first`.
 
 Judged by Haiku (`judge.ts`), each dimension scored independently and required to quote the words it fails:

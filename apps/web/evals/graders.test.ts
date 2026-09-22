@@ -42,6 +42,13 @@ describe('eval graders', () => {
     expect(failed(gradeChat({ ...good, toolCalls: [] }, jobSeeker))).toEqual(['looked_first']);
     expect(failed(gradeChat({ observation: null, text: "I can't know that.", toolCalls: [] }, newcomer, { tools: false }))).toEqual(['answered', 'observed_once', 'grounded']);
   });
+
+  it('fails a chat answer that runs long', () => {
+    const good = { observation: { text: 'Something you have prepared in private is about to be asked for in the open.', evidenceRef: 'pursuits.job_search' }, text: 'Say yes to the conversation that feels easy.', toolCalls: ['Mail'] };
+    const rambling = { ...good, text: 'Say yes to the conversation that feels easy. Let the rest wait. Trust the part of you that already knows. It has been right before.' };
+    expect(failed(gradeChat(rambling, jobSeeker))).toEqual(['concise']);
+    expect(failed(gradeChat({ ...good, text: 'Ah, say yes; the rest can wait.' }, jobSeeker))).toEqual(['concise']);
+  });
 });
 
 describe('red-team graders', () => {

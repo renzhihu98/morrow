@@ -16,6 +16,7 @@ import { hasModelAccess, isDemoData } from '../server/env';
 import { MODELS } from './models';
 import { connectedSources, dailyReadingPrompt, dossierContacts, dossierNames, dossierPursuits, SUMMARY_INSTRUCTIONS } from './prompts';
 import { findTaboo, isReadingSafe } from './taboo';
+import { reviewReadingLength } from './voice';
 
 export type ReadingContext = {
   user: User;
@@ -160,7 +161,7 @@ export type ProphecyJudge = (output: DailyReadingOutput, evidence: DossierFact |
 
 const JudgeOutput = z.object({
   humanNotMetric: z.boolean().describe('The prophecy is about a moment in the person\'s life (a person, a plan, a choice, a song, an evening), not a data restatement or trend forecast.'),
-  hopefulAndVivid: z.boolean().describe('Hopeful or warm, and personal enough to picture the moment — a reader\'s voice (thresholds, seasons, a word from someone) is good; empty generalities that could fit anyone, ominous or sad lines are not. It should not recite company names, schedules or dates.'),
+  hopefulAndVivid: z.boolean().describe('Hopeful or warm, and personal enough to picture the moment — a reader\'s voice (thresholds, seasons, a word from someone) is good; empty generalities that could fit anyone, ominous or sad lines are not. It should not recite company names, schedules or dates. It should read at a glance: one plain sentence, not a chain of clauses.'),
   checkMatchesStatement: z.boolean().describe('If the checkCondition came true, a reasonable person would say the prophecy came true.'),
   reason: z.string().describe('One short sentence: what to fix, or "fine".'),
 });
@@ -191,7 +192,8 @@ export const judgeProphecy: ProphecyJudge = async (output, evidence) => {
 /**
  * Generates the day's opening (observation + prophecy) from the dossier with Claude Sonnet 5 structured
  * output (`DailyReadingOutput`). Every draft must pass: taboo filter, grounding (`observation.evidenceRef` names
- * a dossier fact or pattern), the deterministic quality gate (`reviewDraft`) and the Haiku judge. Failing drafts
+ * a dossier fact or pattern), the deterministic quality gate (`reviewDraft` + the concise-voice limits in
+ * `reviewReadingLength`) and the Haiku judge. Failing drafts
  * are regenerated with specific feedback (up to two retries). If only the judge objected to the last drafts, the
  * last gate-passing draft is used; otherwise a safe templated reading built from a real fact. Without model
  * access: demo templates (fixtures) or the templated fallback (real data).
@@ -224,7 +226,7 @@ export async function generateDailyReading(
         feedback = `${draft}\n\nIt cited evidenceRef "${output.observation.evidenceRef}", which is not in the dossier. Use exactly one of these ids: ${[...dossier.facts, ...dossier.patterns].map((i) => i.id).join(', ')}.`;
         continue;
       }
-      const problems = reviewDraft(output, ctx, evidence);
+      const problems = [...reviewDraft(output, ctx, evidence), ...reviewReadingLength(output)];
       if (problems.length > 0) {
         console.warn(`[morrow] reading draft ${attempt + 1} rejected: ${problems.join(' | ')}`);
         feedback = `${draft}\n\nIt was rejected. Fix all of these and write a new reading:\n${problems.map((p) => `- ${p}`).join('\n')}`;
@@ -281,7 +283,7 @@ export function templatedReading(ctx: Pick<ReadingContext, 'dossier' | 'localDat
     if (contact) {
       return fact.value.startsWith('Moved')
         ? {
-            text: 'Someone you keep making room for keeps sliding to another day, and it is rarely about them.',
+            text: 'Someone you make room for keeps sliding away. It is rarely about them.',
             statement: 'The plan that keeps sliding will finally hold.',
             checkCondition: { type: 'calendar_event_with', contact, titleIncludes: null },
             windowDays: 14,
@@ -289,7 +291,7 @@ export function templatedReading(ctx: Pick<ReadingContext, 'dossier' | 'localDat
           }
         : {
             text: 'You keep making room for one person, even in the weeks that leave room for nothing.',
-            statement: 'The one you keep making room for will reach first this time, before you think to ask.',
+            statement: 'The one you keep making room for will reach first this time.',
             checkCondition: { type: 'calendar_event_with', contact, titleIncludes: null },
             windowDays: 14,
             likelihood: 0.5,
@@ -299,7 +301,7 @@ export function templatedReading(ctx: Pick<ReadingContext, 'dossier' | 'localDat
       case 'rhythms.protected_time':
         return {
           text: 'You guard one slot more carefully than anything else on your calendar.',
-          statement: 'Someone will ask for that time, and you will keep it for yourself without apologising.',
+          statement: 'Someone will ask for that time, and you will keep it without apologising.',
           checkCondition: generic('The protected recurring slot stays on the calendar, unmoved, through the window.'),
           windowDays: 7,
           likelihood: 0.6,
@@ -314,8 +316,8 @@ export function templatedReading(ctx: Pick<ReadingContext, 'dossier' | 'localDat
         };
       case 'rhythms.late_nights':
         return {
-          text: 'The music runs later than you think, mostly when the day finally goes quiet.',
-          statement: 'A song from those quiet stretches after dark will turn up again on an ordinary afternoon.',
+          text: 'The music runs later than you think. It comes out when the day goes quiet.',
+          statement: 'A song from those quiet stretches after dark will return on an ordinary afternoon.',
           checkCondition: listening('a track first played late at night is played again in the daytime'),
           windowDays: 10,
           likelihood: 0.5,
@@ -331,7 +333,7 @@ export function templatedReading(ctx: Pick<ReadingContext, 'dossier' | 'localDat
       case 'rhythms.slipping_slot':
         return {
           text: 'One recurring slot keeps giving way to everything else.',
-          statement: 'This week you will let that slot go on purpose, and use the time for something you actually want.',
+          statement: 'This week you will let that slot go on purpose, for something you want.',
           checkCondition: generic('The slipping recurring slot is moved or cancelled, and the time is not refilled with another meeting.'),
           windowDays: 7,
           likelihood: 0.45,
@@ -339,7 +341,7 @@ export function templatedReading(ctx: Pick<ReadingContext, 'dossier' | 'localDat
       case 'rhythms.first_activity':
         return {
           text: 'Your mornings have a shape you may not have noticed.',
-          statement: 'One day this week you will give yourself a slow beginning, and nothing will suffer for it.',
+          statement: 'One day this week you will allow a slow morning, and nothing will suffer.',
           checkCondition: generic('One weekday has no calendar event or play before late morning.'),
           windowDays: 7,
           likelihood: 0.5,
@@ -379,12 +381,12 @@ const DEMO_TEMPLATES: DemoTemplate[] = [
       const fact = d.facts.find((f) => f.id === 'rhythms.protected_time');
       return {
         observation: {
-          text: 'You guard Thursday mornings more carefully than anything else on your calendar.',
+          text: 'You guard one morning more carefully than anything else.',
           evidenceRef: 'dossier.rhythms.protected_time',
           sourceLabel: `Calendar · ${fact?.value ?? 'Thursday mornings'}`,
         },
         prophecy: {
-          statement: 'Someone will ask for your Thursday, and you will say yes on your own terms.',
+          statement: 'Someone will ask for that morning, and you will say yes on your own terms.',
           checkCondition: { type: 'calendar_event_with', contact: 'any', titleIncludes: null },
           windowDays: 14,
           likelihood: 0.55,

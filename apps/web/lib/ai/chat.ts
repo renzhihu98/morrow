@@ -17,6 +17,7 @@ import { MODELS } from './models';
 import { chatInstructions } from './prompts';
 import { resolveEvidence } from './reading';
 import { findTaboo, scrubTaboo, TABOO_DEFLECTION } from './taboo';
+import { firstSentences, reviewConcise, splitSentences, VOICE_LIMITS } from './voice';
 
 export type ChatTurn = {
   repo: Repository;
@@ -67,6 +68,51 @@ export const tabooTransform = <TOOLS extends ToolSet>(): StreamTextTransform<TOO
   });
 };
 
+/**
+ * Concise voice (SPEC §1 Voice): keeps at most `maxSentences` sentences of plain text across the whole answer, so the
+ * bubble's second paragraph stays one or two short sentences even when the model runs on. Runs after the taboo
+ * filter, buffering to sentence boundaries the same way.
+ */
+export const conciseTransform = <TOOLS extends ToolSet>(maxSentences: number = VOICE_LIMITS.followUp.sentences): StreamTextTransform<TOOLS> => () => {
+  const buffers = new Map<string, string>();
+  let kept = 0;
+  const take = (text: string) => {
+    const out: string[] = [];
+    for (const sentence of splitSentences(text)) if (kept < maxSentences) (out.push(sentence), kept++);
+    return out.join(' ');
+  };
+  return new TransformStream({
+    transform(part, controller) {
+      if (part.type === 'text-delta') {
+        const buffered = (buffers.get(part.id) ?? '') + part.text;
+        const boundary = Math.max(buffered.lastIndexOf('. '), buffered.lastIndexOf('? '), buffered.lastIndexOf('! '));
+        if (boundary < 0) return void buffers.set(part.id, buffered);
+        buffers.set(part.id, buffered.slice(boundary + 2));
+        const ready = take(buffered.slice(0, boundary + 2));
+        if (ready) controller.enqueue({ ...part, text: `${ready} ` });
+        return;
+      }
+      if (part.type === 'text-end') {
+        const rest = take(buffers.get(part.id) ?? '');
+        buffers.delete(part.id);
+        if (rest) controller.enqueue({ type: 'text-delta', id: part.id, text: rest });
+      }
+      controller.enqueue(part);
+    },
+  });
+};
+
+/**
+ * Gate for the `observe` headline: the first over-long or wordy draft is sent back once with specific problems; a
+ * second one is shown trimmed to its first sentences rather than dropped.
+ */
+export function reviewHeadline(text: string, attempt: number): { deliver: string | null; problems: string[] } {
+  const problems = reviewConcise(text, VOICE_LIMITS.headline, 'reading');
+  if (problems.length === 0) return { deliver: text, problems };
+  if (attempt === 0) return { deliver: null, problems };
+  return { deliver: firstSentences(text, VOICE_LIMITS.headline.sentences), problems };
+}
+
 const SOURCE_FOR_CATEGORY: Record<DossierCategory, StepData['source']> = {
   rhythms: 'calendar',
   pursuits: 'calendar',
@@ -85,6 +131,10 @@ export async function writeModelAnswer(writer: UIMessageStreamWriter<MorrowUIMes
   ]);
 
   const step = (data: StepData) => writer.write({ type: 'data-step', id: data.id, data });
+  let observeAttempts = 0;
+  let delivered = false;
+  /** The last draft the gate sent back, shown trimmed if the model never calls observe again. */
+  let rejected: { text: string; evidenceRef: string; sourceLabel: string } | null = null;
 
   const tools = {
     getDossierSection: tool({
@@ -161,17 +211,25 @@ export async function writeModelAnswer(writer: UIMessageStreamWriter<MorrowUIMes
     observe: tool({
       description: "Deliver the headline of your answer. Call exactly once, before the plain-text explanation.",
       inputSchema: z.object({
-        text: z.string().describe('One or two sentences, max 30 words.'),
+        text: z.string().describe(`One or two short sentences, max ${VOICE_LIMITS.headline.words - 5} words. No preamble.`),
         evidenceRef: z.string().describe('Dossier fact or pattern id the answer rests on (a pursuit fact when you searched its events).'),
         sourceLabel: z.string().describe('Short evidence line, e.g. "Calendar · 03.04 · 04.22".'),
         sources: z.array(SourceKind).optional(),
       }),
       execute: async ({ text, evidenceRef, sourceLabel }) => {
+        if (delivered) return { delivered: true, warning: 'Already delivered. Do not call observe again.' };
         const safe = findTaboo(text) ? TABOO_DEFLECTION : text;
         // Grounding: cite a real dossier id when the model's ref resolves, otherwise mark it ungrounded.
         const evidence = resolveEvidence(dossier, evidenceRef);
         const ref = evidence?.id ?? (evidenceRef.startsWith('prophecies') ? evidenceRef : 'ungrounded');
-        writer.write({ type: 'data-observation', id: 'answer', data: { text: safe, evidenceRef: ref, sourceLabel } });
+        // Concise voice: send a wordy headline back once, then show the next one trimmed.
+        const review = reviewHeadline(safe, observeAttempts++);
+        if (review.deliver === null) {
+          rejected = { text: safe, evidenceRef: ref, sourceLabel };
+          return { delivered: false, rewrite: `Not shown. Call observe again with a shorter reading: ${review.problems.join(' ')}` };
+        }
+        delivered = true;
+        writer.write({ type: 'data-observation', id: 'answer', data: { text: review.deliver, evidenceRef: ref, sourceLabel } });
         return evidence || ref !== 'ungrounded'
           ? { delivered: true }
           : { delivered: true, warning: 'evidenceRef is not a dossier id; do not state specifics you cannot see.' };
@@ -188,7 +246,9 @@ export async function writeModelAnswer(writer: UIMessageStreamWriter<MorrowUIMes
     messages: [...toModelMessages(turn.history), { role: 'user', content: turn.question }],
     tools,
     stopWhen: isStepCount(6),
-    experimental_transform: tabooTransform(),
+    // A backstop only: a concise answer plus a tool call fits well inside it.
+    maxOutputTokens: 400,
+    experimental_transform: [tabooTransform(), conciseTransform()],
     abortSignal: turn.abortSignal,
   });
 
@@ -197,6 +257,12 @@ export async function writeModelAnswer(writer: UIMessageStreamWriter<MorrowUIMes
     new TransformStream({
       transform(chunk, controller) {
         if (!chunk.type.startsWith('tool-') && chunk.type !== 'start-step' && chunk.type !== 'finish-step') controller.enqueue(chunk);
+      },
+      // The model never re-called observe after a rejected headline: show that draft, trimmed.
+      flush(controller) {
+        if (delivered || !rejected) return;
+        delivered = true;
+        controller.enqueue({ type: 'data-observation', id: 'answer', data: { ...rejected, text: firstSentences(rejected.text, VOICE_LIMITS.headline.sentences) } });
       },
     }),
   );

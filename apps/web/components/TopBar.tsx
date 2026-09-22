@@ -28,7 +28,7 @@ export function TopBar({ user }: { user: SessionUser }) {
   const account = isAuthEnabled() ? <UserMenu name={user.name} image={user.image} email={user.email} /> : null;
 
   return (
-    <header className="relative z-20 flex h-16 items-center justify-between border-b border-hairline px-6 lg:h-[88px] lg:px-12">
+    <header className="sticky top-0 z-20 flex h-16 bg-bg items-center justify-between border-b border-hairline px-6 lg:h-[88px] lg:px-12">
       <Wordmark />
       <div className="hidden items-center gap-9 md:flex">
         <Nav />
