@@ -108,7 +108,9 @@ export function Today({ initial, record }: Props) {
       time: stamp(m.id),
       paragraphs,
       prophecyRefs: [],
-      thinking: m.role !== 'user' && paragraphs.length === 0,
+      // Only while the stream is open: a finished assistant turn with nothing in it would otherwise read as
+      // "Morrow is reading…" for ever.
+      thinking: m.role !== 'user' && paragraphs.length === 0 && busy,
       streaming: busy && last,
     } satisfies Turn;
   });

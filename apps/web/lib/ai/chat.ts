@@ -131,6 +131,8 @@ export async function writeModelAnswer(writer: UIMessageStreamWriter<MorrowUIMes
   ]);
 
   const step = (data: StepData) => writer.write({ type: 'data-step', id: data.id, data });
+  /** Shown when the model returns nothing at all, so the thread never sits on a typing indicator. */
+  const SILENCE = 'The glass went dark for a moment. Ask me again.';
   let observeAttempts = 0;
   let delivered = false;
   /** The last draft the gate sent back, shown trimmed if the model never calls observe again. */
@@ -246,8 +248,9 @@ export async function writeModelAnswer(writer: UIMessageStreamWriter<MorrowUIMes
     messages: [...toModelMessages(turn.history), { role: 'user', content: turn.question }],
     tools,
     stopWhen: isStepCount(6),
-    // A backstop only: a concise answer plus a tool call fits well inside it.
-    maxOutputTokens: 400,
+    // A backstop only. Reasoning tokens count against this, so leave room for them: too small a cap ends the
+    // stream after the thinking with no answer at all. Concision comes from the prompt and the gates, not from here.
+    maxOutputTokens: 2000,
     experimental_transform: [tabooTransform(), conciseTransform()],
     abortSignal: turn.abortSignal,
   });
@@ -256,13 +259,19 @@ export async function writeModelAnswer(writer: UIMessageStreamWriter<MorrowUIMes
   const uiStream = toUIMessageStream({ stream: result.stream, sendStart: false, sendFinish: false }).pipeThrough(
     new TransformStream({
       transform(chunk, controller) {
+        if (chunk.type === 'text-delta' && chunk.delta.trim()) delivered = true;
         if (!chunk.type.startsWith('tool-') && chunk.type !== 'start-step' && chunk.type !== 'finish-step') controller.enqueue(chunk);
       },
-      // The model never re-called observe after a rejected headline: show that draft, trimmed.
+      // The model never re-called observe after a rejected headline: show that draft, trimmed. And if the model
+      // ended without saying anything at all (a cap or a provider hiccup), say so — never leave the thread silent,
+      // which the client would render as Morrow reading forever.
       flush(controller) {
-        if (delivered || !rejected) return;
+        if (delivered) return;
         delivered = true;
-        controller.enqueue({ type: 'data-observation', id: 'answer', data: { ...rejected, text: firstSentences(rejected.text, VOICE_LIMITS.headline.sentences) } });
+        const data = rejected
+          ? { ...rejected, text: firstSentences(rejected.text, VOICE_LIMITS.headline.sentences) }
+          : { text: SILENCE, evidenceRef: 'ungrounded', sourceLabel: '' };
+        controller.enqueue({ type: 'data-observation', id: 'answer', data });
       },
     }),
   );

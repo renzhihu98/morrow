@@ -11,7 +11,8 @@ import { hasModelAccess, isDemoData, now as serverNow } from '@/lib/server/env';
 import { apiError } from '@/lib/server/http';
 import { ensureTodayReading } from '@/lib/server/readings';
 
-export const maxDuration = 60;
+// Tool calls plus a drawn answer can run past a minute; the stream must not be cut mid-answer.
+export const maxDuration = 300;
 
 const ChatRequest = z.object({
   message: z.object({

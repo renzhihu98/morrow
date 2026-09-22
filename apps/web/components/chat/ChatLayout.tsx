@@ -27,7 +27,7 @@ export function ChatLayout({ children, composer, aside, anchor = 'bottom', heade
   const column = (
     <div className="flex h-full min-h-0 min-w-0 flex-col">
       {header}
-      <div className="-mx-1 flex min-h-0 flex-1 flex-col overflow-y-auto overscroll-contain px-1 [scrollbar-gutter:stable]">
+      <div className="scrollbar-none -mx-1 flex min-h-0 flex-1 flex-col overflow-y-auto overscroll-contain px-1">
         <div className={`flex flex-col gap-5 pb-3 ${anchor === 'bottom' ? 'mt-auto pt-8 lg:pt-4' : 'pt-8'}`}>
           {children}
         </div>

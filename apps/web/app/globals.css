@@ -198,3 +198,11 @@
   }
   .ball, .ball *, .typing-dot { animation: none !important; }
 }
+
+/* Chat thread scrolls without a visible scrollbar (SPEC §4.F). */
+.scrollbar-none {
+  scrollbar-width: none;
+}
+.scrollbar-none::-webkit-scrollbar {
+  display: none;
+}
