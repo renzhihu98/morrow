@@ -6,7 +6,7 @@ import { NextResponse, type NextRequest } from 'next/server';
  * Optimistic: checks for the Better Auth session cookie (no DB round-trip). Pages and route handlers verify the
  * session for real (`requirePageUser` / `authed`) and apply the onboarding redirect to /welcome/sources.
  */
-const PUBLIC = [/^\/sign-in(\/|$)/, /^\/api\/auth(\/|$)/, /^\/api\/cron(\/|$)/];
+const PUBLIC = [/^\/sign-in(\/|$)/, /^\/(privacy|terms)(\/|$)/, /^\/api\/auth(\/|$)/, /^\/api\/cron(\/|$)/];
 
 export function proxy(request: NextRequest) {
   if (!process.env.DATABASE_URL) return NextResponse.next();

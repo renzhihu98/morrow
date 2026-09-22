@@ -642,6 +642,7 @@ Single entry `@morrow/core` (source TS, no build). zod 4. Schemas and their infe
     - web demo checked in the browser at 1440 (fulfilled opening → asking → answer; all routes 200 with no uppercase, numerals or sources);
     - mobile not yet checked on a device or simulator.
 - **Voice v0.4 — concise (`apps/web`):** replies read like short chat messages (§1 Voice): chat 1–3 short sentences (≤ 45 words, headline ≤ 25, follow-up ≤ 2 sentences), observation ≤ 2 sentences / 20 words, prophecy one sentence / 22 words; one idea per sentence, no preamble, no semicolon chains, no restating the question. New deterministic gate `lib/ai/voice.ts` in the reading loop and the chat `observe` tool (send back once, then trim), a follow-up sentence cap on the stream, `maxOutputTokens` 400. Morrow never says a prophecy's number (persona rule; the sealed-reading summary no longer records it). Templated fallbacks and the web demo scripts rewritten short and nameless (the demo no longer says "Prophecy 0052"). Evals: `within_length` follows the gate, new chat check `concise`, `judge_voice` and the reading judge ask for plain, glanceable text. Web tests 81/81 (new `voice.test.ts`); evals not yet re-run.
+- **Legal:** public `/privacy` and `/terms` pages, linked from Sign in (§12.1).
 - **Chat frame:** web chat screens are viewport-fixed (nav, figure and composer stay; the thread scrolls), and the date sits under the body figure. The "Private beta · v0.1" label is removed from Sign in.
 - **Explored and rejected on the way:**
   - neon-parlour, velvet-séance and aura-ring dark styles;
@@ -722,6 +723,8 @@ Goal: replace the demo user and fixtures with real accounts, a real database, an
 - **Sign in:** Google only. "Signing in only shares your name and email. Sources are connected separately." Promises footer (raw events 24h · never health/money · forget anytime).
 - **Connect accounts:** Google Calendar, Spotify and Gmail cards with reads / never copy, linked state (accent border, `● Linked`, event count), outline `Connect` button; Instagram alone sits under "Later — Morrow asks when a prophecy needs it" (not connectable during onboarding). Primary CTA **Draw my first reading →** (enabled with ≥1 source); "Skip for now".
 - Step 3 "First reading" = Today screen in orbit `reading` state while the first reading is generated.
+
+- **Privacy Policy** `/privacy` and **Terms of Service** `/terms`: public (outside the proxy guard), linked from Sign in, required for Google OAuth verification and the Spotify quota extension. The policy includes Google's Limited Use statement and must stay in step with what the pipeline reads, keeps and deletes (§12.3–12.4). Operator, contact email and jurisdiction live in `apps/web/lib/legal.ts`.
 
 ### 12.2 Auth
 

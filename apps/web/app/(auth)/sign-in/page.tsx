@@ -1,3 +1,4 @@
+import Link from 'next/link';
 import { RAW_EVENT_TTL_HOURS } from '@morrow/core';
 import type { Metadata } from 'next';
 import { redirect } from 'next/navigation';
@@ -72,7 +73,15 @@ export default async function SignInPage({ searchParams }: PageProps<'/sign-in'>
             </div>
           ))}
         </dl>
-        <span className="text-[14px] leading-[18px] text-accent">Terms · Privacy</span>
+        <span className="text-[14px] leading-[18px] text-accent">
+          <Link href="/terms" className="hover:underline">
+            Terms
+          </Link>
+          {' · '}
+          <Link href="/privacy" className="hover:underline">
+            Privacy
+          </Link>
+        </span>
       </footer>
     </div>
   );
