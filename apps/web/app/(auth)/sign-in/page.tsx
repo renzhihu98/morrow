@@ -33,9 +33,8 @@ export default async function SignInPage({ searchParams }: PageProps<'/sign-in'>
 
   return (
     <div className="mx-auto flex min-h-dvh w-full max-w-[1088px] flex-col px-6 lg:box-content lg:px-12">
-      <header className="flex h-16 items-center justify-between lg:h-24">
+      <header className="flex h-16 items-center lg:h-24">
         <Wordmark size="sm" />
-        <span className="label text-text-muted">Private beta · v0.1</span>
       </header>
 
       <main className="flex flex-1 flex-col items-center gap-8 py-8 lg:flex-row lg:items-center lg:justify-between lg:gap-10 lg:py-10">

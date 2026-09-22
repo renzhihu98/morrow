@@ -21,7 +21,7 @@ type Props = {
   onClose?: () => void;
   /** Back handler; defaults to `router.back()`. */
   onBack?: () => void;
-  /** Replaces the right-hand control (e.g. a "Private beta" label on Sign in). */
+  /** Replaces the right-hand control (e.g. a step label during onboarding). */
   right?: ReactNode;
 };
 

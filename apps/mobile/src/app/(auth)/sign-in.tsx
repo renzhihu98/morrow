@@ -68,7 +68,7 @@ export default function SignInScreen() {
 
   return (
     <SafeAreaView edges={['top', 'bottom']} style={[styles.root, { backgroundColor: palette.bg }]}>
-      <AuthHeader note="Private beta" />
+      <AuthHeader />
       <ScrollView contentContainerStyle={styles.scroll} bounces={false}>
         <View style={styles.figure}>
           <BodyFigure height={196} />
