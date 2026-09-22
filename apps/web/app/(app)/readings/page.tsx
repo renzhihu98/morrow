@@ -40,8 +40,10 @@ export default async function ReadingsPage() {
   await connection();
   const user = toCoreUser(await requirePageUser());
   const repo = getRepository();
-  const { readings, total } = await getReadingsView(repo, user, now());
-  const prophecies = await repo.listProphecies(user.id);
+  const [{ readings, total }, prophecies] = await Promise.all([
+    getReadingsView(repo, user, now()),
+    repo.listProphecies(user.id),
+  ]);
   const record = prophecyRecord(prophecies);
   const oldest = readings.at(-1);
   const earlierMonth = oldest ? MONTHS[Number(addDays(oldest.localDate, -1).slice(5, 7)) - 1] : null;

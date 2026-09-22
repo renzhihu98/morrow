@@ -34,9 +34,14 @@ export function referencedProphecies(messages: Message[], all: Prophecy[]): Prop
 
 /** Seals every open reading whose day has ended, writing its memory summary. */
 export async function sealStaleReadings(repo: Repository, user: User, now: Date): Promise<Reading[]> {
+  return sealReadings(repo, user, await repo.listOpenReadings(user.id), now);
+}
+
+/** Seals the given readings whose day has ended; readings still in their day are skipped. */
+async function sealReadings(repo: Repository, user: User, candidates: Reading[], now: Date): Promise<Reading[]> {
   const sealed: Reading[] = [];
-  for (const reading of await repo.listOpenReadings(user.id)) {
-    if (isReadingOpen(reading, now)) continue;
+  for (const reading of candidates) {
+    if (reading.status !== 'open' || isReadingOpen(reading, now)) continue;
     const messages = await repo.listMessages(user.id, reading.id);
     const summary = await summarizeReading(user, reading, messages);
     const sealedAt = new Date(Math.min(now.getTime(), readingDayEnd(reading.localDate, reading.timezone).getTime()));
@@ -158,10 +163,16 @@ export async function getTodayView(repo: Repository, user: User, now: Date): Pro
   };
 }
 
-/** Past readings list. Never draws today's reading (Today does); yesterday's is sealed so it shows as past. */
+/**
+ * Past readings list. Never draws today's reading (Today does); yesterday's is sealed so it shows as past.
+ * Seals from the listed rows instead of a separate open-readings query, so the common case is one round trip.
+ */
 export async function getReadingsView(repo: Repository, user: User, now: Date): Promise<ReadingsResponse> {
-  await sealStaleReadings(repo, user, now);
-  return repo.listReadings(user.id);
+  const list = await repo.listReadings(user.id);
+  const sealed = await sealReadings(repo, user, list.readings, now);
+  if (sealed.length === 0) return list;
+  const byId = new Map(sealed.map((r) => [r.id, r]));
+  return { ...list, readings: list.readings.map((r) => byId.get(r.id) ?? r) };
 }
 
 export async function getReadingDetailView(

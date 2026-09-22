@@ -111,7 +111,8 @@ export function createDrizzleRepository(): Repository {
       return row ? toReading(row) : null;
     },
     async listReadings(userId, limit = 50) {
-      const [rows, [total]] = await Promise.all([
+      // One HTTP round trip for both queries (neon-http).
+      const [rows, [total]] = await db.batch([
         db.select().from(readings).where(eq(readings.userId, userId)).orderBy(desc(readings.localDate)).limit(limit),
         db.select({ n: count() }).from(readings).where(eq(readings.userId, userId)),
       ]);
