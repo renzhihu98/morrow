@@ -104,6 +104,9 @@ export interface Repository {
   deleteRawEvents(userId: string, kind: SourceKind): Promise<number>;
   purgeExpiredRawEvents(now: Date): Promise<number>;
 
-  /** Deletes readings, messages, prophecies, dossier (+aggregates), raw events and source sync state. */
+  /**
+   * Deletes the account completely: the user row and, by cascade, sessions, OAuth accounts, sources, raw events,
+   * dossier (+aggregates), readings, messages and prophecies. (The in-memory demo store only resets its data.)
+   */
   forgetEverything(userId: string): Promise<void>;
 }

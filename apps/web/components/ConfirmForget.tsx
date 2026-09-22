@@ -26,7 +26,6 @@ export function ConfirmForget({ counts }: Props) {
       body: JSON.stringify({ confirm: 'FORGET' }),
     });
     setState(res.ok ? 'gone' : 'error');
-    if (res.ok) router.refresh();
   };
 
   const copy = async () => {
@@ -42,10 +41,10 @@ export function ConfirmForget({ counts }: Props) {
         <span className="label text-text-muted">Sources · Forget everything</span>
         <h1 className="pt-6 font-serif text-confirm-m text-text lg:text-confirm">Morrow has let you go.</h1>
         <p className="max-w-[440px] pt-8 text-body-lg-m text-text lg:text-[18px] lg:leading-[27px]">
-          Your readings, prophecies and dossier are gone, and every source is disconnected. If you come back, Morrow will
-          start from nothing.
+          Your account, readings, prophecies and dossier are gone, and every source is disconnected. If you come back,
+          Morrow will start from nothing.
         </p>
-        <ButtonLink href="/welcome/sources" variant="secondary" className="mt-10">
+        <ButtonLink href="/sign-in" variant="secondary" className="mt-10">
           Begin again
         </ButtonLink>
       </div>

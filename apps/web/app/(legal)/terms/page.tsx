@@ -74,7 +74,7 @@ export default function TermsPage() {
 
       <Section title="Ending your use">
         <p>
-          You can stop using Morrow at any time and use Forget everything to delete your data. We may end or suspend
+          You can stop using Morrow at any time and use Forget everything to delete your account and all your data. We may end or suspend
           access if you break these terms or if we shut the service down, and we&apos;ll give notice where we can.
         </p>
       </Section>

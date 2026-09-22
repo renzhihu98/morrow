@@ -1,14 +1,14 @@
 /**
  * Who runs Morrow and how to reach them, shown on /privacy and /terms.
- * FILL THESE IN before publishing — Google and Spotify reviewers check that a real contact is listed.
+ * Google and Spotify reviewers check that a real, reachable contact is listed.
  */
 export const LEGAL = {
   /** Person or company that operates Morrow. */
-  operator: '[Operator name]',
+  operator: 'Renzhi Hu',
   /** Address for privacy requests, deletion requests and questions. */
-  contactEmail: '[contact@example.com]',
+  contactEmail: 'me@renzhi.co',
   /** Country or state whose law governs the Terms. */
-  jurisdiction: '[Jurisdiction]',
+  jurisdiction: 'the State of California, United States',
   /** Date these documents last changed (YYYY-MM-DD). */
-  updated: '2026-09-21',
+  updated: '2026-09-22',
 } as const;

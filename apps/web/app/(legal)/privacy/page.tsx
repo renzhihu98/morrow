@@ -94,7 +94,7 @@ export default function PrivacyPage() {
           <li><strong>Raw source data</strong> (events, plays, messages as fetched): deleted within 24 hours.</li>
           <li><strong>Your dossier and the summaries built from your sources</strong>: kept while the source stays connected, rebuilt as new data arrives. Mail summaries (who, when, a one-line note per thread — never message bodies) are kept for up to 180 days.</li>
           <li><strong>Readings, your questions and prophecies</strong>: kept until you delete them, so Morrow can remember past readings.</li>
-          <li><strong>Your sign-in record</strong> (name, email, time zone): kept so you can sign back in. Forget everything clears everything else; to delete the sign-in record too, email us.</li>
+          <li><strong>Your account</strong> (name, email, time zone): kept until you choose Forget everything, which deletes it along with everything else.</li>
         </ul>
       </Section>
 
@@ -122,7 +122,7 @@ export default function PrivacyPage() {
           <li><strong>See what Morrow knows:</strong> Sources → View dossier.</li>
           <li><strong>Forget one fact:</strong> in your dossier, choose Forget this.</li>
           <li><strong>Disconnect a source:</strong> Sources. This deletes that source&apos;s raw data and rebuilds your dossier without it.</li>
-          <li><strong>Forget everything:</strong> Sources → Forget everything deletes your dossier, readings, questions, prophecies and all source data, disconnects every source and revokes Morrow&apos;s Google access. Only your sign-in record remains; email us to delete it as well.</li>
+          <li><strong>Forget everything:</strong> Sources → Forget everything permanently deletes your account — your dossier, readings, questions, prophecies and all source data — disconnects every source, revokes Morrow&apos;s Google access and signs you out. It can&apos;t be undone.</li>
           <li>You can also remove Morrow&apos;s access at any time from your <a href="https://myaccount.google.com/permissions" target="_blank" rel="noreferrer">Google account</a> or <a href="https://www.spotify.com/account/apps/" target="_blank" rel="noreferrer">Spotify account</a>.</li>
         </ul>
         <p>

@@ -8,6 +8,7 @@ import { ConfirmInput } from '@/components/ConfirmInput';
 import { Header } from '@/components/Header';
 import { Txt } from '@/components/Txt';
 import { setDemoMode } from '@/data/api';
+import { signOut } from '@/data/auth';
 import { resetDemoEdits, useDemoMode, useForgetEverything, useProphecies, useReadings, useSources } from '@/data/queries';
 import { formatBytes, isForgetConfirmed } from '@/lib/format';
 import { useTheme } from '@/theme/ThemeProvider';
@@ -65,10 +66,15 @@ export default function ForgetScreen() {
 
   const startOver = () => {
     resetDemoEdits();
-    if (demo) setDemoMode(true);
     qc.clear();
     router.dismissAll();
-    router.replace('/');
+    if (demo) {
+      setDemoMode(true);
+      router.replace('/');
+      return;
+    }
+    // The account is gone server-side; drop the stored session so the gate shows Sign in.
+    void signOut();
   };
 
   const keep = () => (router.canGoBack() ? router.back() : router.replace('/sources'));
@@ -83,7 +89,7 @@ export default function ForgetScreen() {
               <Txt variant="confirm" accessibilityRole="header">
                 Morrow has let you go.
               </Txt>
-              <Txt color="textMuted">Every source is disconnected. Your readings, prophecies and dossier are gone.</Txt>
+              <Txt color="textMuted">Your account is deleted. Every source is disconnected, and your readings, prophecies and dossier are gone.</Txt>
               <Button
                 variant="secondary"
                 label={demo ? 'Start the demo over' : 'Start over'}

@@ -16,7 +16,7 @@
 4. **One person, one reading a day.** Like a real psychic, the user speaks to Morrow in a single session per day. No "new chat".
 5. **Progressive permission.** Start with Calendar + Spotify. Morrow asks for more access only when a prophecy needs it ("It will ask only when a prophecy needs to see more").
 6. **Taboo topics.** Never infer or predict about health, pregnancy, death, money stress, or relationship breakdown. Enforced in the system prompt **and** a post-generation filter.
-7. **Radical data honesty.** Raw events are deleted after 24h; only the distilled dossier persists. Users can view the dossier, forget single facts, or forget everything.
+7. **Radical data honesty.** Raw events are deleted after 24h; only the distilled dossier persists. Users can view the dossier, forget single facts, or forget everything — which deletes the account itself.
 
 ### Voice
 
@@ -567,7 +567,7 @@ Single entry `@morrow/core` (source TS, no build). zod 4. Schemas and their infe
 | `GET /api/prophecies` | open + resolved |
 | `GET /api/sources` · `POST /api/sources/[kind]/connect` · `DELETE /api/sources/[kind]` | sources (connect is an OAuth stub) |
 | `GET /api/dossier` · `DELETE /api/dossier/facts/[id]` | dossier · forget one fact |
-| `POST /api/forget` | body `{ confirm: "FORGET" }` → deletes everything |
+| `POST /api/forget` | body `{ confirm: "FORGET" }` → revokes Google grants, signs out, deletes the user row (every user table cascades) |
 | `GET /api/cron/dawn` · `GET /api/cron/verify` | protected by `CRON_SECRET` |
 
 **Env:** `AI_GATEWAY_API_KEY` (or Vercel OIDC), `DATABASE_URL`, `CRON_SECRET`, `GOOGLE_CLIENT_ID/SECRET`, `SPOTIFY_CLIENT_ID/SECRET`, `TOKEN_ENCRYPTION_KEY`. **Demo mode:** with no AI key and no DB, the app runs fully on fixtures and scripted Morrow responses.
@@ -643,6 +643,7 @@ Single entry `@morrow/core` (source TS, no build). zod 4. Schemas and their infe
     - mobile not yet checked on a device or simulator.
 - **Voice v0.4 — concise (`apps/web`):** replies read like short chat messages (§1 Voice): chat 1–3 short sentences (≤ 45 words, headline ≤ 25, follow-up ≤ 2 sentences), observation ≤ 2 sentences / 20 words, prophecy one sentence / 22 words; one idea per sentence, no preamble, no semicolon chains, no restating the question. New deterministic gate `lib/ai/voice.ts` in the reading loop and the chat `observe` tool (send back once, then trim), a follow-up sentence cap on the stream, `maxOutputTokens` 400. Morrow never says a prophecy's number (persona rule; the sealed-reading summary no longer records it). Templated fallbacks and the web demo scripts rewritten short and nameless (the demo no longer says "Prophecy 0052"). Evals: `within_length` follows the gate, new chat check `concise`, `judge_voice` and the reading judge ask for plain, glanceable text. Web tests 81/81 (new `voice.test.ts`); evals not yet re-run.
 - **Legal:** public `/privacy` and `/terms` pages, linked from Sign in (§12.1).
+- **Forget everything deletes the account:** the user row is deleted (sessions, OAuth accounts and all data cascade), Google grants are revoked first, and the response signs the browser out; mobile signs out on "Start over".
 - **Chat frame:** web chat screens are viewport-fixed (nav, figure and composer stay; the thread scrolls), and the date sits under the body figure. The "Private beta · v0.1" label is removed from Sign in.
 - **Explored and rejected on the way:**
   - neon-parlour, velvet-séance and aura-ring dark styles;

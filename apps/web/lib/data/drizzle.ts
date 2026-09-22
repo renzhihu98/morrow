@@ -334,17 +334,9 @@ export function createDrizzleRepository(): Repository {
     },
 
     async forgetEverything(userId) {
-      // neon-http has no interactive transactions; batch runs these atomically in one request.
-      await db.batch([
-        db.delete(messages).where(eq(messages.userId, userId)),
-        db.delete(prophecies).where(eq(prophecies.userId, userId)),
-        db.delete(readings).where(eq(readings.userId, userId)),
-        db.delete(dossiers).where(eq(dossiers.userId, userId)),
-        db.delete(rawEvents).where(eq(rawEvents.userId, userId)),
-        db.delete(sources).where(eq(sources.userId, userId)),
-        // Starting from nothing includes onboarding.
-        db.update(users).set({ onboardedAt: null, updatedAt: new Date() }).where(eq(users.id, userId)),
-      ]);
+      // Deleting the user cascades to sessions, OAuth accounts, sources, raw events, dossier, readings,
+      // messages and prophecies (every user table references users.id with onDelete: cascade).
+      await db.delete(users).where(eq(users.id, userId));
     },
   };
 }
