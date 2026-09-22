@@ -4,7 +4,7 @@
  */
 export const LEGAL = {
   /** Person or company that operates Morrow. */
-  operator: 'Renzhi Hu',
+  operator: 'Morrow',
   /** Address for privacy requests, deletion requests and questions. */
   contactEmail: 'me@renzhi.co',
   /** Country or state whose law governs the Terms. */
