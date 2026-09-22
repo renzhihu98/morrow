@@ -149,18 +149,46 @@ export async function ensureTodayReading(repo: Repository, user: User, now: Date
   return draw;
 }
 
-export async function getTodayView(repo: Repository, user: User, now: Date): Promise<TodayResponse> {
-  const reading = await ensureTodayReading(repo, user, now);
-  const [messages, all] = await Promise.all([repo.listMessages(user.id, reading.id), repo.listProphecies(user.id)]);
+/**
+ * Today's payload plus every prophecy (the page also needs the track record). An existing reading, its
+ * messages and the prophecies load in parallel: reading ids are `r_<localDate>`, so messages don't wait on
+ * the reading row. Only the first visit of the day (no reading yet) takes the slower draw path.
+ */
+export async function loadToday(
+  repo: Repository,
+  user: User,
+  now: Date,
+): Promise<{ view: TodayResponse; prophecies: Prophecy[] }> {
+  const localDate = getReadingDate(now, user.timezone);
+  const [existing, preloaded, all] = await Promise.all([
+    repo.getReadingByDate(user.id, localDate),
+    repo.listMessages(user.id, readingIdFor(localDate)),
+    repo.listProphecies(user.id),
+  ]);
+  let reading = existing;
+  let messages = preloaded;
+  let prophecies = all;
+  if (!reading) {
+    reading = await ensureTodayReading(repo, user, now);
+    // Drawing wrote the opening and issued a prophecy; read both back.
+    [messages, prophecies] = await Promise.all([repo.listMessages(user.id, reading.id), repo.listProphecies(user.id)]);
+  }
   return {
-    user,
-    now: now.toISOString(),
-    reading,
-    messages,
-    prophecies: referencedProphecies(messages, all),
-    questionLimit: QUESTION_LIMIT,
-    questionsLeft: questionsLeft(reading),
+    view: {
+      user,
+      now: now.toISOString(),
+      reading,
+      messages,
+      prophecies: referencedProphecies(messages, prophecies),
+      questionLimit: QUESTION_LIMIT,
+      questionsLeft: questionsLeft(reading),
+    },
+    prophecies,
   };
+}
+
+export async function getTodayView(repo: Repository, user: User, now: Date): Promise<TodayResponse> {
+  return (await loadToday(repo, user, now)).view;
 }
 
 /**
@@ -175,16 +203,24 @@ export async function getReadingsView(repo: Repository, user: User, now: Date): 
   return { ...list, readings: list.readings.map((r) => byId.get(r.id) ?? r) };
 }
 
+/**
+ * One sealed (or past) reading. Sealing stale readings, the reading row, its messages and the prophecies all
+ * load in parallel (reading ids are `r_<localDate>`); if this very reading was just sealed, the sealed copy wins.
+ */
 export async function getReadingDetailView(
   repo: Repository,
   user: User,
   now: Date,
   localDate: string,
 ): Promise<ReadingDetailResponse | null> {
-  await sealStaleReadings(repo, user, now);
-  const reading = await repo.getReadingByDate(user.id, localDate);
-  if (!reading) return null;
-  const [messages, all] = await Promise.all([repo.listMessages(user.id, reading.id), repo.listProphecies(user.id)]);
+  const [sealed, row, messages, all] = await Promise.all([
+    sealStaleReadings(repo, user, now),
+    repo.getReadingByDate(user.id, localDate),
+    repo.listMessages(user.id, readingIdFor(localDate)),
+    repo.listProphecies(user.id),
+  ]);
+  if (!row) return null;
+  const reading = sealed.find((r) => r.id === row.id) ?? row;
   return { reading, messages, prophecies: referencedProphecies(messages, all) };
 }
 

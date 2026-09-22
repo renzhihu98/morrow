@@ -7,7 +7,7 @@ import { requirePageUser, toCoreUser } from '@/lib/auth/session';
 import { getRepository } from '@/lib/data';
 import { now } from '@/lib/server/env';
 import { syncIfStale } from '@/lib/jobs/sync-on-visit';
-import { getTodayView } from '@/lib/server/readings';
+import { loadToday } from '@/lib/server/readings';
 
 /** Today (v4 screens 03–07). Same payload as GET /api/today, built server-side. */
 export default async function TodayPage() {
@@ -37,9 +37,9 @@ function DrawingToday() {
 async function TodayContent() {
   const user = toCoreUser(await requirePageUser());
   const repo = getRepository();
-  const today = await getTodayView(repo, user, now());
+  const { view: today, prophecies } = await loadToday(repo, user, now());
   after(() => syncIfStale(repo, user, new Date()));
-  const record = prophecyRecord(await repo.listProphecies(today.user.id));
+  const record = prophecyRecord(prophecies);
 
   return <Today key={today.reading.id} initial={today} record={{ fulfilled: record.fulfilled, total: record.marks.length }} />;
 }
